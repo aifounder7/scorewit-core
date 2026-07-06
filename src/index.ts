@@ -1,0 +1,45 @@
+// @scorewit/core — sport-agnostic engine for Scorewit daily trivia apps.
+// A sport plugs in as a SportPack (see types.ts); the core runs the
+// deterministic ingest → generate → validate → render pipeline and emits the
+// single-file app.
+
+export * from './types';
+export { hashString, mulberry32, pick, shuffle, type Rng } from './rng';
+export {
+  computeStats,
+  currentStreak,
+  dayNumber,
+  keyFromDayNumber,
+  MAX_POINTS,
+  ROUND_MAX,
+  ROUND_QUESTIONS,
+  type DayResult,
+  type History,
+  type Stats,
+} from './streak';
+export { mcOptions } from './generators/shared';
+export { guardScopedPool, type ScopedPoolHooks, type ScopedQuizEntry } from './scoped-quiz';
+export {
+  artifactPaths,
+  datasetPaths,
+  defaultPaths,
+  loadCommittedDataset,
+  runGenerate,
+  runIngest,
+  runPipeline,
+  runRender,
+  runValidate,
+} from './pipeline';
+export { runValidateHarness } from './validate/harness';
+export { runRefresh, type RefreshOptions, type RefreshStep } from './refresh';
+export {
+  loadInlineSvg,
+  renderAppHtml,
+  renderNotFoundHtml,
+  writeSite,
+  type AppCopy,
+  type AppShellConfig,
+  type AssetSpec,
+  type Brand,
+  type PackClientJs,
+} from './render/app';

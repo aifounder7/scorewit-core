@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2020",
+    "lib": ["es2020"],
+    "types": ["node"],
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.ts"]
+}
