@@ -110,6 +110,9 @@ export interface PackConfig<T extends string = string> {
   storagePrefix: string;
   /** Day-key epoch of the daily clock, as Date.UTC args (e.g. "2026,0,1"). */
   epochUtcArgs: string;
+  /** Tab route paths (History API + host rewrites). Defaults:
+   *  /today, /practice, /my-team. */
+  routes?: { today: string; practice: string; team: string };
 }
 
 /** Winner-perspective result derivation over the pack's match type. */

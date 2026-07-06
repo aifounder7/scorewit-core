@@ -33,6 +33,14 @@ export interface Brand {
   /** Text colors used ON the accent-filled buttons (dark-on-accent).
    *  Defaults to the standard palette's values. */
   onAccent?: { accent: string; practice: string; team: string; today: string };
+  /** Columns of the entity record grid (.reclist) — e.g. P/W/D/L is 4,
+   *  P/W/L/T/NR is 5. Default 4. */
+  recordGridCols?: number;
+  /** The .resline result-row CSS block — override for a different result-line
+   *  layout (e.g. a two-line scoreline + note). Default: single-row layout. */
+  resultLineCss?: string;
+  /** Extra CSS appended at the end of the shell stylesheet. Default: none. */
+  extraCss?: string;
 }
 
 export interface AppCopy {
@@ -50,10 +58,13 @@ export interface AppCopy {
   resultNote: string;
   /** Banner above the entity picker. */
   teamPickerBanner: string;
-  /** First-visit banner on the Today tab. */
-  todayIntro: string;
-  /** Prefix of the "no fixtures today (<date>)." banner. */
-  todayNoMatches: string;
+  /** First-visit banner on the Today tab (used by the standard renderToday;
+   *  a pack overriding clientJs.renderToday may omit it). */
+  todayIntro?: string;
+  /** Prefix of the "no fixtures today (<date>)." banner (see todayIntro). */
+  todayNoMatches?: string;
+  /** Tab display names. Defaults: Daily / Today / Practice / My Team. */
+  tabLabels?: { daily: string; today: string; practice: string; team: string };
   /** document.title suffixes per routed tab. */
   titleToday: string;
   titlePractice: string;
@@ -116,7 +127,11 @@ export interface AppShellConfig {
   brand: Brand;
   copy: AppCopy;
   client: PackClientJs;
-  config: { storagePrefix: string; epochUtcArgs: string };
+  config: {
+    storagePrefix: string;
+    epochUtcArgs: string;
+    routes?: { today: string; practice: string; team: string };
+  };
   data: { bank: unknown; teams: unknown; matchday: unknown };
   /** Final per-target pass over the app HTML (default: identity). */
   finalizeHtml?: (html: string, target: 'preview' | 'site') => string;
@@ -235,14 +250,11 @@ __PALETTE__
   .teamlist .fchip:hover{background:var(--hover);color:var(--text)}
   .card{background:var(--elev);border:1px solid var(--surface);border-radius:12px;padding:14px 16px;margin:12px 0}
   .card h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:700}
-  .reclist{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;margin-bottom:8px}
+  .reclist{display:grid;grid-template-columns:repeat(__RECLISTCOLS__,1fr);gap:6px;text-align:center;margin-bottom:8px}
   .reclist .num{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
   .reclist .lab{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
   .recmeta{font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums}
-  .resline{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--surface)}
-  .resline:first-of-type{border-top:0}
-  .resline .sl{font-size:14px}
-  .resline .ed{font-size:11px;color:var(--text3);white-space:nowrap}
+__RESLINECSS__
   .resline a{color:var(--team);font-size:11px;text-decoration:underline;text-underline-offset:2px;cursor:pointer;margin-left:8px}
   .titles{display:flex;flex-wrap:wrap;gap:6px}
   .ttag{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--surface);color:var(--text);display:inline-flex;gap:6px;align-items:center}
@@ -312,7 +324,7 @@ __PALETTE__
     background:var(--surface);color:var(--text);font-size:13px;font-weight:600;
     padding:10px 18px;border-radius:999px;border:1px solid var(--hover);
     box-shadow:0 6px 24px rgba(0,0,0,.5);opacity:0;transition:.25s;pointer-events:none;z-index:10}
-  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}__EXTRACSS__
 </style>
 </head>
 <body>
@@ -322,10 +334,10 @@ __PALETTE__
     <div class="score" id="score">0<span class="max"> / 600</span></div>
   </header>
   <div class="tabs" id="tabs">
-    <button class="tab active" data-mode="daily">Daily</button>
-    <button class="tab" data-mode="today">Today</button>
-    <button class="tab" data-mode="practice">Practice</button>
-    <button class="tab" data-mode="team">My Team</button>
+    <button class="tab active" data-mode="daily">__TABDAILY__</button>
+    <button class="tab" data-mode="today">__TABTODAY__</button>
+    <button class="tab" data-mode="practice">__TABPRACTICE__</button>
+    <button class="tab" data-mode="team">__TABTEAM__</button>
   </div>
   <div class="sub" id="sub">__SUBINITIAL__</div>
   <div class="streakbar" id="streakbar" style="display:none"></div>
@@ -819,8 +831,8 @@ function answerMatchup(f,resp){
 //      working, and only fires on a real path change. The Vercel insights
 //      script auto-tracks pushState/popstate, so each route change registers
 //      as a pageview without a manual va('pageview') call.
-const ROUTE_FOR_MODE={daily:'/',today:'/today',practice:'/practice',team:'/my-team'};
-const MODE_FOR_ROUTE={'/':'daily','/today':'today','/practice':'practice','/my-team':'team'};
+const ROUTE_FOR_MODE={daily:'/',today:'__ROUTETODAY__',practice:'__ROUTEPRACTICE__',team:'__ROUTETEAM__'};
+const MODE_FOR_ROUTE={'/':'daily','__ROUTETODAY__':'today','__ROUTEPRACTICE__':'practice','__ROUTETEAM__':'team'};
 const BASE_TITLE=document.title;
 const TITLE_FOR_MODE={daily:BASE_TITLE,
   today:APP_NAME+' — __TITLETODAY__',
@@ -926,6 +938,26 @@ const DEFAULT_ON_ACCENT = {
 
 const DEFAULT_BANK_REFRESH_NOTE = 'The bank refreshes as the tournament plays on.';
 
+const DEFAULT_TAB_LABELS = { daily: 'Daily', today: 'Today', practice: 'Practice', team: 'My Team' };
+
+const DEFAULT_ROUTES = { today: '/today', practice: '/practice', team: '/my-team' };
+
+const DEFAULT_RECORD_GRID_COLS = 4;
+
+/** Single-row result line (scoreline left, note/source right). */
+const DEFAULT_RESLINE_CSS = String.raw`  .resline{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--surface)}
+  .resline:first-of-type{border-top:0}
+  .resline .sl{font-size:14px}
+  .resline .ed{font-size:11px;color:var(--text3);white-space:nowrap}`;
+
+// The two Today-tab copy defaults below are the ORIGINAL SOCCER VALUES —
+// kept as defaults so the first pack stays byte-identical; any sport that
+// uses the standard renderToday should set its own copy.todayIntro /
+// copy.todayNoMatches rather than inherit these.
+const DEFAULT_TODAY_INTRO =
+  'Today’s World Cup fixtures with validated head-to-head history, each side’s record, a matchup quiz, and a personal pick’em. Saved on this device only — no account, no server.';
+const DEFAULT_TODAY_NO_MATCHES = 'No World Cup matches today';
+
 
 /** The app shell with every token filled in. */
 export function renderAppHtml(cfg: AppShellConfig): string {
@@ -954,6 +986,16 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__BTNTEXTTODAY__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).today)
     .split('__BTNTEXT__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).accent)
     .split('__BANKREFRESHNOTE__').join(copy.bankRefreshNote ?? DEFAULT_BANK_REFRESH_NOTE)
+    .split('__TABDAILY__').join((copy.tabLabels ?? DEFAULT_TAB_LABELS).daily)
+    .split('__TABTODAY__').join((copy.tabLabels ?? DEFAULT_TAB_LABELS).today)
+    .split('__TABPRACTICE__').join((copy.tabLabels ?? DEFAULT_TAB_LABELS).practice)
+    .split('__TABTEAM__').join((copy.tabLabels ?? DEFAULT_TAB_LABELS).team)
+    .split('__ROUTETODAY__').join((config.routes ?? DEFAULT_ROUTES).today)
+    .split('__ROUTEPRACTICE__').join((config.routes ?? DEFAULT_ROUTES).practice)
+    .split('__ROUTETEAM__').join((config.routes ?? DEFAULT_ROUTES).team)
+    .split('__RECLISTCOLS__').join(String(brand.recordGridCols ?? DEFAULT_RECORD_GRID_COLS))
+    .split('__RESLINECSS__').join(brand.resultLineCss ?? DEFAULT_RESLINE_CSS)
+    .split('__EXTRACSS__').join(brand.extraCss ?? '')
     .split('__APPNAME__').join(brand.appName)
     .split('__BRANDMARK__').join(brand.markSvg)
     .split('__THEMECOLOR__').join(brand.themeColor)
@@ -970,8 +1012,8 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__FOOTERHTML__').join(copy.footerHtml)
     .split('__RESULTNOTE__').join(copy.resultNote)
     .split('__TEAMPICKERBANNER__').join(copy.teamPickerBanner)
-    .split('__TODAYINTRO__').join(copy.todayIntro)
-    .split('__TODAYNONE__').join(copy.todayNoMatches)
+    .split('__TODAYINTRO__').join(copy.todayIntro ?? DEFAULT_TODAY_INTRO)
+    .split('__TODAYNONE__').join(copy.todayNoMatches ?? DEFAULT_TODAY_NO_MATCHES)
     .split('__TITLETODAY__').join(copy.titleToday)
     .split('__TITLEPRACTICE__').join(copy.titlePractice)
     .split('__TITLETEAM__').join(copy.titleTeam)
