@@ -30,6 +30,9 @@ export interface Brand {
   paletteCss: string;
   /** CSS custom-property declarations of the 404 page palette. */
   notFoundPaletteCss: string;
+  /** Text colors used ON the accent-filled buttons (dark-on-accent).
+   *  Defaults to the standard palette's values. */
+  onAccent?: { accent: string; practice: string; team: string; today: string };
 }
 
 export interface AppCopy {
@@ -59,6 +62,12 @@ export interface AppCopy {
   notFoundBody: string;
   /** The 404 page's action links (raw HTML, root-absolute hrefs). */
   notFoundActionsHtml: string;
+  /** "when does the bank change" note used in empty quiz-pool states. */
+  bankRefreshNote?: string;
+  /** PWA manifest description (defaults to metaDescription). */
+  manifestDescription?: string;
+  /** Extra CSS lines appended to the 404 page's stylesheet (e.g. a footer). */
+  notFoundExtraCss?: string;
 }
 
 /** Raw client-JS chunks the pack supplies (see the injection points below). */
@@ -73,6 +82,21 @@ export interface PackClientJs {
   /** Must define fixtureHtml(f) and pickRecordHtml() over the matchday
    *  artifact. */
   todayCards: string;
+  /** Optional overrides for smaller sport-varying pieces; each defaults to
+   *  the standard implementation. */
+  /** Defines editionLabel(ed)/placementWord(p) used by the entity cards. */
+  teamHelpers?: string;
+  /** Defines eraLabel(e) for the Practice-mode era chips. */
+  eraLabel?: string;
+  /** The renderToday() function — the Today tab's top-level flow (fixtures
+   *  vs. latest-results vs. empty states varies by sport calendar). */
+  renderToday?: string;
+  /** Byte-precise escape hatch: exact-match [find, replace] edits applied to
+   *  the shell template before token substitution. Each pair MUST match
+   *  exactly once or the render throws. Use for migrating a hand-forked
+   *  shell without genericizing one-off comment/CSS drift; prefer the
+   *  first-class tokens and chunks above for anything structural. */
+  shellPatches?: [string, string][];
 }
 
 /** Files copied from assetsDir into the deployed site. */
@@ -83,6 +107,9 @@ export interface AssetSpec {
   copies: [string, string][];
   /** [fromDir, toDir] directory copies (flat, e.g. decoration SVGs). */
   dirs: [string, string][];
+  /** [name, content] files written into the site dir (e.g. a host routing
+   *  config generated in lockstep with the shell's routes). */
+  siteFiles?: [string, string][];
 }
 
 export interface AppShellConfig {
@@ -91,6 +118,8 @@ export interface AppShellConfig {
   client: PackClientJs;
   config: { storagePrefix: string; epochUtcArgs: string };
   data: { bank: unknown; teams: unknown; matchday: unknown };
+  /** Final per-target pass over the app HTML (default: identity). */
+  finalizeHtml?: (html: string, target: 'preview' | 'site') => string;
 }
 
 /** Read an SVG asset and inline it (comments and newlines stripped). */
@@ -161,7 +190,7 @@ __PALETTE__
   .cg input{flex:1;background:var(--elev);border:1px solid var(--surface);color:var(--text);
     font-size:16px;padding:13px 16px;border-radius:12px;font-variant-numeric:tabular-nums}
   .cg .unit{color:var(--text3);font-size:13px}
-  .btn{appearance:none;background:var(--accent);color:#06121f;border:0;font-weight:700;
+  .btn{appearance:none;background:var(--accent);color:__BTNTEXT__;border:0;font-weight:700;
     padding:13px 18px;border-radius:12px;font-size:15px;cursor:pointer}
   .btn.ghost{background:var(--surface);color:var(--text)}
   .reveal{margin-top:18px;padding:16px;border-radius:12px;background:var(--elev);border:1px solid var(--surface)}
@@ -191,10 +220,10 @@ __PALETTE__
   .chiprow{display:flex;flex-wrap:wrap;gap:8px}
   .fchip{appearance:none;background:var(--elev);border:1.5px solid transparent;color:var(--text2);padding:5px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer}
   .fchip.on{background:var(--practiceDim);border-color:var(--practice);color:var(--practice)}
-  .btn.practice{background:var(--practice);color:#0c0a1a}
+  .btn.practice{background:var(--practice);color:__BTNTEXTPRACTICE__}
   /* ---- Fav-team mode ---- */
   .tab[data-mode="team"].active{background:var(--teamDim);border-color:var(--team);color:var(--team)}
-  .btn.team{background:var(--team);color:#04181b}
+  .btn.team{background:var(--team);color:__BTNTEXTTEAM__}
   .tbanner{background:var(--teamDim);color:var(--team);font-size:12px;font-weight:600;padding:12px 14px;border-radius:12px;margin:10px 0 16px}
   .teamhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 4px}
   .teamhead .name{font-size:22px;font-weight:700;letter-spacing:-.01em}
@@ -242,7 +271,7 @@ __PALETTE__
   .histlab{font-size:11px;color:var(--text3);font-variant-numeric:tabular-nums}
   /* ---- Today tab (fixtures + head-to-head + mini-quiz + pick'em) ---- */
   .tab[data-mode="today"].active{background:var(--todayDim);border-color:var(--today);color:var(--today)}
-  .btn.today{background:var(--today);color:#2a0c19}
+  .btn.today{background:var(--today);color:__BTNTEXTTODAY__}
   .tdbanner{background:var(--todayDim);color:var(--today);font-size:12px;font-weight:600;padding:12px 14px;border-radius:12px;margin:10px 0 14px}
   .tdbanner2{background:var(--todayDim);color:var(--today);font-size:12px;font-weight:600;padding:10px 14px;border-radius:12px;margin:8px 0 14px}
   .daylabel{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:700;margin:16px 0 6px}
@@ -557,7 +586,7 @@ function renderStats(){
 let mode='daily';
 const ERAS=[...new Set(BANK.questions.map(q=>q.era))].sort();
 let pf={difficulty:null,era:null}, pq=null, plast=null;
-function eraLabel(e){const dec=Math.floor(BANK.coverage.maxSeason/10)*10;return e===(dec+'s')?(dec+'–'+BANK.coverage.maxSeason):e;}
+__ERALABEL__
 function practicePool(){return BANK.questions.filter(q=>(!pf.difficulty||q.difficulty===pf.difficulty)&&(!pf.era||q.era===pf.era));}
 function setMode(m){
   mode=m;
@@ -634,11 +663,7 @@ function bindSrcLinks(root){
     a.addEventListener('click',e=>{e.preventDefault();const h=a.getAttribute('href');const w=window.open(h,'_blank','noopener');if(!w)window.location.href=h;});
   });
 }
-function editionLabel(ed){
-  const cov=TEAMS.coverage;
-  return ed>cov.completedThrough?(ed+' (in progress)'):String(ed);
-}
-function placementWord(p){ return p==='champion'?'Champion':p==='runner-up'?'Runner-up':'Third place'; }
+__PACKTEAMHELPERS__
 
 function renderTeam(){
   const fav=getFavTeam();
@@ -685,7 +710,7 @@ function qref(e){const q=Q_BY_ID[e.id];if(!q)return null;return e.options?Object
 function teamPool(t){ return t.quiz.map(qref).filter(Boolean); }
 function teamQuizHtml(t){
   const pool=teamPool(t);
-  if(!pool.length)return '<div class="card"><div class="empty">No questions in today’s bank involve '+teamLabel(t.name)+' yet. The bank refreshes as the tournament plays on.</div></div>';
+  if(!pool.length)return '<div class="card"><div class="empty">No questions in today’s bank involve '+teamLabel(t.name)+' yet. __BANKREFRESHNOTE__</div></div>';
   let html='<div class="tbanner">'+pool.length+' question'+(pool.length===1?'':'s')+' featuring '+teamLabel(t.name)+' · unlimited, no streak or score</div>';
   if(tq){
     html+=chip(tq)+'<div class="q">'+esc(tq.text)+'</div>';
@@ -741,28 +766,7 @@ let mdQuizMid=null, mdq=null, mdlast=null;
 function fixtureById(mid){for(const d of MATCHDAY.days)for(const f of d.fixtures)if(f.matchId===mid)return f;return null;}
 
 __PACKTODAYCARDS__
-function renderToday(){
-  if(mdQuizMid){renderMatchupQuiz();return;}
-  const today=clientLocalDay();   // LOCAL date — never UTC (see clientLocalDay)
-  const day=MATCHDAY.days.find(d=>d.date===today);
-  const next=MATCHDAY.days.filter(d=>d.date>today).sort((a,b)=>a.date.localeCompare(b.date))[0];
-  let html=(loadPicks()&&Object.keys(loadPicks()).length?'':'<div class="tdbanner">__TODAYINTRO__</div>')+pickRecordHtml();
-  if(day&&day.fixtures.length){
-    html+='<div class="daylabel">Today · '+esc(fmtDay(today))+'</div>'+day.fixtures.map(fixtureHtml).join('');
-  }else{
-    html+='<div class="tdbanner">__TODAYNONE__ ('+esc(fmtDay(today))+').</div>';
-    if(next)html+='<div class="daylabel">Next up · '+esc(fmtDay(next.date))+'</div>'+next.fixtures.map(fixtureHtml).join('');
-    else html+='<div class="empty">No upcoming fixtures in the current window — check back after the next refresh.</div>';
-  }
-  stage.innerHTML=html;
-  stage.querySelectorAll('button[data-quiz]').forEach(b=>{b.onclick=()=>{mdQuizMid=b.dataset.quiz;mdq=null;mdlast=null;renderToday();};});
-  stage.querySelectorAll('button[data-pick]').forEach(b=>{b.onclick=()=>{
-    const p=loadPicks(),mid=b.dataset.mid,val=b.dataset.pick;
-    if(p[mid]&&p[mid].pick===val)delete p[mid]; else {p[mid]={pick:val,date:clientUtcDay()};track('pick_made',{pick:val});}
-    savePicks(p); renderToday();
-  };});
-  bindSrcLinks(stage);
-}
+__RENDERTODAY__
 // ---- Per-matchup mini-quiz (pool built in matchday.ts: questions the dataset
 //      computes either team into, giveaway-guarded against BOTH fixture teams
 //      so the "featuring X or Y" label can't telegraph or trap an answer) ----
@@ -774,7 +778,7 @@ function renderMatchupQuiz(){
   const pool=matchupPool(f);
   let html='<div class="teamhead"><div class="name" style="font-size:18px">'+teamLabel(f.team1)+' v '+teamLabel(f.team2)+'</div><button class="linkbtn" id="mdback">← Back to Today</button></div>';
   if(!pool.length){
-    stage.innerHTML=html+'<div class="card"><div class="empty">No bank questions feature '+teamLabel(f.team1)+' or '+teamLabel(f.team2)+' yet. The bank refreshes as the tournament plays on.</div></div>';
+    stage.innerHTML=html+'<div class="card"><div class="empty">No bank questions feature '+teamLabel(f.team1)+' or '+teamLabel(f.team2)+' yet. __BANKREFRESHNOTE__</div></div>';
     document.getElementById('mdback').onclick=()=>{mdQuizMid=null;renderToday();};return;
   }
   html+='<div class="tdbanner2">'+pool.length+' question'+(pool.length===1?'':'s')+' featuring '+teamLabel(f.team1)+' or '+teamLabel(f.team2)+' · unlimited, no streak or score</div>';
@@ -862,11 +866,11 @@ const NOT_FOUND_HTML = String.raw`<!doctype html>
   .name small{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-left:4px}
   h1{font-size:30px;font-weight:700;letter-spacing:-.02em;margin:0 0 10px}
   p{color:var(--text2);font-size:15px;margin:0 0 26px}
-  .btn{display:inline-block;background:var(--accent);color:#06121f;font-weight:700;
+  .btn{display:inline-block;background:var(--accent);color:__BTNTEXT__;font-weight:700;
     padding:13px 22px;border-radius:12px;font-size:15px;text-decoration:none}
   .alt{display:block;margin-top:16px;color:var(--accent);font-size:13px;font-weight:600;
     text-decoration:underline;text-underline-offset:2px}
-  .alt:hover,.btn:hover{opacity:.9}
+  .alt:hover,.btn:hover{opacity:.9}__NFEXTRACSS__
 </style>
 </head>
 <body>
@@ -880,10 +884,61 @@ const NOT_FOUND_HTML = String.raw`<!doctype html>
 </body>
 </html>`;
 
+// ---------- Standard implementations of the optional client-JS pieces ----------
+
+const DEFAULT_TEAM_HELPERS = String.raw`function editionLabel(ed){
+  const cov=TEAMS.coverage;
+  return ed>cov.completedThrough?(ed+' (in progress)'):String(ed);
+}
+function placementWord(p){ return p==='champion'?'Champion':p==='runner-up'?'Runner-up':'Third place'; }`;
+
+const DEFAULT_ERA_LABEL = String.raw`function eraLabel(e){const dec=Math.floor(BANK.coverage.maxSeason/10)*10;return e===(dec+'s')?(dec+'–'+BANK.coverage.maxSeason):e;}`;
+
+const DEFAULT_RENDER_TODAY = String.raw`function renderToday(){
+  if(mdQuizMid){renderMatchupQuiz();return;}
+  const today=clientLocalDay();   // LOCAL date — never UTC (see clientLocalDay)
+  const day=MATCHDAY.days.find(d=>d.date===today);
+  const next=MATCHDAY.days.filter(d=>d.date>today).sort((a,b)=>a.date.localeCompare(b.date))[0];
+  let html=(loadPicks()&&Object.keys(loadPicks()).length?'':'<div class="tdbanner">__TODAYINTRO__</div>')+pickRecordHtml();
+  if(day&&day.fixtures.length){
+    html+='<div class="daylabel">Today · '+esc(fmtDay(today))+'</div>'+day.fixtures.map(fixtureHtml).join('');
+  }else{
+    html+='<div class="tdbanner">__TODAYNONE__ ('+esc(fmtDay(today))+').</div>';
+    if(next)html+='<div class="daylabel">Next up · '+esc(fmtDay(next.date))+'</div>'+next.fixtures.map(fixtureHtml).join('');
+    else html+='<div class="empty">No upcoming fixtures in the current window — check back after the next refresh.</div>';
+  }
+  stage.innerHTML=html;
+  stage.querySelectorAll('button[data-quiz]').forEach(b=>{b.onclick=()=>{mdQuizMid=b.dataset.quiz;mdq=null;mdlast=null;renderToday();};});
+  stage.querySelectorAll('button[data-pick]').forEach(b=>{b.onclick=()=>{
+    const p=loadPicks(),mid=b.dataset.mid,val=b.dataset.pick;
+    if(p[mid]&&p[mid].pick===val)delete p[mid]; else {p[mid]={pick:val,date:clientUtcDay()};track('pick_made',{pick:val});}
+    savePicks(p); renderToday();
+  };});
+  bindSrcLinks(stage);
+}`;
+
+const DEFAULT_ON_ACCENT = {
+  accent: '#06121f',
+  practice: '#0c0a1a',
+  team: '#04181b',
+  today: '#2a0c19',
+};
+
+const DEFAULT_BANK_REFRESH_NOTE = 'The bank refreshes as the tournament plays on.';
+
+
 /** The app shell with every token filled in. */
 export function renderAppHtml(cfg: AppShellConfig): string {
   const { brand, copy, client, config, data } = cfg;
-  return HTML.replace('__BANK__', JSON.stringify(data.bank))
+  let tpl = HTML;
+  for (const [find, replace] of client.shellPatches ?? []) {
+    const n = tpl.split(find).length - 1;
+    if (n !== 1) {
+      throw new Error(`shellPatch must match exactly once (matched ${n}): ${find.slice(0, 80)}`);
+    }
+    tpl = tpl.split(find).join(replace);
+  }
+  return tpl.replace('__BANK__', JSON.stringify(data.bank))
     .replace('__TEAMS__', JSON.stringify(data.teams))
     .replace('__MATCHDAY__', JSON.stringify(data.matchday))
     // split/join = replace-all (tsconfig lib predates String.replaceAll)
@@ -891,6 +946,14 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__PACKDECOR__').join(client.decorations)
     .split('__PACKTEAMCARDS__').join(client.teamCards)
     .split('__PACKTODAYCARDS__').join(client.todayCards)
+    .split('__PACKTEAMHELPERS__').join(client.teamHelpers ?? DEFAULT_TEAM_HELPERS)
+    .split('__ERALABEL__').join(client.eraLabel ?? DEFAULT_ERA_LABEL)
+    .split('__RENDERTODAY__').join(client.renderToday ?? DEFAULT_RENDER_TODAY)
+    .split('__BTNTEXTPRACTICE__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).practice)
+    .split('__BTNTEXTTEAM__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).team)
+    .split('__BTNTEXTTODAY__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).today)
+    .split('__BTNTEXT__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).accent)
+    .split('__BANKREFRESHNOTE__').join(copy.bankRefreshNote ?? DEFAULT_BANK_REFRESH_NOTE)
     .split('__APPNAME__').join(brand.appName)
     .split('__BRANDMARK__').join(brand.markSvg)
     .split('__THEMECOLOR__').join(brand.themeColor)
@@ -923,6 +986,8 @@ export function renderNotFoundHtml(cfg: AppShellConfig): string {
     .split('__BRANDMARK__').join(cfg.brand.markSvg)
     .split('__THEMECOLOR__').join(cfg.brand.themeColor)
     .split('__NFPALETTE__').join(cfg.brand.notFoundPaletteCss)
+    .split('__BTNTEXT__').join((cfg.brand.onAccent ?? DEFAULT_ON_ACCENT).accent)
+    .split('__NFEXTRACSS__').join(cfg.copy.notFoundExtraCss ?? '')
     .split('__NFHEADING__').join(cfg.copy.notFoundHeading)
     .split('__NFBODY__').join(cfg.copy.notFoundBody)
     .split('__NFACTIONS__').join(cfg.copy.notFoundActionsHtml);
@@ -939,10 +1004,11 @@ export function writeSite(
   paths: PipelinePaths
 ): { htmlBytes: number } {
   const html = renderAppHtml(cfg);
-  fs.writeFileSync(paths.previewFile, html);
+  const finalize = cfg.finalizeHtml ?? ((h: string) => h);
+  fs.writeFileSync(paths.previewFile, finalize(html, 'preview'));
 
   fs.mkdirSync(paths.siteDir, { recursive: true });
-  fs.writeFileSync(path.join(paths.siteDir, 'index.html'), html);
+  fs.writeFileSync(path.join(paths.siteDir, 'index.html'), finalize(html, 'site'));
   fs.writeFileSync(path.join(paths.siteDir, '404.html'), renderNotFoundHtml(cfg));
 
   // PWA manifest — generated so the name/colors stay in lockstep with the
@@ -950,7 +1016,7 @@ export function writeSite(
   const manifest = {
     name: cfg.brand.appName,
     short_name: cfg.brand.appName,
-    description: cfg.copy.metaDescription,
+    description: cfg.copy.manifestDescription ?? cfg.copy.metaDescription,
     start_url: '/',
     display: 'standalone',
     background_color: cfg.brand.themeColor,
@@ -965,6 +1031,11 @@ export function writeSite(
     path.join(paths.siteDir, 'manifest.webmanifest'),
     JSON.stringify(manifest, null, 2)
   );
+
+  // Pack-generated site files (e.g. host routing config for the shell's routes).
+  for (const [name, content] of assets.siteFiles ?? []) {
+    fs.writeFileSync(path.join(paths.siteDir, name), content);
+  }
 
   // Pack assets (committed under assetsDir) copied into the deployed site so
   // the head/manifest paths resolve on the host.

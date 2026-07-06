@@ -24,8 +24,9 @@ export function runValidateHarness<
   E extends EditionKey,
   T extends string,
   C extends CheckBase<E>,
-  DS extends Dataset<M, E>
->(pack: SportPack<M, E, T, C, DS>, paths: PipelinePaths): void {
+  DS extends Dataset<M, E>,
+  V
+>(pack: SportPack<M, E, T, C, DS, V>, paths: PipelinePaths): void {
   const errors: string[] = [];
   const fail = (id: string, msg: string) => errors.push(`[${id}] ${msg}`);
 
@@ -89,6 +90,7 @@ export function runValidateHarness<
     process.exit(1);
   }
   console.log(
-    `Validated ${qs.length} questions + teams/matchday artifacts: every fact re-derived from the dataset, scoped quiz pools giveaway-free. OK`
+    pack.validateSuccessMessage?.(qs.length) ??
+      `Validated ${qs.length} questions + teams/matchday artifacts: every fact re-derived from the dataset, scoped quiz pools giveaway-free. OK`
   );
 }

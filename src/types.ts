@@ -11,6 +11,9 @@ import type { Rng } from './rng';
  *   T  — the pack's topic union (question archetypes)
  *   C  — the pack's provenance-check union (machine-readable re-derivation spec)
  *   DS — the pack's dataset shape (defaults to the generic Dataset<M, E>)
+ *   V  — the pack's coverage/meta shape (dataset/meta.json; defaults to the
+ *        standard Coverage<E>, but a pack may key coverage however its sport
+ *        needs — the core only round-trips it)
  */
 
 // ---------- Base keys ----------
@@ -48,7 +51,8 @@ export interface Question<T extends string = string, C = CheckBase> {
 
 export interface Tournament<M, E extends EditionKey = EditionKey> {
   edition: E;
-  name: string;
+  /** Human tournament label, when the pack's dataset carries one. */
+  name?: string;
   /** Whole tournament finished (safe for aggregate claims). */
   complete: boolean;
   matches: M[];
@@ -121,9 +125,9 @@ export interface IngestEnv {
   paths: PipelinePaths;
 }
 
-export interface IngestResult<M, E extends EditionKey> {
+export interface IngestResult<M, E extends EditionKey, V = Coverage<E>> {
   tournaments: Tournament<M, E>[];
-  meta: Coverage<E>;
+  meta: V;
 }
 
 /** Minimal shape the core needs from the per-entity artifact (for logging). */
@@ -143,10 +147,11 @@ export interface ValidateContext<
   E extends EditionKey,
   T extends string,
   C,
-  DS extends Dataset<M, E> = Dataset<M, E>
+  DS extends Dataset<M, E> = Dataset<M, E>,
+  V = Coverage<E>
 > {
   ds: DS;
-  coverage: Coverage<E>;
+  coverage: V;
   questions: Question<T, C>[];
   qById: Map<string, Question<T, C>>;
   paths: PipelinePaths;
@@ -159,7 +164,8 @@ export interface SportPack<
   E extends EditionKey,
   T extends string,
   C extends CheckBase<E>,
-  DS extends Dataset<M, E> = Dataset<M, E>
+  DS extends Dataset<M, E> = Dataset<M, E>,
+  V = Coverage<E>
 > {
   id: string;
   brand: import('./render/app').Brand;
@@ -170,7 +176,7 @@ export interface SportPack<
 
   /** Pull the upstream source and return the normalized dataset + coverage.
    *  The core writes both to paths.datasetDir. */
-  ingest(env: IngestEnv): Promise<IngestResult<M, E>>;
+  ingest(env: IngestEnv): Promise<IngestResult<M, E, V>>;
   /** Turn the parsed tournaments.json back into the pack's dataset shape. */
   loadDataset(raw: unknown): DS;
   /** Whether a match may feed trivia (e.g. it has actually been played). */
@@ -187,24 +193,32 @@ export interface SportPack<
    *  Deliberately does not share the generators' helpers. */
   checks: Record<string, (q: Question<T, C>, ds: DS) => ValidationError[]>;
   /** Per-question gates that aren't kind-specific (era label, in-progress
-   *  edition restrictions for aggregate topics, ...). */
-  questionGuards(q: Question<T, C>, ds: DS, coverage: Coverage<E>): ValidationError[];
+   *  edition restrictions for aggregate topics, attribution requirements, ...). */
+  questionGuards(q: Question<T, C>, ds: DS, coverage: V): ValidationError[];
   /** Whole-artifact guards (per-entity + matchday re-derivation, giveaway
-   *  guards, unplayed-fixture firewalls). */
-  validateGuards(ctx: ValidateContext<M, E, T, C, DS>): ValidationError[];
+   *  guards, unplayed-fixture firewalls, regression cases). */
+  validateGuards(ctx: ValidateContext<M, E, T, C, DS, V>): ValidationError[];
+  /** Success line printed when validation passes (a default is provided). */
+  validateSuccessMessage?(count: number): string;
 
   /** The app-side coverage block embedded in the bank JSON. */
-  bankCoverage(meta: Coverage<E>): unknown;
+  bankCoverage(meta: V): unknown;
+  /** Extra top-level fields spliced into the bank JSON between `coverage`
+   *  and `questions` (e.g. a sport-specific coverage block). */
+  bankExtras?(meta: V): Record<string, unknown>;
   /** Per-entity insights artifact (teams/players/...). */
-  team(ds: DS, questions: Question<T, C>[], coverage: Coverage<E>): TeamsArtifactLike;
+  team(ds: DS, questions: Question<T, C>[], coverage: V): TeamsArtifactLike;
   /** Date-windowed fixtures artifact, anchored on the build date. */
-  matchday(
-    ds: DS,
-    coverage: Coverage<E>,
-    questions: Question<T, C>[],
-    today: string
-  ): MatchdayArtifactLike;
+  matchday(ds: DS, coverage: V, questions: Question<T, C>[], today: string): MatchdayArtifactLike;
+  /** The matchday anchor day-key. Default: the build's UTC date. A pack whose
+   *  dataset carries no unplayed fixtures can pin this to dataset metadata so
+   *  the whole build stays a pure function of the dataset. */
+  matchdayAnchor?(ds: DS, coverage: V): string;
+  /** Final per-target pass over the rendered app HTML (e.g. rewriting an
+   *  asset base path that differs between the repo-root preview file and the
+   *  deployed site). Default: identity. */
+  finalizeHtml?(html: string, target: 'preview' | 'site'): string;
 }
 
 /** Loosest pack binding the pipeline functions accept. */
-export type AnySportPack = SportPack<any, any, any, any, any>;
+export type AnySportPack = SportPack<any, any, any, any, any, any>;

@@ -59,11 +59,12 @@ export function loadCommittedDataset<
   E extends EditionKey,
   T extends string,
   C extends CheckBase<E>,
-  DS extends Dataset<M, E>
->(pack: SportPack<M, E, T, C, DS>, paths: PipelinePaths): { ds: DS; coverage: Coverage<E> } {
+  DS extends Dataset<M, E>,
+  V
+>(pack: SportPack<M, E, T, C, DS, V>, paths: PipelinePaths): { ds: DS; coverage: V } {
   const dp = datasetPaths(paths);
   const raw = JSON.parse(fs.readFileSync(dp.tournaments, 'utf8')) as unknown;
-  const coverage = JSON.parse(fs.readFileSync(dp.meta, 'utf8')) as Coverage<E>;
+  const coverage = JSON.parse(fs.readFileSync(dp.meta, 'utf8')) as V;
   return { ds: pack.loadDataset(raw), coverage };
 }
 
@@ -84,8 +85,9 @@ export function runGenerate<
   E extends EditionKey,
   T extends string,
   C extends CheckBase<E>,
-  DS extends Dataset<M, E>
->(pack: SportPack<M, E, T, C, DS>, paths: PipelinePaths): void {
+  DS extends Dataset<M, E>,
+  V
+>(pack: SportPack<M, E, T, C, DS, V>, paths: PipelinePaths): void {
   const { ds, coverage } = loadCommittedDataset(pack, paths);
   const rng = mulberry32(pack.config.seed);
   const out = artifactPaths(paths, pack.config.artifactSuffix);
@@ -101,6 +103,9 @@ export function runGenerate<
   const selected: Question<T, C>[] = [];
   for (const [topic, quota] of pack.config.quotas) {
     const pool = shuffle(rng, pools.get(topic) ?? []);
+    if (pool.length < quota) {
+      console.warn(`pool ${topic}: only ${pool.length} of quota ${quota}`);
+    }
     selected.push(...pool.slice(0, quota));
   }
 
@@ -131,6 +136,7 @@ export function runGenerate<
         seed: pack.config.seed,
         count: questions.length,
         coverage: pack.bankCoverage(coverage),
+        ...(pack.bankExtras?.(coverage) ?? {}),
         questions,
       },
       null,
@@ -143,9 +149,10 @@ export function runGenerate<
   const teamsArtifact = pack.team(ds, questions, coverage);
   fs.writeFileSync(out.teams, JSON.stringify(teamsArtifact, null, 2));
 
-  // Matchday artifact: upcoming fixtures windowed on the build date so the
+  // Matchday artifact: upcoming fixtures windowed on the anchor date (the
+  // build's UTC day unless the pack pins it to dataset metadata) so the
   // nightly refresh advances it. All facts are dataset-derived pack-side.
-  const today = new Date().toISOString().slice(0, 10);
+  const today = pack.matchdayAnchor?.(ds, coverage) ?? new Date().toISOString().slice(0, 10);
   const matchdayArtifact = pack.matchday(ds, coverage, questions, today);
   fs.writeFileSync(out.matchday, JSON.stringify(matchdayArtifact, null, 2));
 
@@ -177,8 +184,9 @@ export function runValidate<
   E extends EditionKey,
   T extends string,
   C extends CheckBase<E>,
-  DS extends Dataset<M, E>
->(pack: SportPack<M, E, T, C, DS>, paths: PipelinePaths): void {
+  DS extends Dataset<M, E>,
+  V
+>(pack: SportPack<M, E, T, C, DS, V>, paths: PipelinePaths): void {
   runValidateHarness(pack, paths);
 }
 
@@ -196,6 +204,7 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       client: pack.clientJs,
       config: pack.config,
       data: { bank, teams, matchday },
+      finalizeHtml: pack.finalizeHtml,
     },
     pack.assets,
     paths
