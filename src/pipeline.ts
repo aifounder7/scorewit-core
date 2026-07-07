@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { selectBank } from './bank';
 import { mulberry32, shuffle } from './rng';
 import { writeSite } from './render/app';
 import { runValidateHarness } from './validate/harness';
@@ -100,13 +101,13 @@ export function runGenerate<
     )
   );
 
-  const selected: Question<T, C>[] = [];
-  for (const [topic, quota] of pack.config.quotas) {
-    const pool = shuffle(rng, pools.get(topic) ?? []);
-    if (pool.length < quota) {
-      console.warn(`pool ${topic}: only ${pool.length} of quota ${quota}`);
-    }
-    selected.push(...pool.slice(0, quota));
+  // Quota selection + the opt-in bankTarget top-up (see selectBank / BankTarget;
+  // with pack.bankTarget unset this is byte-identical to plain quota selection).
+  const { selected, warnings, unmet } = selectBank(pools, pack.config.quotas, rng, pack.bankTarget);
+  for (const w of warnings) console.warn(w);
+  if (unmet && pack.bankTarget?.strict) {
+    console.error('bankTarget strict: composition target unmet — failing before writing artifacts.');
+    process.exit(1);
   }
 
   const ids = new Set(selected.map((q) => q.id));

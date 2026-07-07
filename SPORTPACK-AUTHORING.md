@@ -33,6 +33,27 @@ chunk to the core — don't patch bytes.
   fixtures, making the whole build a pure function of the dataset),
   `validateSuccessMessage`, `finalizeHtml(html, 'preview' | 'site')`.
 
+## Bank composition target (opt-in: `bankTarget`)
+
+Unset = quota-only selection, byte-for-byte. When set, generate tops the bank
+up from pools' beyond-quota surplus — deterministic, id-deduped, rotating
+across pools, bounded by `topUp.perPoolCap` (max EXTRA per pool) — to reach
+`size` and to satisfy minimum `difficulty` floors (< 1 = proportion of size,
+>= 1 = count), repairing the most-deficient tier first with ties breaking
+toward easy. The quota-selected base is unchanged; top-up only appends.
+
+```ts
+bankTarget: { size: 300, difficulty: { easy: 0.30 }, topUp: { perPoolCap: 8 } }
+```
+
+**Honesty rule:** difficulty comes from the pack's `tier()` on REAL facts. The
+engine STEERS toward the target and guarantees size only where surplus exists
+— it cannot fabricate easy questions. An unmet floor warns loudly (or exits
+non-zero with `strict: true`, before writing artifacts): that is a SIGNAL to
+add recognizable easy-tier archetypes (sport-archetype-catalog, Tier 1), not a
+bug to pad over. The daily 2/2/2 round selection is untouched — this shapes
+BANK composition only.
+
 ## The app-shell surface
 
 The shell owns the engine (daily selection, scoring, streak/stats, practice,

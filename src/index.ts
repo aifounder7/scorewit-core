@@ -18,6 +18,7 @@ export {
   type Stats,
 } from './streak';
 export { mcOptions } from './generators/shared';
+export { selectBank, type BankSelection } from './bank';
 export { guardScopedPool, type ScopedPoolHooks, type ScopedQuizEntry } from './scoped-quiz';
 export {
   artifactPaths,

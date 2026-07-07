@@ -115,6 +115,36 @@ export interface PackConfig<T extends string = string> {
   routes?: { today: string; practice: string; team: string };
 }
 
+/**
+ * OPT-IN bank composition target (unset = quota selection exactly as before).
+ *
+ * When set, generate tops the bank up from pools' beyond-quota surplus —
+ * deterministically, id-deduped, quality-capped — to reach a target SIZE and
+ * to steer toward minimum DIFFICULTY shares (especially an easy floor so
+ * casual players aren't scared off).
+ *
+ * HONESTY RULE: difficulty is assigned by the pack's tier() on REAL facts.
+ * The engine STEERS toward the target and guarantees size only where surplus
+ * exists — it does not and cannot fabricate easy questions. An unmet easy
+ * floor is a SIGNAL to add recognizable easy-tier archetypes (see the
+ * sport-archetype-catalog skill's Tier-1 patterns), not a bug.
+ */
+export interface BankTarget {
+  /** Target total bank size. Quota-selected questions are never removed —
+   *  if the quotas already exceed this, nothing is trimmed. */
+  size: number;
+  /** MINIMUM per-tier shares (floors, not exact targets). A value < 1 is a
+   *  proportion of `size`; a value >= 1 is an absolute count. */
+  difficulty?: { easy?: number; medium?: number; hard?: number };
+  /** Quality cap: the max EXTRA questions any single pool may contribute
+   *  beyond its quota during top-up, so no archetype dominates the bank.
+   *  Unset = uncapped. */
+  topUp?: { perPoolCap: number };
+  /** If true, an unmet floor/size EXITS non-zero (before writing artifacts)
+   *  instead of warning loudly. */
+  strict?: boolean;
+}
+
 /** Winner-perspective result derivation over the pack's match type. */
 export interface ResultDeriver<M> {
   winnerName(m: M): string | null;
@@ -176,6 +206,9 @@ export interface SportPack<
   clientJs: import('./render/app').PackClientJs;
   assets: import('./render/app').AssetSpec;
   config: PackConfig<T>;
+  /** Opt-in bank size / difficulty-mix target (see BankTarget). Unset keeps
+   *  today's quota-only selection byte-for-byte. */
+  bankTarget?: BankTarget;
 
   /** Pull the upstream source and return the normalized dataset + coverage.
    *  The core writes both to paths.datasetDir. */
