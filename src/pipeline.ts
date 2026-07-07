@@ -231,6 +231,7 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
         brand: pack.brand,
         copy: pack.copy,
         routes: pack.config.routes ?? { today: '/today', practice: '/practice', team: '/my-team' },
+        ...(pack.seoConfig ?? {}),
       },
       paths
     );

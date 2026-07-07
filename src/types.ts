@@ -182,6 +182,17 @@ export interface AnalyticsConfig {
  * descriptive-use only (the shared template appends the pack's footer with
  * its disclaimer + data attribution).
  */
+/** One big stat card (see SeoPage.heroStats). Values are short display
+ *  strings ("242", "4", "19/22") — the template escapes them. */
+export interface SeoHeroStat {
+  /** Small uppercase label, e.g. "Starts", "Drivers' titles". */
+  label: string;
+  /** The huge number. */
+  value: string;
+  /** At most ONE card may be the accent-tinted hero. */
+  hero?: boolean;
+}
+
 export interface SeoPage {
   /** URL path under the app root, NO leading slash (e.g. "wc/odi-2023",
    *  "team/india", "records/most-titles"). Must not collide with the app's
@@ -202,6 +213,36 @@ export interface SeoPage {
   /** YYYY-MM-DD for the sitemap <lastmod> — derive from dataset metadata so
    *  the build stays a pure function of the dataset. */
   lastmod?: string;
+
+  // ---- Optional structured presentation fields (all dataset-computed; the
+  // ---- template renders each only when present, so existing pages that
+  // ---- supply bodyHtml alone keep working unchanged). Raw-HTML fields are
+  // ---- inline-level only — the emitter rejects <h1>/<script> in them.
+
+  /** Small uppercase eyebrow above the H1 (raw inline HTML — may carry a
+   *  flag <img>/<span>): "Driver · Netherlands". */
+  eyebrowHtml?: string;
+  /** Subtitle under the H1 (raw inline HTML; <b> the key qualifier):
+   *  "In Formula 1 since 2015 · <b>4× World Champion</b>". */
+  subtitleHtml?: string;
+  /** The immutable-premises line, styled as a subtle accent pill (plain
+   *  text): "Racing in 2026 — figures current through 5 Jul 2026, not final
+   *  career records." */
+  premiseNote?: string;
+  /** The composed insight paragraph (plain text) — compose with the insight
+   *  engine (composeLead) and RE-VERIFY in validate with verifyLead, so every
+   *  framing re-derives from the dataset. */
+  lead?: string;
+  /** 1–4 big stat cards; at most one hero. */
+  heroStats?: SeoHeroStat[];
+  /** Chip row (plain-text items): title years, formats, etc. */
+  chips?: string[];
+  /** Left-accent-border callout (raw inline HTML) for key facts:
+   *  "<b>First win</b> <span>— Spanish Grand Prix 2016.</span>" */
+  callout?: string;
+  /** Trust-badge line (raw inline HTML incl. the source <a>): "Every fact
+   *  computed from public race records — <a …>F1DB, CC BY 4.0</a>." */
+  trustNote?: string;
 }
 
 /** Winner-perspective result derivation over the pack's match type. */
@@ -319,6 +360,10 @@ export interface SportPack<
   /** Opt-in SEO pre-render: return crawlable pages computed from the frozen
    *  dataset (see SeoPage). Unset = nothing emitted, app byte-identical. */
   seoPages?(ds: DS): SeoPage[];
+  /** Optional SEO page theming: accent (default: parsed from the brand
+   *  palette's --accent) and the CTA label (e.g. "Play today&rsquo;s F1
+   *  round &rarr;"). */
+  seoConfig?: { accent?: string; cta?: string };
 }
 
 /** Loosest pack binding the pipeline functions accept. */

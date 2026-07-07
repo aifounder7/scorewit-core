@@ -73,6 +73,51 @@ descriptive-use naming only. Use safe path prefixes (e.g. `wc/`, `team/`,
 rewrite changes. Verify every emit with the content-seo skill's
 `scripts/seo_check.py`.
 
+### The page design language (structured fields — all optional)
+
+The shared template implements the Scorewit page look: branded topbar with a
+sport-accent speed line, big display H1, hero stat cards, chips, an accent
+callout, the fact-checked trust badge, a strong CTA, and the muted trade-dress
+footer. Theming is per sport: the accent is parsed from the brand palette's
+`--accent` token (override via `pack.seoConfig.accent`); set the CTA label via
+`pack.seoConfig.cta` (e.g. `"Play today&rsquo;s F1 round &rarr;"`). Pages stay
+fast by construction — system font stack, inline CSS, no JS, no images beyond
+inline/flag SVGs — keep them that way.
+
+A page that supplies only `bodyHtml` renders as before (restyled). The
+structured fields (see `SeoPage`) fill in the rest of the language:
+`eyebrowHtml` (entity type + flag), `subtitleHtml` (key qualifier in `<b>`),
+`premiseNote` (the "current through <date>" accent pill, plain text), `lead`
+(the insight paragraph — see below), `heroStats` (1–4 big cards, ≤1 `hero`),
+`chips` (plain-text pills), `callout` (left-accent key facts), `trustNote`
+(the dashed fact-checked badge, with the source link). Emit gates enforce:
+plain-text fields carry no markup; raw inline fields carry no `<h1>`/`<script>`.
+
+### The insight engine (human framing, firewall-clean)
+
+Raw stats are inert ("242 starts, 71 wins"); the `lead` gives them meaning
+("wins nearly one race in three") — but framings are COMPUTED, never
+hand-written. Author an `InsightTemplate<Stats>[]` library per entity type
+(the question-generator pattern applied to prose):
+
+```ts
+{ id: 'win_rate',
+  predicate: (s) => s.wins >= 10 && oneInN(s.wins, s.starts) !== null,
+  render: (s) => { const r = oneInN(s.wins, s.starts)!;
+                   return `Wins ${r.hedge} one race in ${numberWord(r.n)}.`; },
+  weight: 80 }
+```
+
+`composeLead(stats, library)` fires ONLY templates whose thresholds pass,
+ranks by weight, and joins the top lines into the paragraph. In validate, call
+`verifyLead(statsIndependent, library, page.lead)` with stats the VALIDATOR
+re-derived from the dataset — it recomposes and demands byte-equality, so
+every fired predicate, number, and phrase re-derives; a witty line can never
+smuggle an unverified fact. Voice rules (see each pack's VOICE.md): wit is
+threshold-EARNED; degrade respectfully (a zero-win entity gets its genuine
+angle, never snark); rounded figures always hedged (`oneInN` returns the
+hedge); precise stat cards + citation still render beneath the lead.
+
 ## Engagement analytics (opt-in: `analytics`)
 
 Unset = the shell renders **byte-identically** (the original inline Vercel

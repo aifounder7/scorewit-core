@@ -18,6 +18,18 @@ export {
   type Stats,
 } from './streak';
 export { mcOptions } from './generators/shared';
+export {
+  composeLead,
+  moreOftenThanNot,
+  numberWord,
+  oneInN,
+  verifyLead,
+  type ComposedLead,
+  type ComposeOptions,
+  type FiredInsight,
+  type InsightTemplate,
+  type OneInN,
+} from './insights';
 export { selectBank, type BankSelection } from './bank';
 export {
   renderRobots,

@@ -159,6 +159,67 @@ check('JSON-LD escapes & and < (valid JSON, entity-safe inline script)', () => {
   fs.rmSync(p.root, { recursive: true, force: true });
 });
 
+check('structured fields render escaped + accent-themed; page stays JS-free/system-font', () => {
+  const p = tmpPaths();
+  const cfg2: SeoRenderConfig = {
+    ...CFG,
+    brand: { ...CFG.brand, paletteCss: '    --bg:#0C0C0E; --accent:#FF6600; --accentDim:rgba(255,102,0,0.14);' },
+    cta: 'Play today&rsquo;s F1 round &rarr;',
+  };
+  writeSeoSite(
+    [
+      page(0, {
+        eyebrowHtml: 'Driver · Testland',
+        subtitleHtml: 'Racing since 2015 · <b>4× champion</b>',
+        premiseNote: 'Racing in 2026 — figures current through 2026-01-02, not final career records.',
+        lead: 'A four-time champion. Wins nearly one race in three.',
+        heroStats: [
+          { label: 'Starts', value: '242' },
+          { label: 'Wins', value: '71' },
+          { label: "Drivers' titles", value: '4', hero: true },
+        ],
+        chips: ['Titles: 2021', '2022 & 2023'],
+        callout: '<b>First win</b> <span>— Test GP 2016.</span>',
+        trustNote: 'Every fact computed from public records — <a href="https://example.test/src">Source, CC BY 4.0</a>.',
+      }),
+    ],
+    cfg2,
+    p
+  );
+  const html = fs.readFileSync(path.join(p.siteDir, 'cup', '2020.html'), 'utf8');
+  assert.ok(html.includes('--accent:#FF6600'), 'accent parsed from the brand palette');
+  assert.ok(html.includes('rgba(255,102,0,0.12)'), 'derived accent-soft');
+  assert.ok(html.includes('<div class="stat hero"><div class="num">4</div>'), 'hero stat card');
+  assert.ok(html.includes('class="pill"') && html.includes('not final career records'), 'premise pill');
+  assert.ok(html.includes('A four-time champion.'), 'lead paragraph');
+  assert.ok(html.includes('<span class="chip">2022 &amp; 2023</span>'), 'chips escaped');
+  assert.ok(html.includes('class="callout"') && html.includes('class="verify"'), 'callout + trust badge');
+  assert.ok(html.includes('Play today&rsquo;s F1 round'), 'per-sport CTA');
+  assert.equal((html.match(/<h1[\s>]/g) ?? []).length, 1, 'still exactly one h1');
+  assert.ok(!/(<script(?! type="application\/ld\+json"))/.test(html), 'no JavaScript');
+  assert.ok(!html.includes('@font-face') && !html.includes('fonts.g'), 'system font stack only');
+  assert.ok(!html.includes('<img'), 'no images beyond pack-supplied inline SVG');
+  fs.rmSync(p.root, { recursive: true, force: true });
+});
+
+check('structured-field gates throw: markup in plain fields, stat/hero limits, h1/script in raw fields', () => {
+  const p = tmpPaths();
+  const cases: [Partial<SeoPage>, RegExp][] = [
+    [{ lead: 'Has <b>markup</b>.' }, /plain text/],
+    [{ premiseNote: 'x<br>' }, /plain text/],
+    [{ chips: ['ok', '<i>no</i>'] }, /plain text/],
+    [{ heroStats: [1, 2, 3, 4, 5].map((i) => ({ label: `L${i}`, value: String(i) })) }, /1–4 cards/],
+    [{ heroStats: [{ label: 'A', value: '1', hero: true }, { label: 'B', value: '2', hero: true }] }, /at most ONE/],
+    [{ heroStats: [{ label: 'A', value: 'x'.repeat(13) }] }, /<= 12/],
+    [{ callout: '<h1>nope</h1>' }, /owns the single H1/],
+    [{ subtitleHtml: '<script>x()</script>' }, /<script>/],
+  ];
+  for (const [over, re] of cases) {
+    assert.throws(() => writeSeoSite([page(0, over)], CFG, p), re, JSON.stringify(over).slice(0, 60));
+  }
+  fs.rmSync(p.root, { recursive: true, force: true });
+});
+
 // Optional persistent emit for external verifiers (seo_check.py).
 if (process.env.SEO_OUT) {
   const p = tmpPaths();
@@ -167,7 +228,7 @@ if (process.env.SEO_OUT) {
   console.log(`\n(emitted 3 pages + sitemap + robots to ${process.env.SEO_OUT})`);
 }
 
-console.log(`\n${failures === 0 ? 'ALL' : ''} ${5 - failures}/5 SEO cases passed.`);
+console.log(`\n${failures === 0 ? 'ALL' : ''} ${7 - failures}/7 SEO cases passed.`);
 if (failures) {
   console.error(`SEO TEST FAILED — ${failures} case(s) wrong.`);
   process.exit(1);
