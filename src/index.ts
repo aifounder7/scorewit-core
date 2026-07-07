@@ -19,6 +19,13 @@ export {
 } from './streak';
 export { mcOptions } from './generators/shared';
 export { selectBank, type BankSelection } from './bank';
+export {
+  renderRobots,
+  renderSeoPage,
+  renderSitemap,
+  writeSeoSite,
+  type SeoRenderConfig,
+} from './render/seo';
 export { guardScopedPool, type ScopedPoolHooks, type ScopedQuizEntry } from './scoped-quiz';
 export {
   artifactPaths,

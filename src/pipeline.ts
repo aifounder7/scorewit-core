@@ -3,6 +3,7 @@ import path from 'node:path';
 import { selectBank } from './bank';
 import { mulberry32, shuffle } from './rng';
 import { writeSite } from './render/app';
+import { writeSeoSite } from './render/seo';
 import { runValidateHarness } from './validate/harness';
 import type {
   AnySportPack,
@@ -215,6 +216,23 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       `(${(htmlBytes / 1024).toFixed(0)} KB, ${bank.count} questions embedded)` +
       (pack.brand.appUrl ? `, APP_URL=${pack.brand.appUrl}` : ', APP_URL unset (no share link yet)')
   );
+
+  // Opt-in SEO pre-render (ADDITIVE ONLY — new files under site/, the app
+  // shell above is untouched; packs without the hook emit nothing).
+  if (pack.seoPages) {
+    const { ds } = loadCommittedDataset(pack, paths);
+    const pages = pack.seoPages(ds);
+    const { count } = writeSeoSite(
+      pages,
+      {
+        brand: pack.brand,
+        copy: pack.copy,
+        routes: pack.config.routes ?? { today: '/today', practice: '/practice', team: '/my-team' },
+      },
+      paths
+    );
+    console.log(`Wrote ${count} SEO pages + sitemap.xml + robots.txt under site/`);
+  }
 }
 
 // ---------- the whole pipeline ----------

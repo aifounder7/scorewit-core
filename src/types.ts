@@ -145,6 +145,39 @@ export interface BankTarget {
   strict?: boolean;
 }
 
+/**
+ * One pre-rendered, crawlable SEO page (opt-in via pack.seoPages — see the
+ * SEO pre-render section of SPORTPACK-AUTHORING.md). ADDITIVE ONLY: pages are
+ * written as NEW files under site/ and never touch the app shell.
+ *
+ * Quality rules are enforced at emit time: every fact in bodyHtml must be
+ * derived from the frozen dataset and cited like the app; only entities with
+ * COMPLETE data should get a page; no thin/doorway pages; event names
+ * descriptive-use only (the shared template appends the pack's footer with
+ * its disclaimer + data attribution).
+ */
+export interface SeoPage {
+  /** URL path under the app root, NO leading slash (e.g. "wc/odi-2023",
+   *  "team/india", "records/most-titles"). Must not collide with the app's
+   *  client routes or reserved files — the emitter throws if it does. */
+  path: string;
+  /** Unique across all pages, <= 60 chars. */
+  title: string;
+  /** <= 160 chars. */
+  description: string;
+  h1: string;
+  /** schema.org JSON-LD (SportsEvent / Dataset / ItemList / QAPage as fits). */
+  jsonLd: object;
+  /** The substantive, cited content (raw HTML rendered by the pack from the
+   *  dataset). The emitter rejects thin bodies. */
+  bodyHtml: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  /** YYYY-MM-DD for the sitemap <lastmod> — derive from dataset metadata so
+   *  the build stays a pure function of the dataset. */
+  lastmod?: string;
+}
+
 /** Winner-perspective result derivation over the pack's match type. */
 export interface ResultDeriver<M> {
   winnerName(m: M): string | null;
@@ -254,6 +287,9 @@ export interface SportPack<
    *  asset base path that differs between the repo-root preview file and the
    *  deployed site). Default: identity. */
   finalizeHtml?(html: string, target: 'preview' | 'site'): string;
+  /** Opt-in SEO pre-render: return crawlable pages computed from the frozen
+   *  dataset (see SeoPage). Unset = nothing emitted, app byte-identical. */
+  seoPages?(ds: DS): SeoPage[];
 }
 
 /** Loosest pack binding the pipeline functions accept. */

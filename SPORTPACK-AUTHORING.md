@@ -54,6 +54,25 @@ add recognizable easy-tier archetypes (sport-archetype-catalog, Tier 1), not a
 bug to pad over. The daily 2/2/2 round selection is untouched — this shapes
 BANK composition only.
 
+## SEO pre-render (opt-in: `seoPages`)
+
+Unset = nothing emitted, app byte-identical. When set, the render stage wraps
+each pack-rendered `SeoPage` (path/title/description/h1/JSON-LD/bodyHtml,
+optional dataset-derived `lastmod`) in the shared crawlable template — unique
+≤60 title, ≤160 description, canonical `APP_URL/<path>`, OG tags, one H1, the
+pack's trade-dress footer, a CTA into the app — and writes it as a NEW file
+`site/<path>.html`, plus `sitemap.xml` and `robots.txt`. ADDITIVE ONLY: the
+app shell and existing artifacts are untouched.
+
+Emit-time gates throw on route/reserved-path collisions, over-length or
+duplicate titles, thin/doorway bodies, and stray `<h1>`s. Non-negotiables the
+pack owns: every fact re-derived from the frozen dataset and CITED like the
+app; completeness-gate — only entities with complete data get a page;
+descriptive-use naming only. Use safe path prefixes (e.g. `wc/`, `team/`,
+`records/`) — cleanUrls serves `/<path>` from `site/<path>.html` with no
+rewrite changes. Verify every emit with the content-seo skill's
+`scripts/seo_check.py`.
+
 ## The app-shell surface
 
 The shell owns the engine (daily selection, scoring, streak/stats, practice,
