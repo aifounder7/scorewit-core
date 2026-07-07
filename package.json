@@ -1,6 +1,6 @@
 {
   "name": "@scorewit/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Sport-agnostic engine for Scorewit daily trivia apps: deterministic ingest → generate → validate → render pipeline, single-file app shell, seeded RNG, streak model, and the generic SportPack interface.",
   "license": "MIT",
   "author": "Jay",
