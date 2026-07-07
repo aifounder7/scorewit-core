@@ -73,6 +73,43 @@ descriptive-use naming only. Use safe path prefixes (e.g. `wc/`, `team/`,
 rewrite changes. Verify every emit with the content-seo skill's
 `scripts/seo_check.py`.
 
+## Engagement analytics (opt-in: `analytics`)
+
+Unset = the shell renders **byte-identically** (the original inline Vercel
+Web Analytics wiring) and no new events are emitted. When set, the shell loads
+the provider's cookieless script and fires anonymous custom events.
+
+**Privacy stance (non-negotiable — it's the brand): NO cookies, NO persistent
+tracking ID, NO fingerprinting, NO PII.** Events are aggregate counters with
+tiny, non-identifying payloads; the footer claim ("no personal data, no
+cookies") stays 100% true. Pick a provider that is itself cookieless and
+stores no PII — Plausible is the recommended default (cookieless, no-PII,
+hashes and rotates rather than storing IPs, supports custom events).
+
+```ts
+analytics: { provider: 'plausible', domain: 'yourquiz.example' }
+```
+
+Providers: `'plausible'` (requires `domain`), `'vercel'` (keeps the existing
+insights script, new event names), `'custom'` (requires `endpoint`; events go
+as first-party JSON beacons, no third-party script at all).
+
+**Events** (client-side, in the shell; `sport` = `pack.id`):
+
+| event             | props                                                        | fired when                       |
+| ----------------- | ------------------------------------------------------------ | -------------------------------- |
+| `round_completed` | `sport`, `streak_length` (`1`/`2-6`/`7-29`/`30+`), `num_correct` (0–6) | the daily round is finished (once per day) |
+| `result_shared`   | `sport`, `streak_length` bucket                               | the Share button is used         |
+| `practice_played` | `sport`                                                       | a practice question is answered  |
+
+The two pre-existing shell events (`team_picked {team}`, `pick_made {pick}`)
+keep flowing through the same `track()` — equally anonymous.
+
+The **streak_length distribution is the cookieless retention proxy**: a rising
+share of `7-29`/`30+` streaks = retention, derivable with zero tracking ID.
+See METRICS.md for what is (and honestly is NOT) derivable. Activation is one
+config line per pack plus the provider account — no core change.
+
 ## The app-shell surface
 
 The shell owns the engine (daily selection, scoring, streak/stats, practice,

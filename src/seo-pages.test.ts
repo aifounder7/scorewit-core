@@ -141,6 +141,24 @@ check('quality gates throw: collision, long title, dup title, thin body, h1 in b
   fs.rmSync(p.root, { recursive: true, force: true });
 });
 
+check('JSON-LD escapes & and < (valid JSON, entity-safe inline script)', () => {
+  const p = tmpPaths();
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SportsEvent',
+    name: 'Alpha & Beta <Cup>',
+    url: 'https://example.test/cup?a=1&b=2',
+  };
+  writeSeoSite([page(0, { jsonLd })], CFG, p);
+  const html = fs.readFileSync(path.join(p.siteDir, 'cup', '2020.html'), 'utf8');
+  const ld = html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)![1];
+  assert.ok(!ld.includes('&'), 'no raw & inside the JSON-LD script');
+  assert.ok(!ld.includes('<'), 'no raw < inside the JSON-LD script');
+  assert.ok(ld.includes('\\u0026') && ld.includes('\\u003c'), 'escaped as \\uXXXX');
+  assert.deepEqual(JSON.parse(ld), jsonLd, 'still valid JSON that round-trips');
+  fs.rmSync(p.root, { recursive: true, force: true });
+});
+
 // Optional persistent emit for external verifiers (seo_check.py).
 if (process.env.SEO_OUT) {
   const p = tmpPaths();
@@ -149,7 +167,7 @@ if (process.env.SEO_OUT) {
   console.log(`\n(emitted 3 pages + sitemap + robots to ${process.env.SEO_OUT})`);
 }
 
-console.log(`\n${failures === 0 ? 'ALL' : ''} ${4 - failures}/4 SEO cases passed.`);
+console.log(`\n${failures === 0 ? 'ALL' : ''} ${5 - failures}/5 SEO cases passed.`);
 if (failures) {
   console.error(`SEO TEST FAILED — ${failures} case(s) wrong.`);
   process.exit(1);

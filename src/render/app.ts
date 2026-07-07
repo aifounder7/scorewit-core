@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { PipelinePaths } from '../types';
+import type { AnalyticsConfig, PipelinePaths } from '../types';
 
 /**
  * The single-file app shell. Emits a standalone, dependency-free HTML page
@@ -142,6 +142,12 @@ export interface AppShellConfig {
   data: { bank: unknown; teams: unknown; matchday: unknown };
   /** Final per-target pass over the app HTML (default: identity). */
   finalizeHtml?: (html: string, target: 'preview' | 'site') => string;
+  /** Opt-in cookieless engagement events (see AnalyticsConfig in types.ts).
+   *  Unset = the shell renders byte-identically (the original inline Vercel
+   *  wiring) and no new events are emitted. */
+  analytics?: AnalyticsConfig;
+  /** The `sport` event prop (pack.id). Only read when analytics is set. */
+  sport?: string;
 }
 
 /** Read an SVG asset and inline it (comments and newlines stripped). */
@@ -174,10 +180,7 @@ const HTML = String.raw`<!doctype html>
 <meta name="twitter:title" content="__TWTITLE__" />
 <meta name="twitter:description" content="__TWDESC__" />
 <meta name="twitter:image" content="__APPURL__/og.png" />
-<!-- Vercel Web Analytics (cookieless; official static-HTML snippet). The queue
-     stub makes window.va safe to call before/without the script loading. -->
-<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
-<script defer src="/_vercel/insights/script.js"></script>
+__ANALYTICSHEAD__
 <style>
   :root{
 __PALETTE__
@@ -449,10 +452,7 @@ function renderProgress(){
 function chip(q){return '<div class="meta"><span class="d">'+q.difficulty+'</span><span class="e">'+q.era+'</span><span class="t">'+q.topic.replace(/_/g,' ')+'</span></div>';}
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 
-// ---- Vercel Web Analytics custom events (cookieless, non-PII) ----
-// Guarded: no-ops when analytics is unavailable (offline / local / script
-// blocked) and never throws. Event data is minimal and non-identifying.
-function track(name,data){try{if(typeof window.va==='function')window.va('event',{name:name,data:data||{}});}catch(e){}}
+__ANALYTICSJS__
 
 __PACKDECOR__
 
@@ -539,9 +539,7 @@ function finishDaily(){
   const h=loadHistory();
   if(!h[key]){
     h[key]={date:key,score:total,grid:results.slice()}; saveHistory(h);
-    // score bucket only (e.g. "500-600") — never anything identifying
-    const b=Math.min(Math.floor(total/100),5);
-    track('daily_completed',{score_bucket:(b*100)+'-'+((b+1)*100)});
+__TRACKROUND__
   }
   renderResult();
 }
@@ -557,7 +555,7 @@ function renderResult(){
     '<pre class="sharebox" id="sharebox"></pre></div>';
   document.getElementById('statsbtn').onclick=renderStats;
   document.getElementById('share').onclick=async()=>{
-    track('shared');
+    __TRACKSHARE__
     const text=buildShareText(streak);
     const btn=document.getElementById('share');
     const note=document.getElementById('shared');
@@ -646,7 +644,7 @@ function renderPractice(){
     else{const inp=stage.querySelector('#pcg');const go=()=>{if(inp.value!=='')answerPractice(Number(inp.value));};document.getElementById('pcgsubmit').onclick=go;inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();});inp.focus();}
   }
 }
-function answerPractice(resp){
+function answerPractice(resp){__TRACKPRACTICE__
   const q=pq;const sc=scoreAnswer(q,resp);const cls=sc.points>=100?'ok':sc.points>0?'partial':'no';
   if(q.type==='multiple_choice'){stage.querySelectorAll('button.opt').forEach(b=>{b.disabled=true;const v=q.options[+b.dataset.i];if(v===q.answer)b.classList.add('correct');else if(v===resp)b.classList.add('wrong');});}
   else{stage.querySelector('#pcg').disabled=true;stage.querySelector('#pcgsubmit').disabled=true;}
@@ -971,9 +969,93 @@ const DEFAULT_TODAY_INTRO =
 const DEFAULT_TODAY_NO_MATCHES = 'No World Cup matches today';
 
 
+// ---------- Opt-in cookieless engagement analytics (see AnalyticsConfig) ----------
+// The five DEFAULT_ANALYTICS_* strings below are the ORIGINAL inline wiring,
+// byte-for-byte: with cfg.analytics unset the shell renders exactly as before
+// (the pre-existing Vercel snippet + daily_completed/shared events). Setting
+// analytics swaps the provider script and emits the anonymous engagement
+// events (round_completed / result_shared / practice_played) instead — still
+// NO cookie, NO tracking id, NO PII, ever.
+
+const DEFAULT_ANALYTICS_HEAD = String.raw`<!-- Vercel Web Analytics (cookieless; official static-HTML snippet). The queue
+     stub makes window.va safe to call before/without the script loading. -->
+<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+<script defer src="/_vercel/insights/script.js"></script>`;
+
+const DEFAULT_ANALYTICS_JS = String.raw`// ---- Vercel Web Analytics custom events (cookieless, non-PII) ----
+// Guarded: no-ops when analytics is unavailable (offline / local / script
+// blocked) and never throws. Event data is minimal and non-identifying.
+function track(name,data){try{if(typeof window.va==='function')window.va('event',{name:name,data:data||{}});}catch(e){}}`;
+
+const DEFAULT_TRACK_ROUND = String.raw`    // score bucket only (e.g. "500-600") — never anything identifying
+    const b=Math.min(Math.floor(total/100),5);
+    track('daily_completed',{score_bucket:(b*100)+'-'+((b+1)*100)});`;
+
+const DEFAULT_TRACK_SHARE = `track('shared');`;
+
+const DEFAULT_TRACK_PRACTICE = '';
+
+const PLAUSIBLE_HEAD = (domain: string) => `<!-- Plausible Analytics (cookieless, no PII; anonymous aggregate events only).
+     The queue stub makes window.plausible safe to call before/without the script loading. -->
+<script>window.plausible = window.plausible || function () { (window.plausible.q = window.plausible.q || []).push(arguments); };</script>
+<script defer data-domain="${domain}" src="https://plausible.io/js/script.js"></script>`;
+
+const CUSTOM_HEAD = `<!-- Cookieless event beacon (first-party endpoint; no third-party script, no cookies, no PII). -->`;
+
+/** The five shell substitutions for a given analytics config (or its absence). */
+function analyticsChunks(a: AnalyticsConfig | undefined, sport: string) {
+  if (!a) {
+    return {
+      head: DEFAULT_ANALYTICS_HEAD,
+      js: DEFAULT_ANALYTICS_JS,
+      trackRound: DEFAULT_TRACK_ROUND,
+      trackShare: DEFAULT_TRACK_SHARE,
+      trackPractice: DEFAULT_TRACK_PRACTICE,
+    };
+  }
+  let head: string;
+  let impl: string;
+  if (a.provider === 'plausible') {
+    if (!a.domain) throw new Error('analytics.provider "plausible" requires analytics.domain');
+    head = PLAUSIBLE_HEAD(a.domain);
+    impl = `if(typeof window.plausible==='function')window.plausible(name,{props:data||{}});`;
+  } else if (a.provider === 'vercel') {
+    head = DEFAULT_ANALYTICS_HEAD;
+    impl = `if(typeof window.va==='function')window.va('event',{name:name,data:data||{}});`;
+  } else if (a.provider === 'custom') {
+    if (!a.endpoint) throw new Error('analytics.provider "custom" requires analytics.endpoint');
+    const ep = JSON.stringify(a.endpoint);
+    head = CUSTOM_HEAD;
+    impl =
+      `var b=JSON.stringify({name:name,props:data||{}});` +
+      `if(navigator.sendBeacon)navigator.sendBeacon(${ep},b);` +
+      `else fetch(${ep},{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:b});`;
+  } else {
+    throw new Error(`unknown analytics.provider: ${(a as AnalyticsConfig).provider}`);
+  }
+  const js = `// ---- Engagement events (${a.provider}; cookieless, anonymous, no PII) ----
+// Aggregate counters only: no cookie, no tracking id, no fingerprint — the
+// payload carries nothing identifying. The streak bucket is the cookieless
+// retention proxy. Guarded: no-ops when the provider is unavailable
+// (offline / local / script blocked) and never throws.
+const SPORT=${JSON.stringify(sport)};
+function streakBucket(s){return s>=30?'30+':s>=7?'7-29':s>=2?'2-6':'1';}
+function track(name,data){try{${impl}}catch(e){}}`;
+  return {
+    head,
+    js,
+    trackRound:
+      `    // anonymous aggregates only — streak bucket, correct count, sport; no id\n` +
+      `    track('round_completed',{sport:SPORT,streak_length:streakBucket(currentStreak(h,key)),num_correct:results.filter(p=>p>=100).length});`,
+    trackShare: `track('result_shared',{sport:SPORT,streak_length:streakBucket(streak)});`,
+    trackPractice: `track('practice_played',{sport:SPORT});`,
+  };
+}
+
 /** The app shell with every token filled in. */
 export function renderAppHtml(cfg: AppShellConfig): string {
   const { brand, copy, client, config, data } = cfg;
+  const analytics = analyticsChunks(cfg.analytics, cfg.sport ?? '');
   let tpl = HTML;
   for (const [find, replace] of client.shellPatches ?? []) {
     const n = tpl.split(find).length - 1;
@@ -986,6 +1068,11 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .replace('__TEAMS__', JSON.stringify(data.teams))
     .replace('__MATCHDAY__', JSON.stringify(data.matchday))
     // split/join = replace-all (tsconfig lib predates String.replaceAll)
+    .split('__ANALYTICSHEAD__').join(analytics.head)
+    .split('__ANALYTICSJS__').join(analytics.js)
+    .split('__TRACKROUND__').join(analytics.trackRound)
+    .split('__TRACKSHARE__').join(analytics.trackShare)
+    .split('__TRACKPRACTICE__').join(analytics.trackPractice)
     .split('__PACKCONSTS__').join(client.consts)
     .split('__PACKDECOR__').join(client.decorations)
     .split('__PACKTEAMCARDS__').join(client.teamCards)

@@ -207,6 +207,9 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       config: pack.config,
       data: { bank, teams, matchday },
       finalizeHtml: pack.finalizeHtml,
+      // Opt-in cookieless engagement events (unset = byte-identical shell).
+      analytics: pack.analytics,
+      sport: pack.id,
     },
     pack.assets,
     paths

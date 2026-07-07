@@ -35,8 +35,10 @@ const MIN_BODY_CHARS = 200;
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/** JSON-LD safe for inline <script> embedding (still valid JSON). */
-const jsonLdText = (o: object) => JSON.stringify(o).replace(/</g, '\\u003c');
+/** JSON-LD safe for inline <script> embedding (still valid JSON): escape both
+ *  `<` (script-close injection) and `&` (HTML entity ambiguity) as \uXXXX. */
+const jsonLdText = (o: object) =>
+  JSON.stringify(o).replace(/&/g, '\\u0026').replace(/</g, '\\u003c');
 
 export interface SeoRenderConfig {
   brand: Brand;

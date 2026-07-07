@@ -146,6 +146,32 @@ export interface BankTarget {
 }
 
 /**
+ * OPT-IN cookieless engagement analytics (unset = nothing changes: the shell
+ * renders byte-identically and no new events are emitted).
+ *
+ * PRIVACY STANCE (non-negotiable — it's the brand): NO cookies, NO persistent
+ * tracking ID, NO fingerprinting, NO PII. The shell emits AGGREGATE, anonymous
+ * custom events only — tiny payloads with nothing identifying attached — so
+ * the footer claim ("no personal data, no cookies") stays 100% true. Pick a
+ * provider that is itself cookieless and stores no PII (Plausible is the
+ * recommended default).
+ *
+ * Events emitted when set (see SPORTPACK-AUTHORING.md + METRICS.md):
+ *   round_completed  { sport, streak_length: '1'|'2-6'|'7-29'|'30+', num_correct: 0..6 }
+ *   result_shared    { sport, streak_length: bucket as above }
+ *   practice_played  { sport }
+ * The streak-length bucket distribution is the cookieless RETENTION PROXY —
+ * a rising share of 7+/30+ streaks means retention, with zero tracking ID.
+ */
+export interface AnalyticsConfig {
+  provider: 'plausible' | 'vercel' | 'custom';
+  /** plausible: the site's data-domain (e.g. "extratime.example"). Required. */
+  domain?: string;
+  /** custom: the collection URL events are POSTed to as JSON beacons. Required. */
+  endpoint?: string;
+}
+
+/**
  * One pre-rendered, crawlable SEO page (opt-in via pack.seoPages — see the
  * SEO pre-render section of SPORTPACK-AUTHORING.md). ADDITIVE ONLY: pages are
  * written as NEW files under site/ and never touch the app shell.
@@ -242,6 +268,9 @@ export interface SportPack<
   /** Opt-in bank size / difficulty-mix target (see BankTarget). Unset keeps
    *  today's quota-only selection byte-for-byte. */
   bankTarget?: BankTarget;
+  /** Opt-in cookieless engagement events (see AnalyticsConfig). Unset keeps
+   *  the shell byte-for-byte and emits nothing new. */
+  analytics?: AnalyticsConfig;
 
   /** Pull the upstream source and return the normalized dataset + coverage.
    *  The core writes both to paths.datasetDir. */
