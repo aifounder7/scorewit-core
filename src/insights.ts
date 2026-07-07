@@ -129,6 +129,9 @@ export interface OneInN {
  * N < 2 — the template's predicate should then simply not fire.
  */
 export function oneInN(count: number, total: number, tolerance = 0.15): OneInN | null {
+  // Total on garbage: non-finite input must refuse, never emit a nonsense
+  // frame like "one in Infinity" (see FIREWALL.md — shared-formatter rule).
+  if (!Number.isFinite(count) || !Number.isFinite(total)) return null;
   if (!(count > 0) || !(total > 0) || count > total) return null;
   const ratio = total / count;
   const n = Math.round(ratio);

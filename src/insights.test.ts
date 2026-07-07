@@ -162,7 +162,24 @@ check('moreOftenThanNot is strict; numberWord spells small counts only', () => {
   assert.equal(numberWord(2.5), '2.5');
 });
 
-console.log(`\n${failures === 0 ? 'ALL' : ''} ${10 - failures}/10 insight cases passed.`);
+check('shared formatters are total on garbage input — never a silent lie (FIREWALL.md)', () => {
+  // oneInN: refuse rather than misframe.
+  assert.equal(oneInN(NaN, 100), null);
+  assert.equal(oneInN(10, NaN), null);
+  assert.equal(oneInN(-5, 100), null);
+  assert.equal(oneInN(10, -100), null);
+  assert.equal(oneInN(Infinity, 100), null); // count > total
+  assert.equal(oneInN(10, Infinity), null); // ratio Infinity: n rounds to Infinity, rel NaN -> null
+  // moreOftenThanNot: false on nonsense, never true by accident.
+  assert.equal(moreOftenThanNot(NaN, 100), false);
+  assert.equal(moreOftenThanNot(5, NaN), false);
+  assert.equal(moreOftenThanNot(5, -10), false);
+  // numberWord: totality — any number in, a string out, no NaN-word surprises.
+  assert.equal(numberWord(NaN), 'NaN'); // visible, never silently wrong
+  assert.equal(numberWord(-1), '-1');
+});
+
+console.log(`\n${failures === 0 ? 'ALL' : ''} ${11 - failures}/11 insight cases passed.`);
 if (failures) {
   console.error(`INSIGHT TEST FAILED — ${failures} case(s) wrong.`);
   process.exit(1);
