@@ -102,6 +102,13 @@ export interface PackClientJs {
   /** The renderToday() function — the Today tab's top-level flow (fixtures
    *  vs. latest-results vs. empty states varies by sport calendar). */
   renderToday?: string;
+  /** The renderTeam() flow INCLUDING its entity picker — override when the
+   *  sport's follow model differs from one-team-of-one-kind (e.g. F1 follows
+   *  a driver AND a constructor). Must define renderTeam(); the default
+   *  defines renderTeam() + renderTeamPicker() over the single favTeam slot.
+   *  The fixed shell still provides teamQuizHtml/wireTeamQuiz/drawTeamQuestion
+   *  and TEAM_BY_NAME for any override to reuse. */
+  renderTeam?: string;
   /** Byte-precise escape hatch: exact-match [find, replace] edits applied to
    *  the shell template before token substitution. Each pair MUST match
    *  exactly once or the render throws. Use for migrating a hand-forked
@@ -677,39 +684,7 @@ function bindSrcLinks(root){
 }
 __PACKTEAMHELPERS__
 
-function renderTeam(){
-  const fav=getFavTeam();
-  if(!fav){ renderTeamPicker(); return; }
-  const t=TEAM_BY_NAME[fav];
-  let html='<div class="teamhead"><div class="name">'+teamLabel(t.name,true)+'</div>'+
-    '<button class="linkbtn" id="changeteam">Change team</button></div>'+
-    '<div class="subnav" id="tsub">'+
-      '<button class="tab'+(teamView==='insights'?' active':'')+'" data-tv="insights">Insights</button>'+
-      '<button class="tab'+(teamView==='quiz'?' active':'')+'" data-tv="quiz">Team quiz</button>'+
-    '</div>';
-  if(teamView==='insights')html+=teamInsightsHtml(t);
-  else html+=teamQuizHtml(t);
-  stage.innerHTML=html;
-  document.getElementById('changeteam').onclick=()=>{ teamSearch=''; renderTeamPicker(); };
-  stage.querySelectorAll('#tsub .tab').forEach(b=>{b.onclick=()=>{teamView=b.dataset.tv;tq=null;tlast=null;renderTeam();};});
-  if(teamView==='quiz')wireTeamQuiz(t);
-  bindSrcLinks(stage);
-}
-
-function renderTeamPicker(){
-  const q=teamSearch.trim().toLowerCase();
-  const list=TEAMS.teams.filter(t=>!q||t.name.toLowerCase().includes(q));
-  let html='<div class="tbanner">__TEAMPICKERBANNER__</div>'+
-    '<input class="picker-search" id="psearch" type="text" placeholder="Search teams…" value="'+esc(teamSearch)+'" />'+
-    '<div class="teamlist">'+
-      list.map(t=>'<button class="fchip" data-team="'+esc(t.name)+'">'+teamLabel(t.name)+'</button>').join('')+
-    '</div>'+
-    (list.length?'':'<div class="empty">No teams match “'+esc(teamSearch)+'”.</div>');
-  stage.innerHTML=html;
-  const inp=document.getElementById('psearch');
-  inp.oninput=()=>{ teamSearch=inp.value; const pos=inp.selectionStart; renderTeamPicker(); const ni=document.getElementById('psearch'); ni.focus(); try{ni.setSelectionRange(pos,pos);}catch(e){} };
-  stage.querySelectorAll('.teamlist .fchip').forEach(b=>{b.onclick=()=>{ setFavTeam(b.dataset.team); teamView='insights'; teamSearch=''; renderTeam(); };});
-}
+__RENDERTEAM__
 
 __PACKTEAMCARDS__
 
@@ -929,6 +904,43 @@ const DEFAULT_RENDER_TODAY = String.raw`function renderToday(){
   bindSrcLinks(stage);
 }`;
 
+/** The standard My-Team flow: one followed entity of one kind, picked from a
+ *  flat searchable list. Overridable via clientJs.renderTeam for sports whose
+ *  follow model differs (kept byte-identical to the original inline block). */
+const DEFAULT_RENDER_TEAM = String.raw`function renderTeam(){
+  const fav=getFavTeam();
+  if(!fav){ renderTeamPicker(); return; }
+  const t=TEAM_BY_NAME[fav];
+  let html='<div class="teamhead"><div class="name">'+teamLabel(t.name,true)+'</div>'+
+    '<button class="linkbtn" id="changeteam">Change team</button></div>'+
+    '<div class="subnav" id="tsub">'+
+      '<button class="tab'+(teamView==='insights'?' active':'')+'" data-tv="insights">Insights</button>'+
+      '<button class="tab'+(teamView==='quiz'?' active':'')+'" data-tv="quiz">Team quiz</button>'+
+    '</div>';
+  if(teamView==='insights')html+=teamInsightsHtml(t);
+  else html+=teamQuizHtml(t);
+  stage.innerHTML=html;
+  document.getElementById('changeteam').onclick=()=>{ teamSearch=''; renderTeamPicker(); };
+  stage.querySelectorAll('#tsub .tab').forEach(b=>{b.onclick=()=>{teamView=b.dataset.tv;tq=null;tlast=null;renderTeam();};});
+  if(teamView==='quiz')wireTeamQuiz(t);
+  bindSrcLinks(stage);
+}
+
+function renderTeamPicker(){
+  const q=teamSearch.trim().toLowerCase();
+  const list=TEAMS.teams.filter(t=>!q||t.name.toLowerCase().includes(q));
+  let html='<div class="tbanner">__TEAMPICKERBANNER__</div>'+
+    '<input class="picker-search" id="psearch" type="text" placeholder="Search teams…" value="'+esc(teamSearch)+'" />'+
+    '<div class="teamlist">'+
+      list.map(t=>'<button class="fchip" data-team="'+esc(t.name)+'">'+teamLabel(t.name)+'</button>').join('')+
+    '</div>'+
+    (list.length?'':'<div class="empty">No teams match “'+esc(teamSearch)+'”.</div>');
+  stage.innerHTML=html;
+  const inp=document.getElementById('psearch');
+  inp.oninput=()=>{ teamSearch=inp.value; const pos=inp.selectionStart; renderTeamPicker(); const ni=document.getElementById('psearch'); ni.focus(); try{ni.setSelectionRange(pos,pos);}catch(e){} };
+  stage.querySelectorAll('.teamlist .fchip').forEach(b=>{b.onclick=()=>{ setFavTeam(b.dataset.team); teamView='insights'; teamSearch=''; renderTeam(); };});
+}`;
+
 const DEFAULT_ON_ACCENT = {
   accent: '#06121f',
   practice: '#0c0a1a',
@@ -981,6 +993,8 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__PACKTEAMHELPERS__').join(client.teamHelpers ?? DEFAULT_TEAM_HELPERS)
     .split('__ERALABEL__').join(client.eraLabel ?? DEFAULT_ERA_LABEL)
     .split('__RENDERTODAY__').join(client.renderToday ?? DEFAULT_RENDER_TODAY)
+    // Before __TEAMPICKERBANNER__: the default team flow embeds that token.
+    .split('__RENDERTEAM__').join(client.renderTeam ?? DEFAULT_RENDER_TEAM)
     .split('__BTNTEXTPRACTICE__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).practice)
     .split('__BTNTEXTTEAM__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).team)
     .split('__BTNTEXTTODAY__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).today)

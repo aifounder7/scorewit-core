@@ -50,6 +50,7 @@ share, routing). You supply values; everything defaults to the first pack's
 | `teamHelpers`?| `editionLabel(ed)`, `placementWord(p)`        |
 | `eraLabel`?   | `eraLabel(e)` for the Practice era chips      |
 | `renderToday`?| the whole Today-tab flow, when your sport's calendar differs (fixtures vs. latest-results vs. empty) |
+| `renderTeam`? | the whole My-Team flow incl. its picker, when the follow model differs (e.g. F1 follows a driver AND a constructor); must define `renderTeam()` |
 
 **Tokens** (all optional, soccer-defaulted):
 
