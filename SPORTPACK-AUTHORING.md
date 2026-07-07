@@ -113,7 +113,7 @@ ranks by weight, and joins the top lines into the paragraph. In validate, call
 `verifyLead(statsIndependent, library, page.lead)` with stats the VALIDATOR
 re-derived from the dataset — it recomposes and demands byte-equality, so
 every fired predicate, number, and phrase re-derives; a witty line can never
-smuggle an unverified fact. Voice rules (see each pack's VOICE.md): wit is
+smuggle an unverified fact. Voice rules (see VOICE.md): wit is
 threshold-EARNED; degrade respectfully (a zero-win entity gets its genuine
 angle, never snark); rounded figures always hedged (`oneInN` returns the
 hedge); precise stat cards + citation still render beneath the lead.
