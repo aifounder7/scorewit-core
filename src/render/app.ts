@@ -109,6 +109,14 @@ export interface PackClientJs {
    *  The fixed shell still provides teamQuizHtml/wireTeamQuiz/drawTeamQuestion
    *  and TEAM_BY_NAME for any override to reuse. */
   renderTeam?: string;
+  /** Optional extra share-text line(s): a JS statement block run inside
+   *  buildShareText() after the streak line and before the app URL — push
+   *  onto `lines` (e.g. the followed entity's validated insight line from
+   *  the teams artifact). SPOILER RULE: never question content, and only
+   *  strings that already sit in a validator-checked artifact — the share
+   *  sheet is a fact surface like any other. Default: none (share text
+   *  byte-identical to the incumbent shell). */
+  shareLine?: string;
   /** Byte-precise escape hatch: exact-match [find, replace] edits applied to
    *  the shell template before token substitution. Each pair MUST match
    *  exactly once or the render throws. Use for migrating a hand-forked
@@ -511,7 +519,7 @@ function buildShareText(streak){
   const grid=results.map(p=>p>=100?'🟩':p>0?'🟨':'🟥').join('');
   const lines=[APP_NAME+' '+currentDailyKey(), grid+' '+total+'/'+(questions.length*100)];
   if(streak>1) lines.push('🔥 '+streak+'-day streak');
-  if(APP_URL) lines.push(APP_URL);
+__SHARELINE__  if(APP_URL) lines.push(APP_URL);
   return lines.join('\n');
 }
 // Brief on-screen confirmation (desktop copy gives no native feedback).
@@ -1082,6 +1090,8 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__RENDERTODAY__').join(client.renderToday ?? DEFAULT_RENDER_TODAY)
     // Before __TEAMPICKERBANNER__: the default team flow embeds that token.
     .split('__RENDERTEAM__').join(client.renderTeam ?? DEFAULT_RENDER_TEAM)
+    // Default '' erases the token — the incumbent share text, byte-identical.
+    .split('__SHARELINE__').join(client.shareLine ?? '')
     .split('__BTNTEXTPRACTICE__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).practice)
     .split('__BTNTEXTTEAM__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).team)
     .split('__BTNTEXTTODAY__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).today)
