@@ -39,6 +39,7 @@ export {
   type SeoRenderConfig,
 } from './render/seo';
 export { guardScopedPool, type ScopedPoolHooks, type ScopedQuizEntry } from './scoped-quiz';
+export { LEGAL_CONTACT, LEGAL_EFFECTIVE_DATE, legalSeoPages } from './legal';
 export {
   artifactPaths,
   datasetPaths,

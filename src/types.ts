@@ -360,6 +360,11 @@ export interface SportPack<
   /** Opt-in SEO pre-render: return crawlable pages computed from the frozen
    *  dataset (see SeoPage). Unset = nothing emitted, app byte-identical. */
   seoPages?(ds: DS): SeoPage[];
+  /** UMBRELLA PACK ONLY: emit the canonical /privacy + /terms pages
+   *  (src/legal.ts) with the shared template. Exactly one pack — the one on
+   *  the scorewit.com root — sets this; every other pack links to the
+   *  umbrella URLs (the paths are RESERVED for everyone else). */
+  legalPages?: boolean;
   /** Optional SEO page theming: accent (default: parsed from the brand
    *  palette's --accent) and the CTA label (e.g. "Play today&rsquo;s F1
    *  round &rarr;"). */

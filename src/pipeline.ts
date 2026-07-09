@@ -3,6 +3,7 @@ import path from 'node:path';
 import { selectBank } from './bank';
 import { mulberry32, shuffle } from './rng';
 import { writeSite } from './render/app';
+import { legalSeoPages } from './legal';
 import { writeSeoSite } from './render/seo';
 import { runValidateHarness } from './validate/harness';
 import type {
@@ -233,7 +234,10 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
         routes: pack.config.routes ?? { today: '/today', practice: '/practice', team: '/my-team' },
         ...(pack.seoConfig ?? {}),
       },
-      paths
+      paths,
+      // Umbrella-only opt-in: the scorewit.com root emits /privacy + /terms
+      // from the canonical copy in src/legal.ts; sibling packs link to them.
+      pack.legalPages ? legalSeoPages() : []
     );
     console.log(`Wrote ${count} SEO pages + sitemap.xml + robots.txt under site/`);
   }

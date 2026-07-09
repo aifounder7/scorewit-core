@@ -37,6 +37,10 @@ const RESERVED = new Set([
   'sitemap.xml',
   'robots.txt',
   'preview',
+  // Umbrella legal pages (src/legal.ts) — emitted only by the umbrella pack
+  // via `legalPages: true`; no pack's seoPages may ever collide with them.
+  'privacy',
+  'terms',
 ]);
 
 /** Minimum bodyHtml length — the thin-page guard. Substantive fact pages are
@@ -264,11 +268,12 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
     background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent-lite);
     font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:999px}
   .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-  .lead{font-size:17px;color:var(--text);margin:22px 0 0;max-width:640px}
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:30px 0 8px}
+  .lead{font-size:clamp(20px,3.2vw,22px);line-height:1.5;font-weight:600;letter-spacing:-.25px;
+    color:var(--text);margin:24px 0 0;max-width:640px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:28px 0 8px}
   .stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 16px}
   .stat.hero{background:linear-gradient(180deg,var(--accent-soft),transparent);border-color:var(--accent-line)}
-  .stat .num{font-size:40px;font-weight:800;letter-spacing:-1px;line-height:1;font-variant-numeric:tabular-nums}
+  .stat .num{font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1;font-variant-numeric:tabular-nums}
   .stat.hero .num{color:var(--accent)}
   .stat .lbl{margin-top:9px;font-size:11.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--faint)}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 4px}
@@ -287,9 +292,14 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
   h2{font-size:16px;letter-spacing:-.01em;margin:26px 0 8px}
   p,li{font-size:15px;color:var(--text);margin:8px 0}
   a{color:var(--accent);text-underline-offset:2px}
-  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
-  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--surface2)}
-  th{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+  table{border-collapse:separate;border-spacing:0;width:100%;margin:14px 0 18px;font-size:14px;
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th,td{text-align:left;padding:9px 14px}
+  th{background:var(--surface2);color:var(--faint);font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--line)}
+  td{border-bottom:1px solid var(--surface2);font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:0}
+  tr:nth-child(even) td{background:rgba(255,255,255,.015)}
   .src{font-size:12px;color:var(--faint)}
   .ctarow{margin-top:30px}
   .cta{display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:${onAccent};
@@ -326,19 +336,25 @@ export function renderRobots(appUrl: string): string {
   return `User-agent: *\nAllow: /\n\nSitemap: ${appUrl}/sitemap.xml\n`;
 }
 
-/** Emit all pages + sitemap.xml + robots.txt under siteDir. Returns count. */
+/** Emit all pages + sitemap.xml + robots.txt under siteDir. Returns count.
+ *  `legalPages` (the umbrella pack only) are appended AFTER the pack pages
+ *  pass the collision gates: they occupy the RESERVED privacy/terms paths by
+ *  design, so they skip only that one check — every other quality gate still
+ *  applies to them via the same render path. */
 export function writeSeoSite(
   pages: SeoPage[],
   cfg: SeoRenderConfig,
-  paths: PipelinePaths
+  paths: PipelinePaths,
+  legalPages: SeoPage[] = []
 ): { count: number } {
   validatePages(pages, cfg);
-  for (const p of pages) {
+  const all = [...pages, ...legalPages];
+  for (const p of all) {
     const dest = path.join(paths.siteDir, `${p.path}.html`);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.writeFileSync(dest, renderSeoPage(p, cfg));
   }
-  fs.writeFileSync(path.join(paths.siteDir, 'sitemap.xml'), renderSitemap(pages, cfg.brand.appUrl));
+  fs.writeFileSync(path.join(paths.siteDir, 'sitemap.xml'), renderSitemap(all, cfg.brand.appUrl));
   fs.writeFileSync(path.join(paths.siteDir, 'robots.txt'), renderRobots(cfg.brand.appUrl));
-  return { count: pages.length };
+  return { count: all.length };
 }

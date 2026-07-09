@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { LEGAL_CONTACT, LEGAL_EFFECTIVE_DATE, legalSeoPages } from './legal';
 import { renderRobots, renderSitemap, writeSeoSite, type SeoRenderConfig } from './render/seo';
 import type { PipelinePaths, SeoPage } from './types';
 
@@ -228,7 +229,50 @@ if (process.env.SEO_OUT) {
   console.log(`\n(emitted 3 pages + sitemap + robots to ${process.env.SEO_OUT})`);
 }
 
-console.log(`\n${failures === 0 ? 'ALL' : ''} ${7 - failures}/7 SEO cases passed.`);
+check('legal paths are RESERVED for pack pages; the umbrella emits them via the legal hook', () => {
+  // A pack page on /privacy must be rejected...
+  assert.throws(
+    () => writeSeoSite([page(1, { path: 'privacy' })], CFG, tmpPaths()),
+    /reserved/
+  );
+  assert.throws(
+    () => writeSeoSite([page(2, { path: 'terms/anything' })], CFG, tmpPaths()),
+    /reserved/
+  );
+  // ...while the canonical legal pages emit through the fourth argument.
+  const paths = tmpPaths();
+  const { count } = writeSeoSite([page(1)], CFG, paths, legalSeoPages());
+  assert.equal(count, 3);
+  const privacy = fs.readFileSync(path.join(paths.siteDir, 'privacy.html'), 'utf8');
+  const terms = fs.readFileSync(path.join(paths.siteDir, 'terms.html'), 'utf8');
+  assert.ok(privacy.includes('no accounts, sets no cookies'), 'privacy body rendered');
+  assert.ok(privacy.includes('cookieless and aggregate-only'), 'Plausible-ready analytics section');
+  assert.ok(privacy.includes(LEGAL_CONTACT), 'contact alias present');
+  assert.ok(privacy.includes(`Effective ${LEGAL_EFFECTIVE_DATE}`), 'editorial effective date, not a clock');
+  assert.ok(terms.includes('as-is and as-available'), 'terms body rendered');
+  assert.ok(terms.includes('betting advice'), 'gambling-adjacent exclusion present');
+  assert.ok(!/governing law/i.test(terms), 'no governing-law clause yet');
+  const sitemap = fs.readFileSync(path.join(paths.siteDir, 'sitemap.xml'), 'utf8');
+  assert.ok(sitemap.includes('/privacy</loc>') && sitemap.includes('/terms</loc>'), 'legal pages in the sitemap');
+  assert.ok(sitemap.includes(`<lastmod>${LEGAL_EFFECTIVE_DATE}</lastmod>`), 'lastmod = effective date');
+});
+
+check('the lead is the typographic hero; tables carry the design language', () => {
+  const paths = tmpPaths();
+  writeSeoSite(
+    [page(3, { lead: 'The lead sentence.', bodyHtml: `<p>${'x'.repeat(200)}</p><table><tr><th>A</th></tr><tr><td>1</td></tr></table>` })],
+    CFG,
+    paths
+  );
+  const html = fs.readFileSync(path.join(paths.siteDir, 'cup', '2023.html'), 'utf8');
+  assert.ok(html.includes('.lead{font-size:clamp(20px,3.2vw,22px)'), 'lead sized 20-22px');
+  assert.ok(/\.lead\{[^}]*font-weight:600/.test(html), 'lead semibold');
+  assert.ok(html.indexOf('class="lead"') < html.indexOf('class="stats"') || !html.includes('class="stats"'), 'lead renders above stats');
+  assert.ok(/table\{[^}]*border-radius:12px/.test(html), 'table card treatment');
+  assert.ok(/td\{[^}]*tabular-nums/.test(html), 'numeric alignment via tabular-nums');
+});
+
+console.log(`\n${failures === 0 ? 'ALL' : ''} ${9 - failures}/9 SEO cases passed.`);
 if (failures) {
   console.error(`SEO TEST FAILED — ${failures} case(s) wrong.`);
   process.exit(1);
