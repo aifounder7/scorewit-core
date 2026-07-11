@@ -156,6 +156,11 @@ export interface AppShellConfig {
   analytics?: AnalyticsConfig;
   /** The `sport` event prop (pack.id). Only read when analytics is set. */
   sport?: string;
+  /** Href of the terms-assent line rendered under the play area ("By playing
+   *  you agree to the Terms") — the conspicuous in-flow notice case law
+   *  demands (footer-only browsewrap is routinely unenforceable). Defaults to
+   *  the umbrella terms URL every sibling pack's footer already links. */
+  termsUrl?: string;
 }
 
 /** Read an SVG asset and inline it (comments and newlines stripped). */
@@ -328,6 +333,11 @@ __RESLINECSS__
   .pkbtn.on{background:var(--todayDim);border-color:var(--today);color:var(--today)}
   .pkhint{font-size:11px;color:var(--text3);margin-top:6px}
   .h3sub{font-weight:600;text-transform:none;letter-spacing:0;color:var(--text3)}
+  /* ---- Terms assent (conspicuous, in-flow, adjacent to the play surface —
+          NOT footer-gray browsewrap; see legal.ts + the hardening report) ---- */
+  .assent{margin-top:36px;color:var(--text2);font-size:13px;text-align:center}
+  .assent a{color:var(--accent);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+  .assent a:hover{opacity:.85}
   /* ---- Footer (non-affiliation disclaimer) ---- */
   footer{margin-top:44px;padding-top:14px;border-top:1px solid var(--surface);
     color:var(--text3);font-size:11px;line-height:1.6}
@@ -361,6 +371,7 @@ __RESLINECSS__
   <div class="streakbar" id="streakbar" style="display:none"></div>
   <div class="progress" id="progress"></div>
   <div id="stage"></div>
+  <div class="assent">By playing you agree to the <a href="__TERMSURL__">Terms</a></div>
   __FOOTERHTML__
 </div>
 <div class="toast" id="toast"></div>
@@ -603,7 +614,7 @@ function renderStats(){
       (s.played===0?'<div class="empty" style="margin-top:8px">Play your first daily round to start the chart.</div>':'')+
     '</div>';
   stage.innerHTML=html;
-  document.getElementById('statsback').onclick=()=>{statsOpen=false;enterDaily();};
+__ANALYTICSSETTINGS__  document.getElementById('statsback').onclick=()=>{statsOpen=false;enterDaily();};
   renderProgress();
 }
 
@@ -976,6 +987,10 @@ const DEFAULT_TODAY_INTRO =
   'Today’s World Cup fixtures with validated head-to-head history, each side’s record, a matchup quiz, and a personal pick’em. Saved on this device only — no account, no server.';
 const DEFAULT_TODAY_NO_MATCHES = 'No World Cup matches today';
 
+// Assent-line default: the umbrella terms URL that every sibling pack's
+// footer already links (the umbrella app serves the same page at this URL).
+const DEFAULT_TERMS_URL = 'https://scorewit.com/terms';
+
 
 // ---------- Opt-in cookieless engagement analytics (see AnalyticsConfig) ----------
 // The five DEFAULT_ANALYTICS_* strings below are the ORIGINAL inline wiring,
@@ -1003,14 +1018,39 @@ const DEFAULT_TRACK_SHARE = `track('shared');`;
 
 const DEFAULT_TRACK_PRACTICE = '';
 
+// The analytics-off switch (CNIL/UK "objection mechanism" — see legal.ts):
+// one localStorage flag, checked before ANY event on every provider. The
+// provider script is only injected when the flag is unset, so an opted-out
+// visit makes zero analytics requests of any kind.
+const ANOFF_CHECK = `(function(){try{return localStorage.getItem('__STOREPREFIX__.analyticsOff')==='1';}catch(e){return false;}})()`;
+
 const PLAUSIBLE_HEAD = (domain: string) => `<!-- Plausible Analytics (cookieless, no PII; anonymous aggregate events only).
-     The queue stub makes window.plausible safe to call before/without the script loading. -->
-<script>window.plausible = window.plausible || function () { (window.plausible.q = window.plausible.q || []).push(arguments); };</script>
-<script defer data-domain="${domain}" src="https://plausible.io/js/script.js"></script>`;
+     The queue stub makes window.plausible safe to call before/without the script loading.
+     The loader honors the analytics-off switch: opted out = the script is never fetched. -->
+<script>window.plausible = window.plausible || function () { (window.plausible.q = window.plausible.q || []).push(arguments); };
+if(!${ANOFF_CHECK}){var s=document.createElement('script');s.defer=true;s.setAttribute('data-domain','${domain}');s.src='https://plausible.io/js/script.js';document.head.appendChild(s);}</script>`;
+
+const VERCEL_HEAD = `<!-- Vercel Web Analytics (cookieless). The queue stub makes window.va safe to
+     call before/without the script loading. The loader honors the analytics-off
+     switch: opted out = the script is never fetched. -->
+<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+if(!${ANOFF_CHECK}){var s=document.createElement('script');s.defer=true;s.src='/_vercel/insights/script.js';document.head.appendChild(s);}</script>`;
 
 const CUSTOM_HEAD = `<!-- Cookieless event beacon (first-party endpoint; no third-party script, no cookies, no PII). -->`;
 
-/** The five shell substitutions for a given analytics config (or its absence). */
+// Settings card (Stats panel) — the toggle the privacy page promises. Inline
+// styles only: the shared stylesheet must not change for analytics-unset apps.
+const SETTINGS_CARD_JS = `  // Settings — the analytics-off switch the privacy page promises: stops even
+  // the anonymous aggregate counts from this browser (all providers).
+  stage.insertAdjacentHTML('beforeend','<div class="card"><h3>Settings</h3>'+
+    '<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer">'+
+    '<input type="checkbox" id="anoff"'+(analyticsOff()?' checked':'')+' style="margin:3px 0 0;accent-color:var(--accent)" />'+
+    '<span style="font-size:14px">Don&#39;t count me in analytics'+
+    '<br /><span style="color:var(--text3);font-size:12px">Analytics here are cookieless and anonymous either way; this switch stops even those aggregate counts from this browser.</span></span></label></div>');
+  document.getElementById('anoff').onchange=e=>setAnalyticsOff(e.target.checked);
+`;
+
+/** The six shell substitutions for a given analytics config (or its absence). */
 function analyticsChunks(a: AnalyticsConfig | undefined, sport: string) {
   if (!a) {
     return {
@@ -1019,16 +1059,21 @@ function analyticsChunks(a: AnalyticsConfig | undefined, sport: string) {
       trackRound: DEFAULT_TRACK_ROUND,
       trackShare: DEFAULT_TRACK_SHARE,
       trackPractice: DEFAULT_TRACK_PRACTICE,
+      settings: '',
     };
   }
   let head: string;
   let impl: string;
+  // plausible: mirror the official plausible_ignore flag so an already-loaded
+  // script stops auto-pageviews the moment the switch flips — not next load.
+  let mirror = '';
   if (a.provider === 'plausible') {
     if (!a.domain) throw new Error('analytics.provider "plausible" requires analytics.domain');
     head = PLAUSIBLE_HEAD(a.domain);
     impl = `if(typeof window.plausible==='function')window.plausible(name,{props:data||{}});`;
+    mirror = `try{v?localStorage.setItem('plausible_ignore','true'):localStorage.removeItem('plausible_ignore');}catch(e){}`;
   } else if (a.provider === 'vercel') {
-    head = DEFAULT_ANALYTICS_HEAD;
+    head = VERCEL_HEAD;
     impl = `if(typeof window.va==='function')window.va('event',{name:name,data:data||{}});`;
   } else if (a.provider === 'custom') {
     if (!a.endpoint) throw new Error('analytics.provider "custom" requires analytics.endpoint');
@@ -1046,9 +1091,14 @@ function analyticsChunks(a: AnalyticsConfig | undefined, sport: string) {
 // payload carries nothing identifying. The streak bucket is the cookieless
 // retention proxy. Guarded: no-ops when the provider is unavailable
 // (offline / local / script blocked) and never throws.
+// The analytics-off switch (Settings, on the Stats panel) is checked before
+// EVERY event; the head loader also skips the provider script entirely.
 const SPORT=${JSON.stringify(sport)};
+const ANOFF_KEY='__STOREPREFIX__.analyticsOff';
+function analyticsOff(){try{return localStorage.getItem(ANOFF_KEY)==='1';}catch(e){return false;}}
+function setAnalyticsOff(v){try{v?localStorage.setItem(ANOFF_KEY,'1'):localStorage.removeItem(ANOFF_KEY);}catch(e){}${mirror}}
 function streakBucket(s){return s>=30?'30+':s>=7?'7-29':s>=2?'2-6':'1';}
-function track(name,data){try{${impl}}catch(e){}}`;
+function track(name,data){if(analyticsOff())return;try{${impl}}catch(e){}}`;
   return {
     head,
     js,
@@ -1057,6 +1107,7 @@ function track(name,data){try{${impl}}catch(e){}}`;
       `    track('round_completed',{sport:SPORT,streak_length:streakBucket(currentStreak(h,key)),num_correct:results.filter(p=>p>=100).length});`,
     trackShare: `track('result_shared',{sport:SPORT,streak_length:streakBucket(streak)});`,
     trackPractice: `track('practice_played',{sport:SPORT});`,
+    settings: SETTINGS_CARD_JS,
   };
 }
 
@@ -1081,6 +1132,8 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__TRACKROUND__').join(analytics.trackRound)
     .split('__TRACKSHARE__').join(analytics.trackShare)
     .split('__TRACKPRACTICE__').join(analytics.trackPractice)
+    .split('__ANALYTICSSETTINGS__').join(analytics.settings)
+    .split('__TERMSURL__').join(cfg.termsUrl ?? DEFAULT_TERMS_URL)
     .split('__PACKCONSTS__').join(client.consts)
     .split('__PACKDECOR__').join(client.decorations)
     .split('__PACKTEAMCARDS__').join(client.teamCards)

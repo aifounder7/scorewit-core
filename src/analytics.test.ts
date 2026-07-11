@@ -7,10 +7,16 @@
  *
  * Cases:
  *   - analytics UNSET  → the original inline Vercel wiring, byte-for-byte
- *     (default-safe: no new script, no new events, sport ignored);
+ *     (default-safe: no new script, no new events, sport ignored) — plus the
+ *     terms-assent line, the ONLY addition an analytics-unset app gains;
  *   - plausible/vercel/custom → the provider script + the anonymous
  *     round_completed / result_shared / practice_played events, with NO
  *     cookie, NO tracking id, NO PII anywhere in the emitted shell;
+ *   - the analytics-off switch: flag set ⇒ ZERO events on every provider
+ *     (the generated track() is executed against stubs, not just grepped),
+ *     flag unset ⇒ emission unchanged; the settings card renders exactly
+ *     once iff analytics is configured; plausible mirrors plausible_ignore;
+ *   - the terms-assent line renders exactly once in every variant;
  *   - misconfiguration throws (plausible w/o domain, custom w/o endpoint).
  */
 import assert from 'node:assert/strict';
@@ -68,7 +74,39 @@ const NEW_MARKERS = [
   'streakBucket',
   'plausible',
   'sendBeacon',
+  'analyticsOff',
+  'ANOFF_KEY',
+  'Don&#39;t count me in analytics',
 ];
+
+/** Extract the spliced analytics JS chunk and return its live functions,
+ *  executed against stubs (no browser): the flag gate is TESTED, not grepped. */
+function evalAnalytics(html: string, storage: ReturnType<typeof fakeStorage>, win: Record<string, unknown>, nav: Record<string, unknown>) {
+  const start = html.indexOf('// ---- Engagement events');
+  const end = html.indexOf('\n\nfunction teamLabel', start);
+  assert.ok(start >= 0 && end > start, 'analytics chunk found in shell');
+  const src = html.slice(start, end);
+  const fn = new Function(
+    'window', 'localStorage', 'navigator', 'fetch',
+    src + '\nreturn {track:track,analyticsOff:analyticsOff,setAnalyticsOff:setAnalyticsOff};'
+  );
+  return fn(win, storage, nav, () => {}) as {
+    track: (name: string, data?: unknown) => void;
+    analyticsOff: () => boolean;
+    setAnalyticsOff: (v: boolean) => void;
+  };
+}
+
+function fakeStorage(init?: Record<string, string>) {
+  const m = new Map(Object.entries(init ?? {}));
+  return {
+    getItem: (k: string) => (m.has(k) ? (m.get(k) as string) : null),
+    setItem: (k: string, v: string) => void m.set(k, String(v)),
+    removeItem: (k: string) => void m.delete(k),
+    has: (k: string) => m.has(k),
+    get: (k: string) => m.get(k),
+  };
+}
 
 check('unset: original Vercel wiring only — no new script, no new events', () => {
   const html = renderAppHtml(cfg());
@@ -84,10 +122,14 @@ check('unset: sport is ignored — output byte-identical with or without it', ()
   assert.equal(renderAppHtml(cfg()), renderAppHtml(cfg(undefined, 'testball')));
 });
 
-check('plausible: provider script + anonymous events, Vercel wiring gone', () => {
+check('plausible: gated provider loader + anonymous events, Vercel wiring gone', () => {
   const html = renderAppHtml(cfg({ provider: 'plausible', domain: 'quiz.example' }, 'testball'));
-  assert.ok(html.includes('data-domain="quiz.example"'));
-  assert.ok(html.includes('src="https://plausible.io/js/script.js"'));
+  assert.ok(html.includes("s.setAttribute('data-domain','quiz.example')"));
+  assert.ok(html.includes("s.src='https://plausible.io/js/script.js'"));
+  assert.ok(
+    html.includes("localStorage.getItem('testwit.analyticsOff')==='1'"),
+    'head loader honors the analytics-off switch (storagePrefix substituted)'
+  );
   assert.ok(html.includes('window.plausible = window.plausible ||'), 'queue stub');
   assert.ok(!html.includes('/_vercel/insights/script.js'), 'vercel script replaced');
   assert.ok(!html.includes('daily_completed') && !html.includes("track('shared')"), 'old events replaced');
@@ -119,12 +161,93 @@ check('privacy: no cookie, no tracking id, no fingerprint in any variant', () =>
   }
 });
 
-check('vercel provider: keeps the insights script, swaps in the new events', () => {
+check('vercel provider: gated insights loader, swaps in the new events', () => {
   const html = renderAppHtml(cfg({ provider: 'vercel' }, 'testball'));
-  assert.ok(html.includes('<script defer src="/_vercel/insights/script.js"></script>'));
+  assert.ok(html.includes("s.src='/_vercel/insights/script.js'"), 'loader-injected script');
+  assert.ok(!html.includes('<script defer src="/_vercel/insights/script.js"></script>'), 'static tag replaced by the gated loader');
+  assert.ok(html.includes("localStorage.getItem('testwit.analyticsOff')==='1'"), 'loader honors the switch');
   assert.ok(html.includes("window.va('event',{name:name,data:data||{}})"));
   assert.ok(html.includes('round_completed') && html.includes('result_shared'));
   assert.ok(!html.includes('daily_completed'));
+});
+
+check('analytics-off switch: flag set ⇒ zero events on EVERY provider; unset ⇒ unchanged', () => {
+  const make = (provider: 'plausible' | 'vercel' | 'custom') => {
+    const analytics =
+      provider === 'plausible' ? { provider, domain: 'quiz.example' } :
+      provider === 'custom' ? { provider, endpoint: 'https://example.test/e' } : { provider };
+    const html = renderAppHtml(cfg(analytics as AnalyticsConfig, 'testball'));
+    let fired = 0;
+    const win: Record<string, unknown> = {
+      plausible: () => { fired++; },
+      va: () => { fired++; },
+    };
+    const nav = { sendBeacon: () => { fired++; return true; } };
+    return { html, win, nav, fired: () => fired };
+  };
+  for (const provider of ['plausible', 'vercel', 'custom'] as const) {
+    // flag SET before load: no event fires, ever
+    const off = make(provider);
+    const offApi = evalAnalytics(off.html, fakeStorage({ 'testwit.analyticsOff': '1' }), off.win, off.nav);
+    offApi.track('round_completed', { sport: 'testball' });
+    offApi.track('result_shared');
+    assert.equal(off.fired(), 0, `${provider}: zero events with the flag set`);
+    assert.equal(offApi.analyticsOff(), true);
+    // flag UNSET: emission unchanged
+    const on = make(provider);
+    const onApi = evalAnalytics(on.html, fakeStorage(), on.win, on.nav);
+    onApi.track('round_completed', { sport: 'testball' });
+    assert.equal(on.fired(), 1, `${provider}: events emit normally with the flag unset`);
+    // flipping the switch mid-session stops the next event immediately
+    onApi.setAnalyticsOff(true);
+    onApi.track('practice_played');
+    assert.equal(on.fired(), 1, `${provider}: no event after opting out mid-session`);
+  }
+});
+
+check('analytics-off switch: plausible toggle mirrors plausible_ignore; others do not', () => {
+  const html = renderAppHtml(cfg({ provider: 'plausible', domain: 'quiz.example' }, 'testball'));
+  const store = fakeStorage();
+  const api = evalAnalytics(html, store, { plausible: () => {} }, {});
+  api.setAnalyticsOff(true);
+  assert.equal(store.get('testwit.analyticsOff'), '1');
+  assert.equal(store.get('plausible_ignore'), 'true', 'official Plausible opt-out mirrored on');
+  api.setAnalyticsOff(false);
+  assert.ok(!store.has('testwit.analyticsOff'), 'flag cleared');
+  assert.ok(!store.has('plausible_ignore'), 'mirror cleared');
+  const vhtml = renderAppHtml(cfg({ provider: 'vercel' }, 'testball'));
+  const vstore = fakeStorage();
+  const vapi = evalAnalytics(vhtml, vstore, { va: () => {} }, {});
+  vapi.setAnalyticsOff(true);
+  assert.ok(!vstore.has('plausible_ignore'), 'non-plausible providers leave plausible_ignore alone');
+});
+
+check('settings card: exactly once when analytics is set, absent when unset', () => {
+  const set = renderAppHtml(cfg({ provider: 'plausible', domain: 'quiz.example' }, 'testball'));
+  assert.equal(set.split('Don&#39;t count me in analytics').length - 1, 1, 'toggle rendered exactly once');
+  assert.equal(set.split('<h3>Settings</h3>').length - 1, 1, 'settings card exactly once');
+  assert.ok(set.includes("document.getElementById('anoff').onchange"), 'toggle wired');
+  const unset = renderAppHtml(cfg());
+  assert.ok(!unset.includes('Settings'), 'no settings card when analytics unset');
+  assert.ok(!unset.includes('anoff'), 'no toggle wiring when analytics unset');
+});
+
+check('terms-assent line: exactly once in every variant; default URL; override honored', () => {
+  const assent = 'By playing you agree to the <a href="https://scorewit.com/terms">Terms</a>';
+  const variants = [
+    renderAppHtml(cfg()),
+    renderAppHtml(cfg({ provider: 'plausible', domain: 'quiz.example' }, 'testball')),
+    renderAppHtml(cfg({ provider: 'vercel' }, 'testball')),
+    renderAppHtml(cfg({ provider: 'custom', endpoint: 'https://example.test/e' }, 'testball')),
+  ];
+  for (const html of variants) {
+    assert.equal(html.split('class="assent"').length - 1, 1, 'assent line exactly once');
+    assert.ok(html.includes(assent), 'default umbrella terms URL');
+  }
+  const custom = { ...cfg(), termsUrl: '/terms' };
+  const html = renderAppHtml(custom);
+  assert.ok(html.includes('By playing you agree to the <a href="/terms">Terms</a>'), 'termsUrl override');
+  assert.ok(!html.includes('__TERMSURL__'), 'no unresolved token');
 });
 
 check('custom provider: first-party beacon to the endpoint, no third-party script', () => {
@@ -139,7 +262,7 @@ check('misconfiguration throws before emitting anything', () => {
   assert.throws(() => renderAppHtml(cfg({ provider: 'custom' })), /requires analytics\.endpoint/);
 });
 
-console.log(`\n${failures === 0 ? 'ALL' : ''} ${7 - failures}/7 analytics cases passed.`);
+console.log(`\n${failures === 0 ? 'ALL' : ''} ${11 - failures}/11 analytics cases passed.`);
 if (failures) {
   console.error(`ANALYTICS TEST FAILED — ${failures} case(s) wrong.`);
   process.exit(1);

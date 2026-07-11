@@ -312,6 +312,9 @@ export interface SportPack<
   /** Opt-in cookieless engagement events (see AnalyticsConfig). Unset keeps
    *  the shell byte-for-byte and emits nothing new. */
   analytics?: AnalyticsConfig;
+  /** Href of the shell's terms-assent line ("By playing you agree to the
+   *  Terms"). Unset = the umbrella terms URL the sibling footers link. */
+  termsUrl?: string;
 
   /** Pull the upstream source and return the normalized dataset + coverage.
    *  The core writes both to paths.datasetDir. */

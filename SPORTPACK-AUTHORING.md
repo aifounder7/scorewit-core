@@ -158,6 +158,23 @@ share of `7-29`/`30+` streaks = retention, derivable with zero tracking ID.
 See METRICS.md for what is (and honestly is NOT) derivable. Activation is one
 config line per pack plus the provider account — no core change.
 
+**Analytics-off switch (v0.10.0, automatic when `analytics` is set):** the
+Stats panel gains a Settings card with a "Don't count me in analytics"
+checkbox. It sets `<storagePrefix>.analyticsOff` in localStorage; `track()`
+checks the flag before EVERY event on every provider, and the head loader
+skips fetching the provider script entirely when the flag is set (for
+Plausible the official `plausible_ignore` flag is mirrored too, so an
+already-loaded script stops auto-pageviews immediately). This is the
+objection mechanism the umbrella privacy page promises (CNIL sheet 16 / UK
+DUAA statistics exception). Unset analytics = no card, no flag, byte-identical.
+
+**Terms-assent line (v0.10.0, always rendered):** a conspicuous
+"By playing you agree to the Terms" line under the play area, linking
+`termsUrl` (default: the umbrella `https://scorewit.com/terms` every sibling
+footer already links). In-flow assent per the 2025 case law — a footer-only
+terms link is routinely unenforceable browsewrap. Override `pack.termsUrl`
+only if the pack's canonical terms live elsewhere.
+
 ## The app-shell surface
 
 The shell owns the engine (daily selection, scoring, streak/stats, practice,

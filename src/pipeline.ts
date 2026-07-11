@@ -211,6 +211,7 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       // Opt-in cookieless engagement events (unset = byte-identical shell).
       analytics: pack.analytics,
       sport: pack.id,
+      termsUrl: pack.termsUrl,
     },
     pack.assets,
     paths
