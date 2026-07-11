@@ -245,7 +245,7 @@ check('legal paths are RESERVED for pack pages; the umbrella emits them via the 
   assert.equal(count, 3);
   const privacy = fs.readFileSync(path.join(paths.siteDir, 'privacy.html'), 'utf8');
   const terms = fs.readFileSync(path.join(paths.siteDir, 'terms.html'), 'utf8');
-  assert.ok(privacy.includes('no accounts, sets no cookies'), 'privacy body rendered');
+  assert.ok(privacy.includes('no accounts and no logins'), 'privacy body rendered');
   assert.ok(privacy.includes('cookieless and aggregate-only'), 'Plausible-ready analytics section');
   assert.ok(privacy.includes(LEGAL_CONTACT), 'contact alias present');
   assert.ok(privacy.includes(`Effective ${LEGAL_EFFECTIVE_DATE}`), 'editorial effective date, not a clock');
