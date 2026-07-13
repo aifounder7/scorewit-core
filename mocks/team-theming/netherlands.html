@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scorewit — My Team theming mock: Netherlands</title>
+<style>
+  :root{
+    --bg:#0C0C0E; --elev:#161619; --surface:#222228; --hover:#2E2E36;
+    --text:#EDEDEF; --text2:#9A9AA3; --text3:#84848D;
+    --accent:#4E9CF5; --accentDim:rgba(78,156,245,0.14);
+    --practice:#A78BFA; --practiceDim:rgba(167,139,250,0.14);
+    --team:#5BC0CE; --teamDim:rgba(91,192,206,0.14);
+    --today:#E879A6; --todayDim:rgba(232,121,166,0.14);
+    --correct:#2ECC71; --correctDim:rgba(46,204,113,0.14);
+    --incorrect:#EA4058; --incorrectDim:rgba(232,54,79,0.14);
+    --partial:#F5A623;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.5}
+  .wrap{max-width:560px;margin:0 auto;padding:24px 20px 64px}
+  header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+  .brand{margin:0;font-weight:700;letter-spacing:-.02em;font-size:20px;display:flex;align-items:center;gap:9px}
+  .brand small{color:var(--text2);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-left:2px}
+  .brandmark{display:inline-flex}
+  .brandmark svg{width:27px;height:27px;display:block}
+  .sub{color:var(--text3);font-size:12px;margin-bottom:20px}
+  .progress{display:flex;gap:4px;margin:18px 0 10px}
+  .dot{height:4px;flex:1;border-radius:2px;background:var(--surface)}
+  .dot.done{background:var(--accent)} .dot.active{background:var(--hover)}
+  .score{font-variant-numeric:tabular-nums;font-weight:700;font-size:16px}
+  .score .max{color:var(--text3);font-weight:600}
+  .meta{display:flex;gap:14px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:14px 0 6px}
+  .meta .d{color:var(--accent);font-weight:700}.meta .e{color:var(--text3);font-weight:600}.meta .t{color:var(--text3);margin-left:auto}
+  .q{font-size:19px;font-weight:600;letter-spacing:-.01em;margin:6px 0 18px}
+  .opts{display:flex;flex-direction:column;gap:10px}
+  button.opt{appearance:none;text-align:left;background:var(--elev);border:1px solid var(--surface);
+    color:var(--text);padding:14px 16px;border-radius:12px;font-size:15px;cursor:pointer;transition:.12s}
+  button.opt:hover{background:var(--hover)}
+  button.opt:disabled{cursor:default}
+  button.opt.correct{background:var(--correctDim);border-color:var(--correct)}
+  button.opt.wrong{background:var(--incorrectDim);border-color:var(--incorrect)}
+  .cg{display:flex;gap:10px;align-items:center}
+  .cg input{flex:1;background:var(--elev);border:1px solid var(--surface);color:var(--text);
+    font-size:16px;padding:13px 16px;border-radius:12px;font-variant-numeric:tabular-nums}
+  .cg .unit{color:var(--text3);font-size:13px}
+  .btn{appearance:none;background:var(--accent);color:#06121f;border:0;font-weight:700;
+    padding:13px 18px;border-radius:12px;font-size:15px;cursor:pointer}
+  .btn.ghost{background:var(--surface);color:var(--text)}
+  .reveal{margin-top:18px;padding:16px;border-radius:12px;background:var(--elev);border:1px solid var(--surface)}
+  .reveal .pts{font-weight:700;font-size:14px}
+  .reveal .pts.ok{color:var(--correct)} .reveal .pts.partial{color:var(--partial)} .reveal .pts.no{color:var(--incorrect)}
+  .reveal .fact{margin:8px 0 10px;color:var(--text)}
+  .reveal a{display:inline-block;margin-top:8px;color:var(--accent);font-size:13px;font-weight:600;
+    text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+  .reveal a:hover{opacity:.85}
+  .row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:10px}
+  .final{text-align:center;padding:24px 0}
+  .final .big{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .final .big small{font-size:20px;color:var(--text3)}
+  .squares{font-size:22px;letter-spacing:3px;margin:14px 0}
+  .note{color:var(--text3);font-size:12px;margin-top:10px}
+  .sharebox{display:none;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    background:var(--elev);border:1px solid var(--surface);border-radius:10px;padding:12px 14px;
+    margin:12px auto 0;max-width:320px;color:var(--text);font-size:15px;text-align:left;user-select:all;line-height:1.45}
+  .tabs{display:flex;gap:6px;margin:14px 0 2px}
+  .tab{appearance:none;background:transparent;border:1px solid var(--surface);color:var(--text2);
+    padding:7px 16px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer}
+  .tab.active{background:var(--accentDim);border-color:var(--accent);color:var(--accent)}
+  .tab[data-mode="practice"].active{background:var(--practiceDim);border-color:var(--practice);color:var(--practice)}
+  .pbanner{background:var(--practiceDim);color:var(--practice);font-size:12px;font-weight:600;padding:12px 14px;border-radius:12px;margin:10px 0 16px}
+  .filters{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+  .flabel{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+  .chiprow{display:flex;flex-wrap:wrap;gap:8px}
+  .fchip{appearance:none;background:var(--elev);border:1.5px solid transparent;color:var(--text2);padding:5px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer}
+  .fchip.on{background:var(--practiceDim);border-color:var(--practice);color:var(--practice)}
+  .btn.practice{background:var(--practice);color:#0c0a1a}
+  /* ---- Fav-team mode ---- */
+  .tab[data-mode="team"].active{background:var(--teamDim);border-color:var(--team);color:var(--team)}
+  .btn.team{background:var(--team);color:#04181b}
+  .tbanner{background:var(--teamDim);color:var(--team);font-size:12px;font-weight:600;padding:12px 14px;border-radius:12px;margin:10px 0 16px}
+  .teamhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 4px}
+  .teamhead .name{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+  .linkbtn{appearance:none;background:transparent;border:0;color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0}
+  .linkbtn:hover{color:var(--text)}
+  .picker-search{width:100%;background:var(--elev);border:1px solid var(--surface);color:var(--text);font-size:15px;padding:12px 14px;border-radius:12px;margin:6px 0 12px}
+  .teamlist{display:flex;flex-wrap:wrap;gap:8px}
+  .teamlist .fchip{cursor:pointer}
+  .teamlist .fchip:hover{background:var(--hover);color:var(--text)}
+  .card{background:var(--elev);border:1px solid var(--surface);border-radius:12px;padding:14px 16px;margin:12px 0}
+  .card h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:700}
+  .reclist{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;margin-bottom:8px}
+  .reclist .num{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  .reclist .lab{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+  .recmeta{font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums}
+  .resline{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--surface)}
+  .resline:first-of-type{border-top:0}
+  .resline .sl{font-size:14px}
+  .resline .ed{font-size:11px;color:var(--text3);white-space:nowrap}
+  .resline a{color:var(--team);font-size:11px;text-decoration:underline;text-underline-offset:2px;cursor:pointer;margin-left:8px}
+  .titles{display:flex;flex-wrap:wrap;gap:6px}
+  .ttag{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--surface);color:var(--text);display:inline-flex;gap:6px;align-items:center}
+  .ttag a{color:var(--team);text-decoration:underline;text-underline-offset:2px;cursor:pointer;font-size:11px}
+  .ttag .yr{color:var(--text2);font-variant-numeric:tabular-nums}
+  .empty{color:var(--text3);font-size:13px}
+  .subnav{display:flex;gap:6px;margin:14px 0 4px}
+  .subnav .tab{font-size:12px;padding:6px 14px}
+  .subnav .tab.active{background:var(--teamDim);border-color:var(--team);color:var(--team)}
+  /* ---- Daily streak + stats ---- */
+  .streakbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:8px 0 2px;min-height:26px}
+  .streakchip{display:inline-flex;align-items:center;gap:6px;background:var(--accentDim);color:var(--accent);font-size:13px;font-weight:700;padding:4px 12px;border-radius:999px}
+  .final .streakchip{margin:6px auto 2px}
+  .statshead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 12px}
+  .statshead .name{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+  .statrow{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+  .statbox{flex:1 1 45%;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--elev);border:1px solid var(--surface);padding:14px;border-radius:12px}
+  .statval{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+  .statlab{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+  .hist{display:flex;gap:8px;height:140px;align-items:flex-end;margin-top:6px}
+  .histcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+  .histn{font-size:11px;color:var(--text2);font-variant-numeric:tabular-nums;min-height:14px}
+  .histtrack{flex:1;width:100%;display:flex;align-items:flex-end}
+  .histbar{width:100%;background:var(--surface);border-radius:4px}
+  .histbar.on{background:var(--accent);min-height:3px}
+  .histlab{font-size:11px;color:var(--text3);font-variant-numeric:tabular-nums}
+  /* ---- Today tab (fixtures + head-to-head + mini-quiz + pick'em) ---- */
+  .tab[data-mode="today"].active{background:var(--todayDim);border-color:var(--today);color:var(--today)}
+  .btn.today{background:var(--today);color:#2a0c19}
+  .tdbanner{background:var(--todayDim);color:var(--today);font-size:12px;font-weight:600;padding:12px 14px;border-radius:12px;margin:10px 0 14px}
+  .tdbanner2{background:var(--todayDim);color:var(--today);font-size:12px;font-weight:600;padding:10px 14px;border-radius:12px;margin:8px 0 14px}
+  .daylabel{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:700;margin:16px 0 6px}
+  .fixture{background:var(--elev);border:1px solid var(--surface);border-radius:14px;padding:14px 16px;margin:10px 0}
+  .fxhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:6px}
+  .matchup{font-size:18px;font-weight:700;letter-spacing:-.01em}
+  .matchup .vs{color:var(--text3);font-weight:600;font-size:13px;margin:0 4px}
+  .fxround{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);white-space:nowrap}
+  .tbdnote{color:var(--text3);font-size:13px;margin-top:4px}
+  .wdl{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;text-align:center;margin:6px 0}
+  .wdl .w{font-weight:700}.wdl .n{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+  .wdl .lab{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+  .credrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
+  .cred{background:var(--surface);border-radius:10px;padding:10px 12px}
+  .credname{font-weight:700;font-size:14px;margin-bottom:4px}
+  .credline{font-size:13px;color:var(--text);min-height:0}
+  .credline2{font-size:12px;color:var(--text2);margin-top:2px}
+  .credtt{font-size:11px;color:var(--text2);font-variant-numeric:tabular-nums;margin-top:4px}
+  .pickem{margin-top:10px;padding-top:10px;border-top:1px solid var(--surface)}
+  .pklabel{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:700;margin-bottom:6px}
+  .pkrow{display:flex;gap:8px}
+  .pkbtn{flex:1;appearance:none;background:var(--bg);border:1.5px solid var(--surface);color:var(--text2);padding:9px 10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer}
+  .pkbtn:hover{background:var(--hover);color:var(--text)}
+  .pkbtn.on{background:var(--todayDim);border-color:var(--today);color:var(--today)}
+  .pkhint{font-size:11px;color:var(--text3);margin-top:6px}
+  .h3sub{font-weight:600;text-transform:none;letter-spacing:0;color:var(--text3)}
+  /* ---- Terms assent (conspicuous, in-flow, adjacent to the play surface —
+          NOT footer-gray browsewrap; see legal.ts + the hardening report) ---- */
+  .assent{margin-top:36px;color:var(--text2);font-size:13px;text-align:center}
+  .assent a{color:var(--accent);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+  .assent a:hover{opacity:.85}
+  /* ---- Footer (non-affiliation disclaimer) ---- */
+  footer{margin-top:44px;padding-top:14px;border-top:1px solid var(--surface);
+    color:var(--text3);font-size:11px;line-height:1.6}
+  footer a{color:var(--text2)}
+  /* ---- Visually-hidden (screen-reader-only) heading text ---- */
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  /* ---- Waving flag icons (static images; hero-only optional motion) ---- */
+  .flg{height:1em;width:1em;vertical-align:-.12em;margin-right:.32em}
+  @media (prefers-reduced-motion:no-preference){
+    .flg-hero{animation:flgwave 5s ease-in-out infinite;transform-origin:15% 60%;display:inline-block}
+    @keyframes flgwave{0%,100%{transform:none}50%{transform:rotate(-2deg) skewY(1.5deg)}}
+  }
+  /* ---- Toast (share confirmation) ---- */
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(8px);
+    background:var(--surface);color:var(--text);font-size:13px;font-weight:600;
+    padding:10px 18px;border-radius:999px;border:1px solid var(--hover);
+    box-shadow:0 6px 24px rgba(0,0,0,.5);opacity:0;transition:.25s;pointer-events:none;z-index:10}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  .tlead{border-left:3px solid var(--team);}
+  .tleadtxt{font-size:17px;line-height:1.5;font-weight:600;color:var(--text);}
+
+  /* ---- T1 team-theming (proposed shell additions; opt-in, token-driven) ---- */
+  .natband{height:6px;border-radius:3px;margin:10px 0 0}
+  .natband.inset{box-shadow:inset 0 0 0 1px var(--surface)}
+  .natbanner{background:var(--teamDim);border-radius:0 0 12px 12px;padding:14px 16px 15px;margin:0 0 4px}
+  .natbanner .teamhead{margin:0 0 8px}
+  .natlead{font-size:15px;line-height:1.5;font-weight:600;color:var(--text)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 class="brand"><span class="brandmark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M112 82 h288 a48 48 0 0 1 48 48 v192 a48 48 0 0 1 -48 48 H260 l-86 90 v-90 h-62 a48 48 0 0 1 -48 -48 V130 a48 48 0 0 1 48 -48 z" fill="#4E9CF5"/><circle cx="256" cy="226" r="108" fill="#EDEDEF"/><defs><clipPath id="swb"><circle cx="256" cy="226" r="106.4"/></clipPath></defs><g clip-path="url(#swb)"><path d="M256.0 187.1 L219.0 214.0 L233.1 257.5 L278.9 257.5 L293.0 214.0 Z" fill="#0C0C0E" stroke="#0C0C0E" stroke-width="9.7" stroke-linejoin="round"/><line x1="256.0" y1="182.8" x2="256.0" y2="133.1" stroke="#0C0C0E" stroke-width="5.4" stroke-linecap="round"/><line x1="214.9" y1="212.7" x2="167.7" y2="197.3" stroke="#0C0C0E" stroke-width="5.4" stroke-linecap="round"/><line x1="230.6" y1="260.9" x2="201.4" y2="301.1" stroke="#0C0C0E" stroke-width="5.4" stroke-linecap="round"/><line x1="281.4" y1="260.9" x2="310.6" y2="301.1" stroke="#0C0C0E" stroke-width="5.4" stroke-linecap="round"/><line x1="297.1" y1="212.7" x2="344.3" y2="197.3" stroke="#0C0C0E" stroke-width="5.4" stroke-linecap="round"/><path d="M327.7 163.6 L293.1 138.5 L284.7 110.7 L356.7 163.0 Z" fill="#0C0C0E" stroke="#0C0C0E" stroke-width="6.5" stroke-linejoin="round"/><path d="M218.9 138.5 L184.3 163.6 L155.3 163.0 L227.3 110.7 Z" fill="#0C0C0E" stroke="#0C0C0E" stroke-width="6.5" stroke-linejoin="round"/><path d="M161.3 234.3 L174.5 274.9 L165.0 302.4 L137.5 217.7 Z" fill="#0C0C0E" stroke="#0C0C0E" stroke-width="6.5" stroke-linejoin="round"/><path d="M234.6 318.6 L277.4 318.6 L300.5 336.1 L211.5 336.1 Z" fill="#0C0C0E" stroke="#0C0C0E" stroke-width="6.5" stroke-linejoin="round"/><path d="M337.5 274.9 L350.7 234.3 L374.5 217.7 L347.0 302.4 Z" fill="#0C0C0E" stroke="#0C0C0E" stroke-width="6.5" stroke-linejoin="round"/></g><circle cx="256" cy="226" r="108" fill="none" stroke="#0C0C0E" stroke-width="6.5"/></svg></span>Scorewit <small>Daily trivia</small></h1>
+    <div class="score" id="score" style="visibility:hidden">0<span class="max"> / 600</span></div>
+  </header>
+  <nav class="tabs" id="tabs" aria-label="Game modes">
+    <button class="tab" data-mode="daily">Daily</button>
+    <button class="tab" data-mode="today">Today</button>
+    <button class="tab" data-mode="practice">Practice</button>
+    <button class="tab active" data-mode="team">My Team</button>
+  </nav>
+<main>
+  <h2 class="sr" id="viewtitle">My Team</h2>
+  <div id="stage"><div class="nation" style="--team:#7DA4E8;--teamDim:rgba(125,164,232,0.14)"><div class="natband" style="background:linear-gradient(180deg, #AE1C28 0.0% 33.3%, #FFFFFF 33.3% 66.7%, #21468B 66.7% 100.0%)" aria-hidden="true"></div><div class="natbanner"><div class="teamhead"><h2 class="name"><img class="flg flg-hero" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0wIDE0aDM2djhIMHoiLz48cGF0aCBmaWxsPSIjQUUxRjI4IiBkPSJNMzIgNUg0QzEuNzkxIDUgMCA2Ljc5MSAwIDl2NWgzNlY5YzAtMi4yMDktMS43OTEtNC00LTR6Ii8+PHBhdGggZmlsbD0iIzIwNDc4QiIgZD0iTTQgMzFoMjhjMi4yMDkgMCA0LTEuNzkxIDQtNHYtNUgwdjVjMCAyLjIwOSAxLjc5MSA0IDQgNHoiLz48cGF0aCBmaWxsPSIjMDAwIiBvcGFjaXR5PSIuMTAiIGQ9Ik0xMCAyIEwxNSAyIEwxOSAzNCBMMTQgMzQgWiIvPjxwYXRoIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xMiIgZD0iTTIyIDIgTDI2IDIgTDMwIDM0IEwyNiAzNCBaIi8+PC9nPjwvc3ZnPg==" alt="Netherlands"/>Netherlands</h2><button class="linkbtn">Change team</button></div><div class="natlead">Three times World Cup runners-up. Winners more often than not — 32 of 59 matches. Shootouts have not been kind: 1–4.</div></div><div class="subnav"><button class="tab active">Insights</button><button class="tab">Team quiz</button></div><div class="card"><h3>All-time World Cup record</h3><div class="reclist"><div><div class="num">59</div><div class="lab">Played</div></div><div><div class="num">32</div><div class="lab">Won</div></div><div><div class="num">16</div><div class="lab">Drawn</div></div><div><div class="num">11</div><div class="lab">Lost</div></div></div><div class="recmeta">Goals 107–57 · Shootouts 1–4 · W/D/L by the 90′/extra-time scoreline</div></div><div class="card"><h3>Tournament finishes <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--text3)">(completed editions only)</span></h3><div class="titles"><span class="ttag">Runner-up <span class="yr">1974</span> <a href="https://github.com/openfootball/worldcup.json/blob/master/1974/worldcup.json" target="_blank" rel="noopener noreferrer">source ↗</a></span><span class="ttag">Runner-up <span class="yr">1978</span> <a href="https://github.com/openfootball/worldcup.json/blob/master/1978/worldcup.json" target="_blank" rel="noopener noreferrer">source ↗</a></span><span class="ttag">Runner-up <span class="yr">2010</span> <a href="https://github.com/openfootball/worldcup.json/blob/master/2010/worldcup.json" target="_blank" rel="noopener noreferrer">source ↗</a></span><span class="ttag">Third place <span class="yr">2014</span> <a href="https://github.com/openfootball/worldcup.json/blob/master/2014/worldcup.json" target="_blank" rel="noopener noreferrer">source ↗</a></span></div></div><div class="card"><h3>Biggest World Cup wins</h3><div class="resline"><span class="sl"><img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0wIDE0aDM2djhIMHoiLz48cGF0aCBmaWxsPSIjQUUxRjI4IiBkPSJNMzIgNUg0QzEuNzkxIDUgMCA2Ljc5MSAwIDl2NWgzNlY5YzAtMi4yMDktMS43OTEtNC00LTR6Ii8+PHBhdGggZmlsbD0iIzIwNDc4QiIgZD0iTTQgMzFoMjhjMi4yMDkgMCA0LTEuNzkxIDQtNHYtNUgwdjVjMCAyLjIwOSAxLjc5MSA0IDQgNHoiLz48cGF0aCBmaWxsPSIjMDAwIiBvcGFjaXR5PSIuMTAiIGQ9Ik0xMCAyIEwxNSAyIEwxOSAzNCBMMTQgMzQgWiIvPjxwYXRoIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xMiIgZD0iTTIyIDIgTDI2IDIgTDMwIDM0IEwyNiAzNCBaIi8+PC9nPjwvc3ZnPg==" alt="Netherlands"/>Netherlands 5–0 <img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0zNiAyN2MwIDIuMjA5LTEuNzkxIDQtNCA0SDRjLTIuMjA5IDAtNC0xLjc5MS00LTRWOWMwLTIuMjA5IDEuNzkxLTQgNC00aDI4YzIuMjA5IDAgNCAxLjc5MSA0IDR2MTh6Ii8+PHBhdGggZmlsbD0iI0M2MEMzMCIgZD0iTTIxLjQ0MSAxMy4wODVjLTIuNzE0LTEuOS02LjQ1NS0xLjI0LTguMzU2IDEuNDc0LS45NSAxLjM1Ni0uNjIxIDMuMjI3LjczNyA0LjE3OSAxLjM1Ny45NDkgMy4yMjguNjE4IDQuMTc4LS43MzhzMi44MjItMS42ODcgNC4xNzgtLjczNmMxLjM1OC45NSAxLjY4OCAyLjgyMS43MzcgNC4xNzggMS45MDEtMi43MTQgMS4yNDEtNi40NTUtMS40NzQtOC4zNTd6Ii8+PHBhdGggZmlsbD0iIzAwMzQ3OCIgZD0iTTIyLjE3OCAxNy4yNjRjLTEuMzU2LS45NTEtMy4yMjgtLjYyLTQuMTc4LjczNnMtMi44MjEgMS42ODctNC4xNzguNzM3Yy0xLjM1OC0uOTUxLTEuNjg3LTIuODIyLS43MzctNC4xNzktMS45MDEgMi43MTYtMS4yNDEgNi40NTYgMS40NzMgOC4zNTYgMi43MTUgMS45MDEgNi40NTUgMS4yNDIgOC4zNTYtMS40NzQuOTUxLTEuMzU1LjYyMS0zLjIyNi0uNzM2LTQuMTc2eiIvPjxwYXRoIGQ9Ik0yNC4zMzQgMjUuNTcybDEuOTI4LTIuMjk4Ljc2Ni42NDMtMS45MjggMi4yOTh6bTIuNTctMy4wNjNsMS45MjgtMi4yOTcuNzY2LjY0My0xLjkyOCAyLjI5N3ptLTEuMDM4IDQuMzUxbDEuOTI4LTIuMjk3Ljc2Ni42NDMtMS45MjggMi4yOTd6bTIuNTcyLTMuMDY2bDEuOTMtMi4yOTcuNzY2LjY0NC0xLjkzIDIuMjk2em0tMS4wNDEgNC4zNTJsMS45My0yLjI5Ny43NjUuNjQzLTEuOTI5IDIuMjk3em0yLjU3MS0zLjA2NWwxLjkyNy0yLjMuNzY3LjY0My0xLjkyNyAyLjN6bS4wMDQtMTQuMTYybC43NjYtLjY0MyAxLjkzIDIuMjk5LS43NjcuNjQzek0yNy40IDcuODUzbC43NjYtLjY0MyAxLjkyOCAyLjI5OS0uNzY3LjY0MnptLTEuNTMzIDEuMjg4bC43NjYtLjY0MyA0LjUgNS4zNjItLjc2Ni42NDN6bS0xLjUzMiAxLjI4NGwuNzY3LS42NDMgMS45MjcgMi4yOTgtLjc2Ni42NDJ6bTIuNTcgMy4wNjVsLjc2Ni0uNjQzIDEuOTMgMi4yOTctLjc2NS42NDN6TTYuNCAyMC44NTRsLjc2Ni0uNjQzIDQuNDk5IDUuMzYzLS43NjcuNjQzek00Ljg3IDIyLjE0bC43NjUtLjY0MiAxLjkyOSAyLjI5OC0uNzY3LjY0M3ptMi41NjcgMy4wNjZsLjc2Ni0uNjQzIDEuOTMgMi4yOTctLjc2Ni42NDN6bS00LjEwMS0xLjc4MWwuNzY2LS42NDMgNC41IDUuMzYyLS43NjcuNjQzem0tLjAwMS0xMC44NTJsNC40OTgtNS4zNjIuNzY3LjY0Mi00LjUgNS4zNjN6bTEuNTMyIDEuMjg3bDQuNS01LjM2My43NjYuNjQzLTQuNSA1LjM2MnpNNi40IDE1LjE0NWw0LjUtNS4zNjMuNzY2LjY0My00LjUgNS4zNjN6IiBmaWxsPSIjMjkyRjMzIi8+PHBhdGggZmlsbD0iIzAwMCIgb3BhY2l0eT0iLjEwIiBkPSJNMTAgMiBMMTUgMiBMMTkgMzQgTDE0IDM0IFoiLz48cGF0aCBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMTIiIGQ9Ik0yMiAyIEwyNiAyIEwzMCAzNCBMMjYgMzQgWiIvPjwvZz48L3N2Zz4=" alt="South Korea"/>South Korea</span><span class="ed">1998 · Group <a href="https://github.com/openfootball/worldcup.json/blob/master/1998/worldcup.json" target="_blank" rel="noopener noreferrer">source ↗</a></span></div><div class="resline"><span class="sl"><img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0wIDE0aDM2djhIMHoiLz48cGF0aCBmaWxsPSIjQUUxRjI4IiBkPSJNMzIgNUg0QzEuNzkxIDUgMCA2Ljc5MSAwIDl2NWgzNlY5YzAtMi4yMDktMS43OTEtNC00LTR6Ii8+PHBhdGggZmlsbD0iIzIwNDc4QiIgZD0iTTQgMzFoMjhjMi4yMDkgMCA0LTEuNzkxIDQtNHYtNUgwdjVjMCAyLjIwOSAxLjc5MSA0IDQgNHoiLz48cGF0aCBmaWxsPSIjMDAwIiBvcGFjaXR5PSIuMTAiIGQ9Ik0xMCAyIEwxNSAyIEwxOSAzNCBMMTQgMzQgWiIvPjxwYXRoIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xMiIgZD0iTTIyIDIgTDI2IDIgTDMwIDM0IEwyNiAzNCBaIi8+PC9nPjwvc3ZnPg==" alt="Netherlands"/>Netherlands 5–1 <img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiMwMDZBQTciIGQ9Ik0xNS41IDMxSDMyYzIuMjA5IDAgNC0xLjc5MSA0LTQuNXYtNkgxNS41VjMxek0zMiA1SDE1LjV2MTAuNUgzNlY5YzAtMi4yMDktMS43OTEtNC00LTR6TTEwLjUgNUg0QzEuNzkyIDUgLjAwMiA2Ljc4OSAwIDguOTk3VjE1LjVoMTAuNVY1ek0wIDIwLjV2Ni4wMDRDLjAwMiAyOS4yMTEgMS43OTIgMzEgNCAzMWg2LjVWMjAuNUgweiIvPjxwYXRoIGZpbGw9IiNGRUNDMDAiIGQ9Ik0xNS41IDVoLTV2MTAuNUgwdjVoMTAuNVYzMWg1VjIwLjVIMzZ2LTVIMTUuNXoiLz48cGF0aCBmaWxsPSIjMDAwIiBvcGFjaXR5PSIuMTAiIGQ9Ik0xMCAyIEwxNSAyIEwxOSAzNCBMMTQgMzQgWiIvPjxwYXRoIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xMiIgZD0iTTIyIDIgTDI2IDIgTDMwIDM0IEwyNiAzNCBaIi8+PC9nPjwvc3ZnPg==" alt="Sweden"/>Sweden</span><span class="ed">2026 (in progress) · Group <a href="https://github.com/openfootball/worldcup.json/blob/master/2026/worldcup.json" target="_blank" rel="noopener noreferrer">source ↗</a></span></div><div class="resline"><span class="sl"><img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0wIDE0aDM2djhIMHoiLz48cGF0aCBmaWxsPSIjQUUxRjI4IiBkPSJNMzIgNUg0QzEuNzkxIDUgMCA2Ljc5MSAwIDl2NWgzNlY5YzAtMi4yMDktMS43OTEtNC00LTR6Ii8+PHBhdGggZmlsbD0iIzIwNDc4QiIgZD0iTTQgMzFoMjhjMi4yMDkgMCA0LTEuNzkxIDQtNHYtNUgwdjVjMCAyLjIwOSAxLjc5MSA0IDQgNHoiLz48cGF0aCBmaWxsPSIjMDAwIiBvcGFjaXR5PSIuMTAiIGQ9Ik0xMCAyIEwxNSAyIEwxOSAzNCBMMTQgMzQgWiIvPjxwYXRoIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xMiIgZD0iTTIyIDIgTDI2IDIgTDMwIDM0IEwyNiAzNCBaIi8+PC9nPjwvc3ZnPg==" alt="Netherlands"/>Netherlands 5–1 <img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNDNjBBMUQiIGQ9Ik0zNiAyN2MwIDIuMjA5LTEuNzkxIDQtNCA0SDRjLTIuMjA5IDAtNC0xLjc5MS00LTRWOWMwLTIuMjA5IDEuNzkxLTQgNC00aDI4YzIuMjA5IDAgNCAxLjc5MSA0IDR2MTh6Ii8+PHBhdGggZmlsbD0iI0ZGQzQwMCIgZD0iTTAgMTJoMzZ2MTJIMHoiLz48cGF0aCBmaWxsPSIjRUE1OTZFIiBkPSJNOSAxN3YzYzAgMS42NTcgMS4zNDMgMyAzIDNzMy0xLjM0MyAzLTN2LTNIOXoiLz48cGF0aCBmaWxsPSIjRjRBMkIyIiBkPSJNMTIgMTZoM3YzaC0zeiIvPjxwYXRoIGZpbGw9IiNERDJFNDQiIGQ9Ik05IDE2aDN2M0g5eiIvPjxlbGxpcHNlIGZpbGw9IiNFQTU5NkUiIGN4PSIxMiIgY3k9IjE0LjUiIHJ4PSIzIiByeT0iMS41Ii8+PGVsbGlwc2UgZmlsbD0iI0ZGQUMzMyIgY3g9IjEyIiBjeT0iMTMuNzUiIHJ4PSIzIiByeT0iLjc1Ii8+PHBhdGggZmlsbD0iIzk5QUFCNSIgZD0iTTcgMTZoMXY3SDd6bTkgMGgxdjdoLTF6Ii8+PHBhdGggZmlsbD0iIzY2NzU3RiIgZD0iTTYgMjJoM3YxSDZ6bTkgMGgzdjFoLTN6bS04LTdoMXYxSDd6bTkgMGgxdjFoLTF6Ii8+PHBhdGggZmlsbD0iIzAwMCIgb3BhY2l0eT0iLjEwIiBkPSJNMTAgMiBMMTUgMiBMMTkgMzQgTDE0IDM0IFoiLz48cGF0aCBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMTIiIGQ9Ik0yMiAyIEwyNiAyIEwzMCAzNCBMMjYgMzQgWiIvPjwvZz48L3N2Zz4=" alt="Spain"/>Spain</span><span class="ed">2014 · Group <a href="https://github.com/openfootball/worldcup.json/blob/master/2014/worldcup.json" target="_blank" rel="noopener noreferrer">source ↗</a></span></div></div><div class="card"><h3>Most recent matches</h3><div class="resline"><span class="sl"><img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0wIDE0aDM2djhIMHoiLz48cGF0aCBmaWxsPSIjQUUxRjI4IiBkPSJNMzIgNUg0QzEuNzkxIDUgMCA2Ljc5MSAwIDl2NWgzNlY5YzAtMi4yMDktMS43OTEtNC00LTR6Ii8+PHBhdGggZmlsbD0iIzIwNDc4QiIgZD0iTTQgMzFoMjhjMi4yMDkgMCA0LTEuNzkxIDQtNHYtNUgwdjVjMCAyLjIwOSAxLjc5MSA0IDQgNHoiLz48cGF0aCBmaWxsPSIjMDAwIiBvcGFjaXR5PSIuMTAiIGQ9Ik0xMCAyIEwxNSAyIEwxOSAzNCBMMTQgMzQgWiIvPjxwYXRoIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xMiIgZD0iTTIyIDIgTDI2IDIgTDMwIDM0IEwyNiAzNCBaIi8+PC9nPjwvc3ZnPg==" alt="Netherlands"/>Netherlands 1–1 <img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNDMTI3MkQiIGQ9Ik0zMiA1SDRDMS43OTEgNSAwIDYuNzkxIDAgOXYxOGMwIDIuMjA5IDEuNzkxIDQgNCA0aDI4YzIuMjA5IDAgNC0xLjc5MSA0LTRWOWMwLTIuMjA5LTEuNzkxLTQtNC00eiIvPjxwYXRoIGZpbGw9IiMwMDYyMzMiIGQ9Ik0xNS4wNDcgMjIuMTY1bDEuMTI4LTMuNDcxLTIuOTUzLTIuMTQ1aDMuNjQ5TDE4IDEzLjA3NGwxLjEyOSAzLjQ3NGgzLjY0OWwtMi45NTMgMi4xNDUgMS4xMjggMy40NzFMMTggMjAuMDE5bC0yLjk1MyAyLjE0NnptMy41ODMtMi42MDNsLjkxNi42NjUtLjM1LTEuMDc3LS41NjYuNDEyem0tMS44MjYtLjQxMmwtLjM1IDEuMDc3LjkxNi0uNjY1LS41NjYtLjQxMnptLjI0MS0uNzRsLjk1NS42OTQuOTU1LS42OTQtLjM2NS0xLjEyMmgtMS4xODJsLS4zNjMgMS4xMjJ6TTE1LjUgMTcuMjg4bC45MTUuNjY1LjIxNi0uNjY1SDE1LjV6bTMuODY5IDBsLjIxNi42NjUuOTE1LS42NjVoLTEuMTMxem0tMS4wMTktLjc0TDE4IDE1LjQ3bC0uMzUgMS4wNzloLjd6Ii8+PHBhdGggZmlsbD0iIzAwMCIgb3BhY2l0eT0iLjEwIiBkPSJNMTAgMiBMMTUgMiBMMTkgMzQgTDE0IDM0IFoiLz48cGF0aCBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMTIiIGQ9Ik0yMiAyIEwyNiAyIEwzMCAzNCBMMjYgMzQgWiIvPjwvZz48L3N2Zz4=" alt="Morocco"/>Morocco</span><span class="ed">2026 (in progress) · Round of 32 <a href="https://github.com/openfootball/worldcup.json/blob/master/2026/worldcup.json" target="_blank" rel="noopener noreferrer">source ↗</a></span></div><div class="resline"><span class="sl"><img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0wIDE0aDM2djhIMHoiLz48cGF0aCBmaWxsPSIjQUUxRjI4IiBkPSJNMzIgNUg0QzEuNzkxIDUgMCA2Ljc5MSAwIDl2NWgzNlY5YzAtMi4yMDktMS43OTEtNC00LTR6Ii8+PHBhdGggZmlsbD0iIzIwNDc4QiIgZD0iTTQgMzFoMjhjMi4yMDkgMCA0LTEuNzkxIDQtNHYtNUgwdjVjMCAyLjIwOSAxLjc5MSA0IDQgNHoiLz48cGF0aCBmaWxsPSIjMDAwIiBvcGFjaXR5PSIuMTAiIGQ9Ik0xMCAyIEwxNSAyIEwxOSAzNCBMMTQgMzQgWiIvPjxwYXRoIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xMiIgZD0iTTIyIDIgTDI2IDIgTDMwIDM0IEwyNiAzNCBaIi8+PC9nPjwvc3ZnPg==" alt="Netherlands"/>Netherlands 3–1 <img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNFNzAwMTMiIGQ9Ik0zMiA1SDRDMS43OTEgNSAwIDYuNzkxIDAgOXYxOGMwIDIuMjA5IDEuNzkxIDQgNCA0aDI4YzIuMjA5IDAgNC0xLjc5MSA0LTRWOWMwLTIuMjA5LTEuNzkxLTQtNC00eiIvPjxjaXJjbGUgZmlsbD0iI0ZGRiIgY3g9IjE4IiBjeT0iMTgiIHI9IjYuNSIvPjxwYXRoIGZpbGw9IiNFNzAwMTMiIGQ9Ik0xNS40IDE4YzAtMi4xNTQgMS43NDYtMy45IDMuOS0zLjkgMS4wMTkgMCAxLjk0Ni4zOTEgMi42NDEgMS4wMzEtLjg4Ny0xLjIxNi0yLjMyMS0yLjAwNi0zLjk0MS0yLjAwNi0yLjY5MiAwLTQuODc1IDIuMTgzLTQuODc1IDQuODc1czIuMTgzIDQuODc1IDQuODc1IDQuODc1YzEuNjIgMCAzLjA1NS0uNzkgMy45NDEtMi4wMDYtLjY5NS42NC0xLjYyMiAxLjAzMS0yLjY0MSAxLjAzMS0yLjE1NCAwLTMuOS0xLjc0Ni0zLjktMy45eiIvPjxwYXRoIGZpbGw9IiNFNzAwMTMiIGQ9Ik0xOS42NDUgMTYuOTM3bC0xLjI0OS0xLjcxOXYyLjEyNUwxNi4zNzUgMThsMi4wMjEuNjU3djIuMTI1bDEuMjQ5LTEuNzE5IDIuMDIxLjY1NkwyMC40MTcgMThsMS4yNDktMS43MTl6Ii8+PHBhdGggZmlsbD0iIzAwMCIgb3BhY2l0eT0iLjEwIiBkPSJNMTAgMiBMMTUgMiBMMTkgMzQgTDE0IDM0IFoiLz48cGF0aCBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMTIiIGQ9Ik0yMiAyIEwyNiAyIEwzMCAzNCBMMjYgMzQgWiIvPjwvZz48L3N2Zz4=" alt="Tunisia"/>Tunisia</span><span class="ed">2026 (in progress) · Group <a href="https://github.com/openfootball/worldcup.json/blob/master/2026/worldcup.json" target="_blank" rel="noopener noreferrer">source ↗</a></span></div><div class="resline"><span class="sl"><img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0wIDE0aDM2djhIMHoiLz48cGF0aCBmaWxsPSIjQUUxRjI4IiBkPSJNMzIgNUg0QzEuNzkxIDUgMCA2Ljc5MSAwIDl2NWgzNlY5YzAtMi4yMDktMS43OTEtNC00LTR6Ii8+PHBhdGggZmlsbD0iIzIwNDc4QiIgZD0iTTQgMzFoMjhjMi4yMDkgMCA0LTEuNzkxIDQtNHYtNUgwdjVjMCAyLjIwOSAxLjc5MSA0IDQgNHoiLz48cGF0aCBmaWxsPSIjMDAwIiBvcGFjaXR5PSIuMTAiIGQ9Ik0xMCAyIEwxNSAyIEwxOSAzNCBMMTQgMzQgWiIvPjxwYXRoIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xMiIgZD0iTTIyIDIgTDI2IDIgTDMwIDM0IEwyNiAzNCBaIi8+PC9nPjwvc3ZnPg==" alt="Netherlands"/>Netherlands 5–1 <img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiMwMDZBQTciIGQ9Ik0xNS41IDMxSDMyYzIuMjA5IDAgNC0xLjc5MSA0LTQuNXYtNkgxNS41VjMxek0zMiA1SDE1LjV2MTAuNUgzNlY5YzAtMi4yMDktMS43OTEtNC00LTR6TTEwLjUgNUg0QzEuNzkyIDUgLjAwMiA2Ljc4OSAwIDguOTk3VjE1LjVoMTAuNVY1ek0wIDIwLjV2Ni4wMDRDLjAwMiAyOS4yMTEgMS43OTIgMzEgNCAzMWg2LjVWMjAuNUgweiIvPjxwYXRoIGZpbGw9IiNGRUNDMDAiIGQ9Ik0xNS41IDVoLTV2MTAuNUgwdjVoMTAuNVYzMWg1VjIwLjVIMzZ2LTVIMTUuNXoiLz48cGF0aCBmaWxsPSIjMDAwIiBvcGFjaXR5PSIuMTAiIGQ9Ik0xMCAyIEwxNSAyIEwxOSAzNCBMMTQgMzQgWiIvPjxwYXRoIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xMiIgZD0iTTIyIDIgTDI2IDIgTDMwIDM0IEwyNiAzNCBaIi8+PC9nPjwvc3ZnPg==" alt="Sweden"/>Sweden</span><span class="ed">2026 (in progress) · Group <a href="https://github.com/openfootball/worldcup.json/blob/master/2026/worldcup.json" target="_blank" rel="noopener noreferrer">source ↗</a></span></div><div class="resline"><span class="sl"><img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0wIDE0aDM2djhIMHoiLz48cGF0aCBmaWxsPSIjQUUxRjI4IiBkPSJNMzIgNUg0QzEuNzkxIDUgMCA2Ljc5MSAwIDl2NWgzNlY5YzAtMi4yMDktMS43OTEtNC00LTR6Ii8+PHBhdGggZmlsbD0iIzIwNDc4QiIgZD0iTTQgMzFoMjhjMi4yMDkgMCA0LTEuNzkxIDQtNHYtNUgwdjVjMCAyLjIwOSAxLjc5MSA0IDQgNHoiLz48cGF0aCBmaWxsPSIjMDAwIiBvcGFjaXR5PSIuMTAiIGQ9Ik0xMCAyIEwxNSAyIEwxOSAzNCBMMTQgMzQgWiIvPjxwYXRoIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xMiIgZD0iTTIyIDIgTDI2IDIgTDMwIDM0IEwyNiAzNCBaIi8+PC9nPjwvc3ZnPg==" alt="Netherlands"/>Netherlands 2–2 <img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0zNiAyN2MwIDIuMjA5LTEuNzkxIDQtNCA0SDRjLTIuMjA5IDAtNC0xLjc5MS00LTRWOWMwLTIuMjA5IDEuNzkxLTQgNC00aDI4YzIuMjA5IDAgNCAxLjc5MSA0IDR2MTh6Ii8+PGNpcmNsZSBmaWxsPSIjRUQxQjJGIiBjeD0iMTgiIGN5PSIxOCIgcj0iNyIvPjxwYXRoIGZpbGw9IiMwMDAiIG9wYWNpdHk9Ii4xMCIgZD0iTTEwIDIgTDE1IDIgTDE5IDM0IEwxNCAzNCBaIi8+PHBhdGggZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjEyIiBkPSJNMjIgMiBMMjYgMiBMMzAgMzQgTDI2IDM0IFoiLz48L2c+PC9zdmc+" alt="Japan"/>Japan</span><span class="ed">2026 (in progress) · Group <a href="https://github.com/openfootball/worldcup.json/blob/master/2026/worldcup.json" target="_blank" rel="noopener noreferrer">source ↗</a></span></div><div class="resline"><span class="sl"><img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0wIDE0aDM2djhIMHoiLz48cGF0aCBmaWxsPSIjQUUxRjI4IiBkPSJNMzIgNUg0QzEuNzkxIDUgMCA2Ljc5MSAwIDl2NWgzNlY5YzAtMi4yMDktMS43OTEtNC00LTR6Ii8+PHBhdGggZmlsbD0iIzIwNDc4QiIgZD0iTTQgMzFoMjhjMi4yMDkgMCA0LTEuNzkxIDQtNHYtNUgwdjVjMCAyLjIwOSAxLjc5MSA0IDQgNHoiLz48cGF0aCBmaWxsPSIjMDAwIiBvcGFjaXR5PSIuMTAiIGQ9Ik0xMCAyIEwxNSAyIEwxOSAzNCBMMTQgMzQgWiIvPjxwYXRoIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xMiIgZD0iTTIyIDIgTDI2IDIgTDMwIDM0IEwyNiAzNCBaIi8+PC9nPjwvc3ZnPg==" alt="Netherlands"/>Netherlands 2–2 <img class="flg" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGRlZnM+PGNsaXBQYXRoIGlkPSJ3diI+PHBhdGggZD0iTTIgOCBDNyA1IDEyIDExIDE4IDggQzI0IDUgMjkgMTEgMzQgOCBMMzQgMjggQzI5IDMxIDI0IDI1IDE4IDI4IEMxMiAzMSA3IDI1IDIgMjggWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCN3dikiPjxwYXRoIGZpbGw9IiM3NUFBREIiIGQ9Ik0zNiAyN2MwIDIuMjA5LTEuNzkxIDQtNCA0SDRjLTIuMjA5IDAtNC0xLjc5MS00LTRWOWMwLTIuMjA5IDEuNzkxLTQgNC00aDI4YzIuMjA5IDAgNCAxLjc5MSA0IDR2MTh6Ii8+PHBhdGggZmlsbD0iI0VFRSIgZD0iTTAgMTNoMzZ2MTBIMHoiLz48cGF0aCBmaWxsPSIjRkNCRjQ5IiBkPSJNMTggMTNsLjQ4OCAyLjU0OCAxLjQyNi0yLjE2Ny0uNTI1IDIuNTQgMi4xNDYtMS40NTctMS40NTcgMi4xNDcgMi41NDEtLjUyNC0yLjE2NyAxLjQyNUwyMyAxOGwtMi41NDguNDg4IDIuMTY3IDEuNDI2LTIuNTQxLS41MjUgMS40NTcgMi4xNDYtMi4xNDYtMS40NTcuNTI1IDIuNTQxLTEuNDI2LTIuMTY3TDE4IDIzbC0uNDg4LTIuNTQ4LTEuNDI1IDIuMTY3LjUyNC0yLjU0MS0yLjE0NyAxLjQ1NyAxLjQ1Ny0yLjE0Ni0yLjU0LjUyNSAyLjE2Ny0xLjQyNkwxMyAxOGwyLjU0OC0uNDg4LTIuMTY3LTEuNDI1IDIuNTQuNTI0LTEuNDU3LTIuMTQ3IDIuMTQ3IDEuNDU3LS41MjQtMi41NCAxLjQyNSAyLjE2N3oiLz48cGF0aCBmaWxsPSIjODQzNTExIiBkPSJNMTggMTQuMzNsLjI0MiAxLjI2NS4xMTYuNjA1LjMzOS0uNTE0LjcwOC0xLjA3Ni0uMjYxIDEuMjYxLS4xMjUuNjA0LjUxLS4zNDYgMS4wNjYtLjcyMy0uNzIzIDEuMDY2LS4zNDYuNTEuNjAzLS4xMjUgMS4yNjItLjI2LTEuMDc2LjcwOC0uNTE1LjMzNy42MDUuMTE2TDIxLjY3IDE4bC0xLjI2NS4yNDItLjYwNS4xMTYuNTE0LjMzOSAxLjA3Ni43MDgtMS4yNjItLjI2MS0uNjA0LS4xMjUuMzQ2LjUxLjcyMyAxLjA2NS0xLjA2NS0uNzIzLS41MS0uMzQ2LjEyNS42MDQuMjYxIDEuMjYyLS43MDgtMS4wNzYtLjMzOC0uNTE1LS4xMTYuNjA1TDE4IDIxLjY3bC0uMjQyLTEuMjY1LS4xMTYtLjYwNS0uMzM5LjUxNS0uNzA4IDEuMDc2LjI2LTEuMjYyLjEyNS0uNjAzLS41MS4zNDYtMS4wNjYuNzIzLjcyMy0xLjA2Ni4zNDYtLjUxLS42MDQuMTI1LTEuMjYxLjI2MSAxLjA3Ni0uNzA4LjUxNC0uMzM5LS42MDUtLjExNkwxNC4zMyAxOGwxLjI2NS0uMjQyLjYwNS0uMTE2LS41MTUtLjMzOS0xLjA3Ni0uNzA4IDEuMjYxLjI2LjYwMy4xMjUtLjM0Ni0uNTEtLjcyNC0xLjA2NiAxLjA2Ni43MjQuNTEuMzQ2LS4xMjUtLjYwMy0uMjYtMS4yNjEuNzA4IDEuMDc2LjMzOS41MTUuMTE2LS42MDVMMTggMTQuMzNNMTggMTNsLS40ODggMi41NDgtMS40MjUtMi4xNjcuNTI0IDIuNTQxLTIuMTQ3LTEuNDU3IDEuNDU3IDIuMTQ3LTIuNTQtLjUyNCAyLjE2NyAxLjQyNUwxMyAxOGwyLjU0OC40ODgtMi4xNjcgMS40MjYgMi41NC0uNTI1LTEuNDU3IDIuMTQ2IDIuMTQ3LTEuNDU3LS41MjQgMi41NDEgMS40MjUtMi4xNjdMMTggMjNsLjQ4OC0yLjU0OCAxLjQyNiAyLjE2Ny0uNTI1LTIuNTQxIDIuMTQ2IDEuNDU3LTEuNDU3LTIuMTQ2IDIuNTQxLjUyNS0yLjE2Ny0xLjQyNkwyMyAxOGwtMi41NDgtLjQ4OCAyLjE2Ny0xLjQyNS0yLjU0MS41MjQgMS40NTctMi4xNDctMi4xNDYgMS40NTcuNTI1LTIuNTQxLTEuNDI2IDIuMTY3TDE4IDEzem0xLjkxNC4zODFoLjAwNS0uMDA1em0xLjYyMSAxLjA4M2guMDA1LS4wMDV6bTEuMDg0IDEuNjIzaC4wMDUtLjAwNXoiLz48Y2lyY2xlIGZpbGw9IiNGQ0JGNDkiIGN4PSIxOCIgY3k9IjE4IiByPSIyIi8+PHBhdGggZmlsbD0iIzg0MzUxMSIgZD0iTTE4IDIwLjEyNWMtMS4xNzIgMC0yLjEyNS0uOTUzLTIuMTI1LTIuMTI1cy45NTMtMi4xMjUgMi4xMjUtMi4xMjUgMi4xMjUuOTUzIDIuMTI1IDIuMTI1LS45NTMgMi4xMjUtMi4xMjUgMi4xMjV6bTAtNGMtMS4wMzQgMC0xLjg3NS44NDEtMS44NzUgMS44NzVzLjg0MSAxLjg3NSAxLjg3NSAxLjg3NSAxLjg3NS0uODQxIDEuODc1LTEuODc1LS44NDEtMS44NzUtMS44NzUtMS44NzV6Ii8+PHBhdGggZmlsbD0iI0MxNjU0MCIgZD0iTTE3LjgwMSAxNy43NzRjMCAuMTU1LS4yNjEuMjgtLjU4My4yOC0uMzIzIDAtLjU4NC0uMTI1LS41ODQtLjI4IDAtLjE1NS4yNjEtLjI4LjU4NC0uMjguMzIyIDAgLjU4My4xMjUuNTgzLjI4em0xLjU1My0uMDI0YzAtLjE2MS0uMjY2LS4yOTItLjU5NC0uMjkyLS4zMjggMC0uNTk0LjEzLS41OTQuMjkycy4yNjYuMjkyLjU5NC4yOTJjLjMyOSAwIC41OTQtLjEzMS41OTQtLjI5MnoiLz48cGF0aCBmaWxsPSIjRUQ4NjYyIiBkPSJNMTcuNDYzIDE4Ljg3NGMwLS4xMjYuMjQ2LS4yMjkuNTQ4LS4yMjkuMzAzIDAgLjU0OC4xMDIuNTQ4LjIyOSAwIC4xMjYtLjI0Ni4yMjktLjU0OC4yMjktLjMwMyAwLS41NDgtLjEwMy0uNTQ4LS4yMjl6Ii8+PHBhdGggZmlsbD0iIzAwMCIgb3BhY2l0eT0iLjEwIiBkPSJNMTAgMiBMMTUgMiBMMTkgMzQgTDE0IDM0IFoiLz48cGF0aCBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMTIiIGQ9Ik0yMiAyIEwyNiAyIEwzMCAzNCBMMjYgMzQgWiIvPjwvZz48L3N2Zz4=" alt="Argentina"/>Argentina</span><span class="ed">2022 · Quarter-final <a href="https://github.com/openfootball/worldcup.json/blob/master/2022/worldcup.json" target="_blank" rel="noopener noreferrer">source ↗</a></span></div></div></div></div>
+  <div class="assent">By playing you agree to the <a href="https://scorewit.com/terms">Terms</a></div>
+</main>
+  <footer>Not affiliated with, endorsed by, or associated with FIFA or the FIFA World Cup.
+    All trademarks are the property of their respective owners.
+    Flag icons adapted from <a href="https://github.com/jdecked/twemoji">Twemoji</a> (CC-BY 4.0), restyled with a waving fold.
+    Privacy-friendly, cookieless analytics — no personal data, no cookies.
+    <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>
+</div>
+</body>
+</html>

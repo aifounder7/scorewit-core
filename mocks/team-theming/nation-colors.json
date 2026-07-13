@@ -1,0 +1,42 @@
+{
+  "_provenance": "EDITORIAL DATA (FIREWALL.md): nothing here is a computed fact about the sport. Band colors are the published flag-specification colors — the same provenance family as the Twemoji-derived flag SVGs the packs already bundle. Accents are editorial DISPLAY colors for text/interactive use on the dark shell: where the spec color already measures WCAG AA on every shell surface it is used verbatim; where it does not (dark reds, dark cobalts), the display accent keeps the flag hue and is lightened only until it measures. Every entry is verified by validate-nations.ts — the build FAILS if any pair falls below AA.",
+  "_fallback": "Any nation absent from this table — or any entry the validator rejects — renders UNTHEMED: the incumbent --team teal, no band, no banner tint. Themed rendering is an allowlist, never a derivation from image pixels.",
+  "_shell": { "bg": "#0C0C0E", "elev": "#161619", "text": "#EDEDEF", "dimAlpha": 0.14 },
+  "nations": {
+    "England": {
+      "band": ["#FFFFFF", "#CE1124", "#FFFFFF"],
+      "accent": "#F8677A",
+      "onAccent": "#2B060B",
+      "spec": { "source": "Flag Institute / UK st-george spec", "colors": ["#FFFFFF", "#CE1124"] },
+      "note": "The hard case: spec red #CE1124 measures 3.47:1 on --bg — display accent lightened along the same hue; white is reserved for the band (as text it would be indistinguishable from --text)."
+    },
+    "Brazil": {
+      "band": ["#009B3A", "#FEDF00", "#009B3A"],
+      "accent": "#FEDF00",
+      "onAccent": "#201A00",
+      "spec": { "source": "Brazilian federal flag spec", "colors": ["#009B3A", "#FEDF00", "#002776"] },
+      "note": "Spec yellow passes everywhere (14.7:1 on --bg) and is the more distinctive of the two verde-amarela colors against the shell."
+    },
+    "Argentina": {
+      "band": ["#74ACDF", "#FFFFFF", "#74ACDF"],
+      "accent": "#74ACDF",
+      "onAccent": "#08131B",
+      "spec": { "source": "Argentine flag spec (celeste)", "colors": ["#74ACDF", "#FFFFFF", "#F6B40E"] },
+      "note": "Spec celeste passes verbatim (8.1:1 on --bg) — zero adjustment."
+    },
+    "Germany": {
+      "band": ["#000000", "#DD0000", "#FFCE00"],
+      "accent": "#FFCE00",
+      "onAccent": "#201900",
+      "spec": { "source": "German federal government corporate design", "colors": ["#000000", "#DD0000", "#FFCE00"] },
+      "note": "Spec gold passes verbatim (13.1:1); spec red measures 3.79:1 and black is invisible on the shell — both stay band-only. The black band stripe gets a 1px --surface inset in the mock so it reads against --bg (see DESIGN.md degrade notes)."
+    },
+    "Netherlands": {
+      "band": ["#AE1C28", "#FFFFFF", "#21468B"],
+      "accent": "#7DA4E8",
+      "onAccent": "#0A1226",
+      "spec": { "source": "Dutch flag spec (bright vermilion / cobalt)", "colors": ["#AE1C28", "#FFFFFF", "#21468B"] },
+      "note": "The tricolor-gradient case. Spec cobalt #21468B measures 2.15:1 — display accent lightened along the cobalt hue. (Founder alternative: Oranje #FF8200 is the fan color but is NOT on the flag — outside the flag-spec provenance family, so not used without an explicit call.)"
+    }
+  }
+}
