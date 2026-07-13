@@ -200,6 +200,13 @@ share, routing). You supply values; everything defaults to the first pack's
 - `brand`: `paletteCss`, `themeColor`, `onAccent` (button text colors),
   `recordGridCols` (record-grid columns), `resultLineCss` (result-row
   layout), `extraCss` (appended to the stylesheet), `notFoundPaletteCss`.
+  Palette colors are editorial data, but the accessibility guarantee is
+  COMPUTED: `renderAppHtml` refuses to build when any token×surface pair the
+  stylesheet renders falls below WCAG AA (4.5:1 text, 3:1 UI borders) — see
+  `src/contrast.ts` for the exact contract. The house gray ramp that passes
+  everywhere is `--text:#EDEDEF --text2:#9A9AA3 --text3:#84848D` on
+  `--bg:#0C0C0E/--elev:#161619/--surface:#222228` (and `#EA4058` for
+  `--incorrect`); if you deviate, pick values that measure, don't eyeball.
 - `copy`: title/meta/OG/Twitter, `subInitial`, `footerHtml`, `resultNote`,
   `teamPickerBanner`, `todayIntro?`/`todayNoMatches?` (omit if you override
   `renderToday`), `tabLabels?`, route titles, `bankRefreshNote`,

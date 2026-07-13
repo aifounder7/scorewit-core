@@ -242,7 +242,7 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
 <script type="application/ld+json">${jsonLdText(page.jsonLd)}</script>
 <style>
   :root{--bg:${brand.themeColor};--surface:#161619;--surface2:#1C1C21;--line:#2A2A30;
-    --text:#F4F4F6;--muted:#9A9AA3;--faint:#6E6E77;
+    --text:#F4F4F6;--muted:#9A9AA3;--faint:#84848D;
     --accent:${accent};--accent-soft:${rgba(accent, 0.12)};--accent-line:${rgba(accent, 0.35)};--accent-lite:${lighten(accent, 0.45)}}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);line-height:1.55;

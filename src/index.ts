@@ -32,6 +32,17 @@ export {
 } from './insights';
 export { selectBank, type BankSelection } from './bank';
 export {
+  assertContrast,
+  blendOverHex,
+  checkAppPaletteContrast,
+  checkNotFoundPaletteContrast,
+  contrastRatio,
+  hexToRgb,
+  relativeLuminance,
+  type ContrastCheck,
+  type Rgb,
+} from './contrast';
+export {
   renderRobots,
   renderSeoPage,
   renderSitemap,

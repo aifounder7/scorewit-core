@@ -1,6 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AnalyticsConfig, PipelinePaths } from '../types';
+import {
+  assertContrast,
+  checkAppPaletteContrast,
+  checkNotFoundPaletteContrast,
+} from '../contrast';
 
 /**
  * The single-file app shell. Emits a standalone, dependency-free HTML page
@@ -204,7 +209,7 @@ __PALETTE__
     -webkit-font-smoothing:antialiased;line-height:1.5}
   .wrap{max-width:560px;margin:0 auto;padding:24px 20px 64px}
   header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
-  .brand{font-weight:700;letter-spacing:-.02em;font-size:20px;display:flex;align-items:center;gap:9px}
+  .brand{margin:0;font-weight:700;letter-spacing:-.02em;font-size:20px;display:flex;align-items:center;gap:9px}
   .brand small{color:var(--text2);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-left:2px}
   .brandmark{display:inline-flex}
   .brandmark svg{width:27px;height:27px;display:block}
@@ -264,7 +269,7 @@ __PALETTE__
   .btn.team{background:var(--team);color:__BTNTEXTTEAM__}
   .tbanner{background:var(--teamDim);color:var(--team);font-size:12px;font-weight:600;padding:12px 14px;border-radius:12px;margin:10px 0 16px}
   .teamhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 4px}
-  .teamhead .name{font-size:22px;font-weight:700;letter-spacing:-.01em}
+  .teamhead .name{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
   .linkbtn{appearance:none;background:transparent;border:0;color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0}
   .linkbtn:hover{color:var(--text)}
   .picker-search{width:100%;background:var(--elev);border:1px solid var(--surface);color:var(--text);font-size:15px;padding:12px 14px;border-radius:12px;margin:6px 0 12px}
@@ -282,7 +287,7 @@ __RESLINECSS__
   .titles{display:flex;flex-wrap:wrap;gap:6px}
   .ttag{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--surface);color:var(--text);display:inline-flex;gap:6px;align-items:center}
   .ttag a{color:var(--team);text-decoration:underline;text-underline-offset:2px;cursor:pointer;font-size:11px}
-  .ttag .yr{color:var(--text3);font-variant-numeric:tabular-nums}
+  .ttag .yr{color:var(--text2);font-variant-numeric:tabular-nums}
   .empty{color:var(--text3);font-size:13px}
   .subnav{display:flex;gap:6px;margin:14px 0 4px}
   .subnav .tab{font-size:12px;padding:6px 14px}
@@ -292,7 +297,7 @@ __RESLINECSS__
   .streakchip{display:inline-flex;align-items:center;gap:6px;background:var(--accentDim);color:var(--accent);font-size:13px;font-weight:700;padding:4px 12px;border-radius:999px}
   .final .streakchip{margin:6px auto 2px}
   .statshead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 12px}
-  .statshead .name{font-size:22px;font-weight:700;letter-spacing:-.01em}
+  .statshead .name{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
   .statrow{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
   .statbox{flex:1 1 45%;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--elev);border:1px solid var(--surface);padding:14px;border-radius:12px}
   .statval{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -324,7 +329,7 @@ __RESLINECSS__
   .credname{font-weight:700;font-size:14px;margin-bottom:4px}
   .credline{font-size:13px;color:var(--text);min-height:0}
   .credline2{font-size:12px;color:var(--text2);margin-top:2px}
-  .credtt{font-size:11px;color:var(--text3);font-variant-numeric:tabular-nums;margin-top:4px}
+  .credtt{font-size:11px;color:var(--text2);font-variant-numeric:tabular-nums;margin-top:4px}
   .pickem{margin-top:10px;padding-top:10px;border-top:1px solid var(--surface)}
   .pklabel{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:700;margin-bottom:6px}
   .pkrow{display:flex;gap:8px}
@@ -341,6 +346,9 @@ __RESLINECSS__
   /* ---- Footer (non-affiliation disclaimer) ---- */
   footer{margin-top:44px;padding-top:14px;border-top:1px solid var(--surface);
     color:var(--text3);font-size:11px;line-height:1.6}
+  footer a{color:var(--text2)}
+  /* ---- Visually-hidden (screen-reader-only) heading text ---- */
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
   /* ---- Waving flag icons (static images; hero-only optional motion) ---- */
   .flg{height:1em;width:1em;vertical-align:-.12em;margin-right:.32em}
   @media (prefers-reduced-motion:no-preference){
@@ -358,23 +366,26 @@ __RESLINECSS__
 <body>
 <div class="wrap">
   <header>
-    <div class="brand"><span class="brandmark">__BRANDMARK__</span>__APPNAME__ <small>Daily trivia</small></div>
+    <h1 class="brand"><span class="brandmark">__BRANDMARK__</span>__APPNAME__ <small>Daily trivia</small></h1>
     <div class="score" id="score">0<span class="max"> / 600</span></div>
   </header>
-  <div class="tabs" id="tabs">
+  <nav class="tabs" id="tabs" aria-label="Game modes">
     <button class="tab active" data-mode="daily">__TABDAILY__</button>
     <button class="tab" data-mode="today">__TABTODAY__</button>
     <button class="tab" data-mode="practice">__TABPRACTICE__</button>
     <button class="tab" data-mode="team">__TABTEAM__</button>
-  </div>
+  </nav>
+<main>
+  <h2 class="sr" id="viewtitle">__TABDAILY__</h2>
   <div class="sub" id="sub">__SUBINITIAL__</div>
   <div class="streakbar" id="streakbar" style="display:none"></div>
-  <div class="progress" id="progress"></div>
+  <div class="progress" id="progress" aria-hidden="true"></div>
   <div id="stage"></div>
   <div class="assent">By playing you agree to the <a href="__TERMSURL__">Terms</a></div>
+</main>
   __FOOTERHTML__
 </div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 const BANK = __BANK__;
 const TEAMS = __TEAMS__;
@@ -483,7 +494,7 @@ function render(){
   if(q.type==='multiple_choice'){
     html+='<div class="opts">'+q.options.map((o,i)=>'<button class="opt" data-i="'+i+'">'+teamLabel(o)+'</button>').join('')+'</div>';
   }else{
-    html+='<div class="cg"><input id="cg" type="number" inputmode="numeric" placeholder="your guess" /><span class="unit">'+esc(q.unit||'')+'</span><button class="btn" id="cgsubmit">Guess</button></div>';
+    html+='<div class="cg"><input id="cg" type="number" inputmode="numeric" placeholder="your guess" aria-label="Your guess" /><span class="unit">'+esc(q.unit||'')+'</span><button class="btn" id="cgsubmit">Guess</button></div>';
   }
   html+='<div id="reveal"></div>';
   stage.innerHTML=html;
@@ -605,7 +616,7 @@ function renderStats(){
   const streak=currentStreak(h,currentDailyKey());
   const labels=['0','100','200','300','400','500+'];
   const maxB=Math.max(s.histogram[0],s.histogram[1],s.histogram[2],s.histogram[3],s.histogram[4],s.histogram[5],1);
-  let html='<div class="statshead"><div class="name">Stats</div><button class="linkbtn" id="statsback">← Back to Daily</button></div>'+
+  let html='<div class="statshead"><h2 class="name">Stats</h2><button class="linkbtn" id="statsback">← Back to Daily</button></div>'+
     '<div class="statrow">'+statBox('Played',s.played)+statBox('Avg score',s.avgScore)+statBox('Streak',streak)+statBox('Best streak',s.bestStreak)+'</div>'+
     '<div class="card"><h3>Score distribution</h3><div class="hist">'+
       s.histogram.map((c,i)=>'<div class="histcol"><div class="histn">'+(c>0?c:'')+'</div>'+
@@ -628,6 +639,8 @@ function setMode(m){
   mode=m;
   statsOpen=false;
   document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('active',t.dataset.mode===m));
+  const vt=document.getElementById('viewtitle');
+  if(vt){const tb=document.querySelector('#tabs .tab[data-mode="'+m+'"]');if(tb)vt.textContent=tb.textContent;}
   const daily=m==='daily';
   document.getElementById('sub').style.display=daily?'':'none';
   document.getElementById('progress').style.display=daily?'':'none';
@@ -649,7 +662,7 @@ function renderPractice(){
   if(pq){
     html+=chip(pq)+'<div class="q">'+esc(pq.text)+'</div>';
     if(pq.type==='multiple_choice'){html+='<div class="opts">'+pq.options.map((o,i)=>'<button class="opt" data-i="'+i+'">'+teamLabel(o)+'</button>').join('')+'</div>';}
-    else{html+='<div class="cg"><input id="pcg" type="number" inputmode="numeric" placeholder="your guess" /><span class="unit">'+esc(pq.unit||'')+'</span><button class="btn practice" id="pcgsubmit">Guess</button></div>';}
+    else{html+='<div class="cg"><input id="pcg" type="number" inputmode="numeric" placeholder="your guess" aria-label="Your guess" /><span class="unit">'+esc(pq.unit||'')+'</span><button class="btn practice" id="pcgsubmit">Guess</button></div>';}
     html+='<div id="preveal"></div>';
   }else{
     const n=practicePool().length;
@@ -719,7 +732,7 @@ function teamQuizHtml(t){
   if(tq){
     html+=chip(tq)+'<div class="q">'+esc(tq.text)+'</div>';
     if(tq.type==='multiple_choice'){html+='<div class="opts">'+tq.options.map((o,i)=>'<button class="opt" data-i="'+i+'">'+teamLabel(o)+'</button>').join('')+'</div>';}
-    else{html+='<div class="cg"><input id="tcg" type="number" inputmode="numeric" placeholder="your guess" /><span class="unit">'+esc(tq.unit||'')+'</span><button class="btn team" id="tcgsubmit">Guess</button></div>';}
+    else{html+='<div class="cg"><input id="tcg" type="number" inputmode="numeric" placeholder="your guess" aria-label="Your guess" /><span class="unit">'+esc(tq.unit||'')+'</span><button class="btn team" id="tcgsubmit">Guess</button></div>';}
     html+='<div id="treveal"></div>';
   }else{
     html+='<button class="btn team" id="tdraw">Draw a '+teamLabel(t.name)+' question ('+pool.length+')</button>';
@@ -780,7 +793,7 @@ function renderMatchupQuiz(){
   const f=fixtureById(mdQuizMid);
   if(!f){mdQuizMid=null;renderToday();return;}
   const pool=matchupPool(f);
-  let html='<div class="teamhead"><div class="name" style="font-size:18px">'+teamLabel(f.team1)+' v '+teamLabel(f.team2)+'</div><button class="linkbtn" id="mdback">← Back to Today</button></div>';
+  let html='<div class="teamhead"><h2 class="name" style="font-size:18px">'+teamLabel(f.team1)+' v '+teamLabel(f.team2)+'</h2><button class="linkbtn" id="mdback">← Back to Today</button></div>';
   if(!pool.length){
     stage.innerHTML=html+'<div class="card"><div class="empty">No bank questions feature '+teamLabel(f.team1)+' or '+teamLabel(f.team2)+' yet. __BANKREFRESHNOTE__</div></div>';
     document.getElementById('mdback').onclick=()=>{mdQuizMid=null;renderToday();};return;
@@ -789,7 +802,7 @@ function renderMatchupQuiz(){
   if(mdq){
     html+=chip(mdq)+'<div class="q">'+esc(mdq.text)+'</div>';
     if(mdq.type==='multiple_choice')html+='<div class="opts">'+mdq.options.map((o,i)=>'<button class="opt" data-i="'+i+'">'+teamLabel(o)+'</button>').join('')+'</div>';
-    else html+='<div class="cg"><input id="mdcg" type="number" inputmode="numeric" placeholder="your guess" /><span class="unit">'+esc(mdq.unit||'')+'</span><button class="btn today" id="mdcgs">Guess</button></div>';
+    else html+='<div class="cg"><input id="mdcg" type="number" inputmode="numeric" placeholder="your guess" aria-label="Your guess" /><span class="unit">'+esc(mdq.unit||'')+'</span><button class="btn today" id="mdcgs">Guess</button></div>';
     html+='<div id="mdrev"></div>';
   }else{
     html+='<button class="btn today" id="mddraw">Draw a question ('+pool.length+')</button>';
@@ -928,7 +941,7 @@ const DEFAULT_RENDER_TEAM = String.raw`function renderTeam(){
   const fav=getFavTeam();
   if(!fav){ renderTeamPicker(); return; }
   const t=TEAM_BY_NAME[fav];
-  let html='<div class="teamhead"><div class="name">'+teamLabel(t.name,true)+'</div>'+
+  let html='<div class="teamhead"><h2 class="name">'+teamLabel(t.name,true)+'</h2>'+
     '<button class="linkbtn" id="changeteam">Change team</button></div>'+
     '<div class="subnav" id="tsub">'+
       '<button class="tab'+(teamView==='insights'?' active':'')+'" data-tv="insights">Insights</button>'+
@@ -947,7 +960,7 @@ function renderTeamPicker(){
   const q=teamSearch.trim().toLowerCase();
   const list=TEAMS.teams.filter(t=>!q||t.name.toLowerCase().includes(q));
   let html='<div class="tbanner">__TEAMPICKERBANNER__</div>'+
-    '<input class="picker-search" id="psearch" type="text" placeholder="Search teams…" value="'+esc(teamSearch)+'" />'+
+    '<input class="picker-search" id="psearch" type="text" placeholder="Search teams…" aria-label="Search teams" value="'+esc(teamSearch)+'" />'+
     '<div class="teamlist">'+
       list.map(t=>'<button class="fchip" data-team="'+esc(t.name)+'">'+teamLabel(t.name)+'</button>').join('')+
     '</div>'+
@@ -1111,9 +1124,15 @@ function track(name,data){if(analyticsOff())return;try{${impl}}catch(e){}}`;
   };
 }
 
-/** The app shell with every token filled in. */
+/** The app shell with every token filled in. Refuses (throws) when the
+ *  pack's palette fails WCAG AA on any pair the stylesheet renders — the
+ *  accessibility guarantee is computed at build time (see src/contrast.ts). */
 export function renderAppHtml(cfg: AppShellConfig): string {
   const { brand, copy, client, config, data } = cfg;
+  assertContrast(
+    checkAppPaletteContrast(brand.paletteCss, brand.onAccent ?? DEFAULT_ON_ACCENT),
+    'app shell'
+  );
   const analytics = analyticsChunks(cfg.analytics, cfg.sport ?? '');
   let tpl = HTML;
   for (const [find, replace] of client.shellPatches ?? []) {
@@ -1188,6 +1207,13 @@ export function renderAppHtml(cfg: AppShellConfig): string {
  *  and minimal: same theme + inlined mark as the app, noindex, root-absolute
  *  URLs so it renders correctly at any request depth. */
 export function renderNotFoundHtml(cfg: AppShellConfig): string {
+  assertContrast(
+    checkNotFoundPaletteContrast(
+      cfg.brand.notFoundPaletteCss,
+      (cfg.brand.onAccent ?? DEFAULT_ON_ACCENT).accent
+    ),
+    '404 page'
+  );
   return NOT_FOUND_HTML.split('__APPNAME__').join(cfg.brand.appName)
     .split('__BRANDMARK__').join(cfg.brand.markSvg)
     .split('__THEMECOLOR__').join(cfg.brand.themeColor)

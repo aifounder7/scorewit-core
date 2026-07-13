@@ -30,8 +30,18 @@ function cfg(analytics?: AnalyticsConfig, sport?: string): AppShellConfig {
       appUrl: 'https://example.test',
       markSvg: '<svg/>',
       themeColor: '#0C0C0E',
-      paletteCss: '    --bg:#0C0C0E;',
-      notFoundPaletteCss: '--bg:#0C0C0E;',
+      // A full AA-passing palette: renderAppHtml gates palette contrast at
+      // build time (src/contrast.ts), so the fixture must carry every token.
+      paletteCss: `    --bg:#0C0C0E; --elev:#161619; --surface:#222228; --hover:#2E2E36;
+    --text:#EDEDEF; --text2:#9A9AA3; --text3:#84848D;
+    --accent:#4E9CF5; --accentDim:rgba(78,156,245,0.14);
+    --practice:#A78BFA; --practiceDim:rgba(167,139,250,0.14);
+    --team:#5BC0CE; --teamDim:rgba(91,192,206,0.14);
+    --today:#E879A6; --todayDim:rgba(232,121,166,0.14);
+    --correct:#2ECC71; --correctDim:rgba(46,204,113,0.14);
+    --incorrect:#EA4058; --incorrectDim:rgba(232,54,79,0.14);
+    --partial:#F5A623;`,
+      notFoundPaletteCss: '--bg:#0C0C0E;--text:#EDEDEF;--text2:#9A9AA3;--accent:#4E9CF5',
     },
     copy: {
       title: 't', metaDescription: 'm', ogTitle: 'o', ogDescription: 'o',
