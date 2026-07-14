@@ -120,3 +120,98 @@ possible before this review; per instructions it ships only on explicit go.
    flip to themed is a one-liner if you prefer.
 5. box-box's override chunks keep `div` view titles (no violation; optional
    h2 one-liners next time it's touched).
+
+
+---
+
+# T2 completion addendum (2026-07-13, on the T1 sign-off)
+
+**Decisions applied:** full `--team`/`--teamDim` accent scope as mocked;
+**identity colors over flag colors** (kit identity, flag-derived default,
+documented off-flag overrides); England's T1 treatment kept verbatim.
+
+## What shipped where
+
+- **Core** (`a11y-theming`, commits `380c844` + `5ec300f`): opt-in
+  `pack.teamTheming { nations }`. Unset erases to ZERO byte residue (unit
+  test asserts the seam; gridiron proves it at pack level). Set swaps in the
+  themed My-Team flow: decorative flag-band gradient, `--teamDim`-tinted
+  banner carrying the validated artifact `insightLine`, one-token accent
+  override. All colors are baked at BUILD time — the browser never derives
+  one. `checkNationThemeContrast` gates accent on bg / cards / **surface
+  chips** / its banner tint, `--text` on the tint, `onAccent` on accent;
+  garbage tables (empty, bad band shape, unparseable colors, near-shell
+  accents) fail the build loudly. 7 new unit tests in the chain.
+- **extra-time `team-theming` branch** (one commit): pin `#v0.11.0` +
+  palette bump + **85-nation identity table** (`pipeline/src/theme.ts`,
+  rationale per nation in `docs/TEAM-THEMING-COLORS.md`) + the lead-card
+  gating (banner carries the insight when themed).
+- **cover-drive `team-theming` branch** (one commit): same shape,
+  **25-nation cricket table**.
+
+## Identity-color highlights (every entry has a documented rationale)
+
+| nation | decision |
+|---|---|
+| Netherlands | **Oranje `#FF7900`** (off-flag override, replaces the T1 cobalt) — passes verbatim, 7.43 on bg |
+| Italy | **Azzurro** — spec `#0066B3` lightened +28% to `#4791C8` |
+| India (cricket) | **Men in Blue** — spec `#0A50A1` lightened +35% to `#608DC2`; tricolour band |
+| Australia (both) | **green & gold** — band is the kit pair, entirely off the navy ensign |
+| England (cricket) | **royal blue** ODI/T20 identity — off the St George flag (soccer England keeps the T1-approved `#F8677A`) |
+| New Zealand (cricket) | **Black Caps** — silver-fern accent on a black/white inset band (black is unusable as text on the dark shell) |
+| West Indies | **Windies maroon** (lightened `#B57095`) — CWI identity; no single flag exists |
+| Germany | stays flag gold — the white/black kit identity is unusable on the dark shell (documented judgment) |
+
+100% coverage, zero orphan keys: 85/85 soccer + 25/25 cricket artifact
+names have entries.
+
+## Verification evidence
+
+- **Opt-out byte-identity:** gridiron rebuilt on the final T2 core —
+  `site/` byte-identical to its pre-T2 build, data untouched.
+- **Themed-pack diff scope:** exactly ONE changed file per pack
+  (`site/index.html`); the line-level delta is precisely the theming chunk
+  + lead-card gating (33 lines, enumerated).
+- **Lighthouse (mobile, accessibility), themed My-Team states:** soccer
+  Netherlands / Italy / England / Germany and cricket India / Australia /
+  New Zealand / West Indies — **all 1.0**. The first pass caught Italy +
+  India at 0.96: the minimally-lightened blues failed on the `.ttag a`
+  surface-chip links, a pair the T1 validator missed. Fixed by gating
+  **accent on `--surface`** in core (`5ec300f`) and re-baking both tables;
+  the incumbent `--team`/`--accent` on-card pairs joined the app gate too
+  (all five packs pass unchanged).
+- Pack tests + typecheck green on both branches (pre-existing, unrelated
+  red pin on extra-time main — see cross-lane findings).
+- Final renders: `docs/a11y-report-assets/final-soccer-netherlands.png`,
+  `final-soccer-italy.png`, `final-cricket-india.png` (+ England, Germany,
+  Australia, NZ, Windies as `t2-*.png`). Mocks regenerated on the final
+  identity palette from the real opted-in build, incl. new `italy.html`.
+
+## Cross-lane findings (read-only — the SEO session's lane)
+
+1. **NaN blog page: FALSE ALARM — intended content.** `blog/t20-world-cup-from-nan`
+   on extra-time main is a deliberate engineering post-mortem about the
+   cover-drive NaN incident; the slug/title ARE the story. No fix needed.
+2. **BUT: extra-time main's `npm test` is RED because of it** — the NaN-leak
+   pin (`pipeline/src/insights.test.ts:151`, "no page ships a NaN") scans
+   every SEO page blob and trips on the blog post's intentional "NaN" text.
+   Pre-existing on pristine main, unrelated to this branch. Suggested
+   lane-owner fix: exempt `BLOG_PATHS` from that scan (or scan structured
+   fields only).
+3. **Legal-wave WIP present in the core working tree:** an uncommitted
+   `src/legal.ts` edit (the v0.10.1 date-true-up, effective date 2026-07-13
+   + the approved comment fix) — preserved untouched; flagged so the
+   July-21 operator knows it's there. The core checkout was found moved to
+   `main` mid-session (presumably that lane) and was returned to
+   `a11y-theming`.
+
+## Branch SHAs (final)
+
+| repo | branch | head |
+|---|---|---|
+| scorewit-core | `a11y-theming` | `15980d7` (055fc98 A2 → 1686c8b T1 → af42402 docs → 380c844 T2 chunk → 5ec300f gate fix → 15980d7 docs) |
+| extra-time | `team-theming` | `8bdec9d` — pin + palette + 85-nation opt-in |
+| cover-drive | `team-theming` | `9913d5c` — pin + palette + 25-nation opt-in |
+
+Deploy: `docs/RUNBOOK-v0.11.0-a11y.md` (updated — v0.11.0 now carries a11y
++ theming; per-pack merge order vs the seo-wave branches enumerated).

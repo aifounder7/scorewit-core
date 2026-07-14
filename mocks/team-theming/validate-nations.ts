@@ -26,7 +26,7 @@ import {
 const table = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'nation-colors.json'), 'utf8')
 );
-const SHELL = table._shell as { bg: string; elev: string; text: string; dimAlpha: number };
+const SHELL = table._shell as { bg: string; elev: string; surface: string; text: string; dimAlpha: number };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const pair = (label: string, fg: string, bg: string, min = 4.5): ContrastCheck => {
@@ -50,6 +50,7 @@ for (const [nation, c] of Object.entries<any>(table.nations)) {
   const checks = [
     pair('accent on --bg (subnav/links)', c.accent, SHELL.bg),
     pair('accent on --elev (in-card links)', c.accent, SHELL.elev),
+    pair('accent on --surface (.ttag links)', c.accent, SHELL.surface),
     pair('accent on nation-tinted banner', c.accent, dim),
     pair('--text on nation-tinted banner (name + insight line)', SHELL.text, dim),
     pair('onAccent on accent (quiz button text)', c.onAccent, c.accent),

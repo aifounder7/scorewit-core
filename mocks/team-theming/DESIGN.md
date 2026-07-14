@@ -1,4 +1,26 @@
-# Team theming — T1 design notes (nations only, mock stage)
+# Team theming — design notes (nations only)
+
+> **T2 SIGN-OFF AMENDMENTS (2026-07-13).** (1) Accent scope locked: banner +
+> full tab accent via the one `--team`/`--teamDim` override, as recommended
+> below. (2) **Identity colors over flag colors**: accents are now national
+> SPORTING-IDENTITY (kit) colors — flag-derived where they coincide, explicit
+> documented overrides where the identity is iconic and off-flag (Netherlands
+> → Oranje, Italy → azzurro, India → Men-in-Blue, Australia → green & gold,
+> cricket England → royal blue, cricket New Zealand → Black-Caps silver,
+> West Indies → maroon…). Bands stay flag-derived except where the identity
+> IS a kit pair (Australia). (3) **T2 is BUILT**: the opt-in shell chunk
+> lives in core (`teamTheming` on the pack; see SPORTPACK-AUTHORING.md), and
+> extra-time (85 nations) + cover-drive (25 nations) opt in on their
+> `team-theming` branches — authoritative tables in each pack's
+> `pipeline/src/theme.ts`, per-entry rationale in their
+> `docs/TEAM-THEMING-COLORS.md`. The mocks below remain as the design
+> reference (regenerated on the final identity palette from the real
+> opted-in build); India renders on the cricket shell — screenshot at
+> `docs/a11y-report-assets/final-cricket-india.png`. (4) One more gated pair
+> was added after a flow audit caught the minimally-lightened blues:
+> **accent on `--surface`** (the `.ttag a` links on title chips).
+
+# T1 design notes (nations only, mock stage)
 
 **Concept.** When a player follows a team, the **My Team tab only** adopts a
 team-colored treatment: a flag-band + nation-tinted banner at the top (team

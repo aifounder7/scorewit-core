@@ -1,42 +1,60 @@
 {
-  "_provenance": "EDITORIAL DATA (FIREWALL.md): nothing here is a computed fact about the sport. Band colors are the published flag-specification colors — the same provenance family as the Twemoji-derived flag SVGs the packs already bundle. Accents are editorial DISPLAY colors for text/interactive use on the dark shell: where the spec color already measures WCAG AA on every shell surface it is used verbatim; where it does not (dark reds, dark cobalts), the display accent keeps the flag hue and is lightened only until it measures. Every entry is verified by validate-nations.ts — the build FAILS if any pair falls below AA.",
-  "_fallback": "Any nation absent from this table — or any entry the validator rejects — renders UNTHEMED: the incumbent --team teal, no band, no banner tint. Themed rendering is an allowlist, never a derivation from image pixels.",
-  "_shell": { "bg": "#0C0C0E", "elev": "#161619", "text": "#EDEDEF", "dimAlpha": 0.14 },
+  "_provenance": "EDITORIAL DATA (FIREWALL.md): nothing here is a computed fact about the sport. AMENDED AT T2 SIGN-OFF: accents are national SPORTING-IDENTITY (kit) colors — flag-derived where identity and flag coincide, with explicit per-nation overrides where the footballing identity is iconic and off-flag (Netherlands = Oranje, Italy = azzurro, India = Men-in-Blue). Bands stay flag-derived (kit-pair override for Australia-style green/gold identities). Where a spec color fails WCAG AA on the dark shell, the display accent keeps the hue and is lightened only until it measures. Every pair is verified by validate-nations.ts and re-verified by the core build gate — the build FAILS below AA. This file is the MOCK SUBSET; the authoritative pack tables live in each pack's pipeline/src/theme.ts (85 soccer + 25 cricket nations) with per-entry rationale in docs/TEAM-THEMING-COLORS.md.",
+  "_fallback": "Any nation absent from a pack's table — or any entry the validator rejects — renders UNTHEMED: the incumbent --team teal, no band, no banner tint. Themed rendering is an allowlist, never a derivation.",
+  "_shell": { "bg": "#0C0C0E", "elev": "#161619", "surface": "#222228", "text": "#EDEDEF", "dimAlpha": 0.14 },
   "nations": {
     "England": {
       "band": ["#FFFFFF", "#CE1124", "#FFFFFF"],
       "accent": "#F8677A",
       "onAccent": "#2B060B",
-      "spec": { "source": "Flag Institute / UK st-george spec", "colors": ["#FFFFFF", "#CE1124"] },
-      "note": "The hard case: spec red #CE1124 measures 3.47:1 on --bg — display accent lightened along the same hue; white is reserved for the band (as text it would be indistinguishable from --text)."
+      "vband": true,
+      "spec": { "source": "St George's Cross flag spec", "colors": ["#FFFFFF", "#CE1124"] },
+      "note": "T1-approved treatment kept verbatim: kit white is reserved (indistinguishable from --text); display accent is the lightened St George red."
     },
     "Brazil": {
       "band": ["#009B3A", "#FEDF00", "#009B3A"],
       "accent": "#FEDF00",
       "onAccent": "#201A00",
+      "vband": true,
       "spec": { "source": "Brazilian federal flag spec", "colors": ["#009B3A", "#FEDF00", "#002776"] },
-      "note": "Spec yellow passes everywhere (14.7:1 on --bg) and is the more distinctive of the two verde-amarela colors against the shell."
+      "note": "Identity == flag: the canary-yellow kit IS the flag yellow (14.7:1 verbatim)."
     },
     "Argentina": {
       "band": ["#74ACDF", "#FFFFFF", "#74ACDF"],
       "accent": "#74ACDF",
       "onAccent": "#08131B",
       "spec": { "source": "Argentine flag spec (celeste)", "colors": ["#74ACDF", "#FFFFFF", "#F6B40E"] },
-      "note": "Spec celeste passes verbatim (8.1:1 on --bg) — zero adjustment."
+      "note": "Identity == flag: the albiceleste celeste passes verbatim (8.1:1)."
     },
     "Germany": {
       "band": ["#000000", "#DD0000", "#FFCE00"],
       "accent": "#FFCE00",
       "onAccent": "#201900",
-      "spec": { "source": "German federal government corporate design", "colors": ["#000000", "#DD0000", "#FFCE00"] },
-      "note": "Spec gold passes verbatim (13.1:1); spec red measures 3.79:1 and black is invisible on the shell — both stay band-only. The black band stripe gets a 1px --surface inset in the mock so it reads against --bg (see DESIGN.md degrade notes)."
+      "inset": true,
+      "spec": { "source": "German federal corporate design", "colors": ["#000000", "#DD0000", "#FFCE00"] },
+      "note": "JUDGMENT: the white/black kit identity is unusable on the dark shell (white = --text, black = --bg) — flag gold carries the usable German identity. Black band stripe gets the inset ring."
     },
     "Netherlands": {
       "band": ["#AE1C28", "#FFFFFF", "#21468B"],
-      "accent": "#7DA4E8",
-      "onAccent": "#0A1226",
-      "spec": { "source": "Dutch flag spec (bright vermilion / cobalt)", "colors": ["#AE1C28", "#FFFFFF", "#21468B"] },
-      "note": "The tricolor-gradient case. Spec cobalt #21468B measures 2.15:1 — display accent lightened along the cobalt hue. (Founder alternative: Oranje #FF8200 is the fan color but is NOT on the flag — outside the flag-spec provenance family, so not used without an explicit call.)"
+      "accent": "#FF7900",
+      "onAccent": "#241000",
+      "spec": { "source": "Oranje — House of Orange sporting identity (off-flag)", "colors": ["#FF7900"] },
+      "note": "IDENTITY OVERRIDE (T2 sign-off): Oranje replaces the T1 lightened-cobalt mock. Passes verbatim (7.4:1); the flag tricolor stays as the band."
+    },
+    "Italy": {
+      "band": ["#009246", "#FFFFFF", "#CE2B37"],
+      "accent": "#4791C8",
+      "onAccent": "#0B151D",
+      "vband": true,
+      "spec": { "source": "Azzurro (Savoy blue) sporting identity (off-flag); spec base #0066B3", "colors": ["#0066B3"] },
+      "note": "IDENTITY OVERRIDE: the Azzurri blue is nowhere on the tricolor flag. Display accent lightened +28% along the hue to clear the surface-chip pair (4.90 on the banner tint)."
+    },
+    "India": {
+      "band": ["#FF9933", "#FFFFFF", "#138808"],
+      "accent": "#608DC2",
+      "onAccent": "#0E151D",
+      "spec": { "source": "Men in Blue — ODI kit identity (off-flag); spec base #0A50A1", "colors": ["#0A50A1"] },
+      "note": "IDENTITY OVERRIDE (cricket, cover-drive): India's cricket identity is the ODI blue; the tricolour stays as the band. Rendered on the cricket shell — see docs/a11y-report-assets/final-cricket-india.png."
     }
   }
 }
