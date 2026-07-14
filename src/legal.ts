@@ -31,9 +31,9 @@ import type { SeoPage } from './types';
  *                          which names vendors from this list). Empty array =
  *                          the "no ads today" copy renders.
  *
- * Analytics section is Plausible-READY by design AND promises an in-game
- * "analytics off" switch — that toggle must ship in the shell before any
- * pack activates analytics, or the promise is false. Ads section is
+ * Analytics section describes the live Plausible setup: the in-game
+ * "analytics off" switch shipped in the shell in v0.10.0, and packs
+ * activated analytics 2026-07-10 — the promise is kept. Ads section is
  * ADS-READY the same way: activating ads at Stage 1 needs the certified-CMP
  * wiring (EEA/UK) + the US-state opt-out link from the network, both of
  * which the copy already describes conditionally.
@@ -42,7 +42,7 @@ import type { SeoPage } from './types';
  * subscriptions) — see scorewit-legal-hardening-report.md.
  */
 
-export const LEGAL_EFFECTIVE_DATE = '2026-07-10';
+export const LEGAL_EFFECTIVE_DATE = '2026-07-13';
 export const LEGAL_CONTACT = 'hello@scorewit.com';
 
 /** Operator entity, e.g. 'Example Holdings LLC'. Null until the LLC exists. */
@@ -95,7 +95,7 @@ const PRIVACY_BODY = `<p>${OPERATOR} makes daily sports-trivia games. This page 
 <p>Scorewit sites are served by <a href="https://vercel.com" rel="noopener noreferrer">Vercel</a>. Like any web host, Vercel processes IP addresses in ordinary server logs in order to deliver requests and protect the service. We do not use those logs to identify or track players.</p>
 
 <h2>Analytics</h2>
-<p>If analytics run on a Scorewit site, they are cookieless and aggregate-only: no cookies, no persistent identifiers, no cross-site tracking, and IP addresses are not stored. We see counts — how many rounds were played — never people, and the numbers are not combined with any other data or shared with anyone. If you'd rather not be counted at all, the game's settings include an analytics-off switch that we honor.</p>
+<p>Analytics on Scorewit sites are cookieless and aggregate-only: no cookies, no persistent identifiers, no cross-site tracking, and IP addresses are not stored. We see counts — how many rounds were played — never people, and the numbers are not combined with any other data or shared with anyone. If you'd rather not be counted at all, settings (on the Stats panel) include an analytics-off switch that we honor.</p>
 
 <h2>Advertising</h2>
 ${ADS_HTML}
@@ -117,7 +117,7 @@ ${SOURCES_HTML}
 
 /** Disputes section: informal notice-and-cure always; governing law joins when the constant is set. */
 const disputesHtml = (gov: { law: string; venue: string } | null): string =>
-  `<p>If you have a problem with Scorewit, tell us first: email <a href="mailto:${LEGAL_CONTACT}">${LEGAL_CONTACT}</a> with what went wrong and what you'd like done. We commit to responding, and both sides agree to try in good faith to resolve any dispute informally for 60 days before starting any legal proceeding. Most problems are a bug report, and we fix bugs.</p>${
+  `<p>If you have a problem with Scorewit, tell us first: email <a href="mailto:${LEGAL_CONTACT}">${LEGAL_CONTACT}</a> with what went wrong and what you'd like done. We'll do our best to respond, and both sides agree to try in good faith to resolve any dispute informally for 60 days before starting any legal proceeding. Most problems are a bug report, and we fix bugs.</p>${
     gov
       ? `\n<p>These terms are governed by the laws of ${gov.law}, and disputes that can't be resolved informally belong in ${gov.venue} — except where the law of the place you live gives you protections or a forum that can't be taken away by agreement, which we don't try to take away.</p>`
       : ''
