@@ -215,3 +215,35 @@ names have entries.
 
 Deploy: `docs/RUNBOOK-v0.11.0-a11y.md` (updated — v0.11.0 now carries a11y
 + theming; per-pack merge order vs the seo-wave branches enumerated).
+
+
+---
+
+# DEPLOYED — 2026-07-13 (founder GO)
+
+v0.11.0 tagged at `c88b98a` (a11y-theming rebased onto v0.10.1/`2728625`,
+suite + gate green post-rebase; ride-alongs: privacy meta description
+158 chars in `57e23ef` — no LEGAL_EFFECTIVE_DATE bump, meta is snippet
+text not page copy — and Super Over footer cross-links in five packs).
+
+| pack | deploy commit | contents |
+|---|---|---|
+| extra-time | `8e1ac57` | team-theming merge (85 nations) + footer link + rebuild |
+| cover-drive | `02b97f4` | team-theming merge (25 nations) + footer link + rebuild |
+| box-box | `fdf699a` | pin + palette bump + footer link (no theming — renderTeam override) |
+| fall-classic | `0cdc3a2` | pin + palette bump + footer link |
+| hail-mary | `3853f8e` | pin + palette bump + footer link |
+| super-over | `39a1e75` | pin (was v0.10.0) + palette bump |
+
+All six domains served the new build within ~60s of push. Live spot-checks:
+Lighthouse accessibility (mobile) **1.0** on www.scorewit.com (/ and
+/404.html), gridiron.scorewit.com, cricket.scorewit.com — the A1 baselines
+were 0.89/0.88. Themed My Team verified live: Netherlands (Oranje) on
+scorewit.com, India (Men in Blue) on cricket.scorewit.com. Old gray
+literals grep-verified gone in every pack. Identity preflight clean on all
+seven repos (box-box's missing pre-push guard installed).
+
+Note for a future core wave: legal pages bypass validatePages' <=160
+description gate by design (reserved paths) — that's how the 166-char
+description shipped. Worth extending the gate to legalPages minus the
+collision check, as the code comment already claims.
