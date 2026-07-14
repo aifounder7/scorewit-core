@@ -120,14 +120,19 @@ export function checkAppPaletteContrast(
     // (the shell never renders --text3 on --surface — see .ttag .yr / .credtt)
     pair('--text3 on --bg', t.text3, t.bg),
     pair('--text3 on --elev', t.text3, t.elev),
-    // accent as text: .meta .d, reveal source links, assent link (on bg),
-    // active tab / streak chip (on accentDim over bg)
+    // accent as text: .meta .d, assent link (on bg), reveal source links
+    // (inside the reveal card: elev), active tab / streak chip (dim over bg)
     pair('--accent on --bg', t.accent, t.bg),
+    pair('--accent on --elev (reveal links)', t.accent, t.elev),
     pair('--accent on --accentDim/bg', t.accent, dim('accentDim', 'bg')),
     // mode colors as text on their dim banners (over bg) and plain bg
     pair('--practice on --bg', t.practice, t.bg),
     pair('--practice on --practiceDim/bg', t.practice, dim('practiceDim', 'bg')),
     pair('--team on --bg', t.team, t.bg),
+    // team-accent links inside cards and title chips (.resline a on elev,
+    // .ttag a on surface — the LIGHTEST background team text renders on)
+    pair('--team on --elev (in-card links)', t.team, t.elev),
+    pair('--team on --surface (.ttag links)', t.team, t.surface),
     pair('--team on --teamDim/bg', t.team, dim('teamDim', 'bg')),
     pair('--today on --bg', t.today, t.bg),
     pair('--today on --todayDim/bg', t.today, dim('todayDim', 'bg')),
@@ -194,7 +199,7 @@ export function checkNationThemeContrast(
   paletteCss: string
 ): ContrastCheck[] {
   const t = parseTokens(paletteCss);
-  for (const k of ['bg', 'elev', 'text'] as const) {
+  for (const k of ['bg', 'elev', 'surface', 'text'] as const) {
     if (!t[k]) throw new Error(`teamTheming: shell palette is missing --${k}`);
   }
   const pair = (label: string, fg: string, bg: string, min = 4.5): ContrastCheck => {
@@ -219,6 +224,10 @@ export function checkNationThemeContrast(
     out.push(
       pair(`${tag}: accent on --bg`, n.accent, t.bg),
       pair(`${tag}: accent on --elev`, n.accent, t.elev),
+      // .ttag a picks up the themed --team on surface chips — the LIGHTEST
+      // background the accent renders on (the pair the T1 validator missed;
+      // the Italy/India blues caught it in the flow audit)
+      pair(`${tag}: accent on --surface (.ttag links)`, n.accent, t.surface),
       pair(`${tag}: accent on its banner tint`, n.accent, dim),
       pair(`${tag}: --text on its banner tint`, t.text, dim),
       pair(`${tag}: onAccent on accent`, n.onAccent, n.accent)
