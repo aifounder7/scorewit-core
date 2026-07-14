@@ -178,7 +178,7 @@ export function legalSeoPages(): SeoPage[] {
       path: 'privacy',
       title: 'Privacy — Scorewit',
       description:
-        'Scorewit games have no accounts, no cookies, and no tracking. Game state stays in your browser; any analytics are cookieless and aggregate-only. The details, plainly.',
+        'Scorewit games have no accounts, no cookies, no tracking. Game state stays in your browser; analytics are cookieless and aggregate-only. The details, plainly.',
       h1: 'Privacy',
       jsonLd: {
         '@context': 'https://schema.org',
