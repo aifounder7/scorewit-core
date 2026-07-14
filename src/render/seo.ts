@@ -113,7 +113,11 @@ function checkPlainText(tag: string, field: string, v: string): void {
   if (/<[a-z!/]/i.test(v)) throw new Error(`${tag}: ${field} is plain text — markup is not allowed (the template escapes it)`);
 }
 
-function validatePages(pages: SeoPage[], cfg: SeoRenderConfig): void {
+function validatePages(
+  pages: SeoPage[],
+  cfg: SeoRenderConfig,
+  opts: { skipCollision?: boolean } = {}
+): void {
   const seenPaths = new Set<string>();
   const seenTitles = new Set<string>();
   const routeNames = new Set(
@@ -125,7 +129,9 @@ function validatePages(pages: SeoPage[], cfg: SeoRenderConfig): void {
       throw new Error(`${tag}: path must be relative kebab/slash segments with no leading slash`);
     }
     const head = p.path.split('/')[0];
-    if (RESERVED.has(p.path) || RESERVED.has(head) || routeNames.has(head)) {
+    // Legal pages occupy the RESERVED privacy/terms paths BY DESIGN — the
+    // collision check is the single gate they are exempt from.
+    if (!opts.skipCollision && (RESERVED.has(p.path) || RESERVED.has(head) || routeNames.has(head))) {
       throw new Error(`${tag}: path collides with an app route or reserved file`);
     }
     if (seenPaths.has(p.path)) throw new Error(`${tag}: duplicate path`);
@@ -348,6 +354,11 @@ export function writeSeoSite(
   legalPages: SeoPage[] = []
 ): { count: number } {
   validatePages(pages, cfg);
+  // Legal pages go through the SAME quality gates (title/description
+  // lengths, thin-body floor, single-H1, JSON-LD serializability, …) with
+  // ONLY the reserved-path collision check exempted — so a >160-char legal
+  // meta description can never ship silently again.
+  validatePages(legalPages, cfg, { skipCollision: true });
   const all = [...pages, ...legalPages];
   for (const p of all) {
     const dest = path.join(paths.siteDir, `${p.path}.html`);

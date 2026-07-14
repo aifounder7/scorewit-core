@@ -257,6 +257,27 @@ check('legal paths are RESERVED for pack pages; the umbrella emits them via the 
   assert.ok(sitemap.includes(`<lastmod>${LEGAL_EFFECTIVE_DATE}</lastmod>`), 'lastmod = effective date');
 });
 
+check('legal pages pass validatePages with ONLY the collision check exempted', () => {
+  // The canonical legal pages must clear every quality gate themselves...
+  const paths = tmpPaths();
+  writeSeoSite([page(1)], CFG, paths, legalSeoPages()); // throws if they don't
+  // ...and a broken legal page is REJECTED by the same gates (the v0.11.0
+  // discovery: a >160-char legal meta description once shipped silently).
+  const legal = legalSeoPages();
+  const fat = { ...legal[0], description: 'x'.repeat(166) };
+  assert.throws(
+    () => writeSeoSite([page(1)], CFG, tmpPaths(), [fat]),
+    /description must be non-empty and <= 160/
+  );
+  const thin = { ...legal[0], bodyHtml: '<p>tiny</p>' };
+  assert.throws(() => writeSeoSite([page(1)], CFG, tmpPaths(), [thin]), /thin\/doorway/);
+  const doubleH1 = { ...legal[0], bodyHtml: legal[0].bodyHtml + '<h1>nope</h1>' };
+  assert.throws(() => writeSeoSite([page(1)], CFG, tmpPaths(), [doubleH1]), /owns the single H1/);
+  // The one exemption still holds: the reserved path itself is allowed.
+  writeSeoSite([page(1)], CFG, tmpPaths(), [legal[0]]);
+  fs.rmSync(paths.root, { recursive: true, force: true });
+});
+
 check('the lead is the typographic hero; tables carry the design language', () => {
   const paths = tmpPaths();
   writeSeoSite(
@@ -272,7 +293,7 @@ check('the lead is the typographic hero; tables carry the design language', () =
   assert.ok(/td\{[^}]*tabular-nums/.test(html), 'numeric alignment via tabular-nums');
 });
 
-console.log(`\n${failures === 0 ? 'ALL' : ''} ${9 - failures}/9 SEO cases passed.`);
+console.log(`\n${failures === 0 ? 'ALL' : ''} ${10 - failures}/10 SEO cases passed.`);
 if (failures) {
   console.error(`SEO TEST FAILED — ${failures} case(s) wrong.`);
   process.exit(1);
