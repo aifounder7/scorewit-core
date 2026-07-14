@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "tsx src/contrast.test.ts && tsx src/streak.test.ts && tsx src/bank-target.test.ts && tsx src/seo-pages.test.ts && tsx src/analytics.test.ts && tsx src/insights.test.ts && tsx src/share-line.test.ts"
+    "test": "tsx src/contrast.test.ts && tsx src/streak.test.ts && tsx src/bank-target.test.ts && tsx src/seo-pages.test.ts && tsx src/analytics.test.ts && tsx src/insights.test.ts && tsx src/share-line.test.ts && tsx src/team-theming.test.ts"
   },
   "devDependencies": {
     "@types/node": "^25.9.2",

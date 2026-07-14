@@ -195,6 +195,21 @@ share, routing). You supply values; everything defaults to the first pack's
 | `renderTeam`? | the whole My-Team flow incl. its picker, when the follow model differs (e.g. F1 follows a driver AND a constructor); must define `renderTeam()` |
 | `shareLine`?  | statement block inside `buildShareText()` (after streak, before URL) — push onto `lines`. SPOILER RULE: never question content; only strings already in a validator-checked artifact (e.g. the followed entity's `insightLine`). Unset = incumbent share text, byte-identical |
 
+**Opt-in: `teamTheming`** (nations only — franchise colors are trade dress,
+deferred): `{ nations: { "<artifact team name>": { band, accent, onAccent,
+inset?, vband? } } }`. Unset = byte-identical shell. Set = the followed
+nation's My-Team tab gains a decorative flag band + nation-tinted banner
+(name, flag, the validated `insightLine`) and the `--team`/`--teamDim` pair
+swaps to the nation's display accent. The table is EDITORIAL DATA (mark
+provenance per FIREWALL.md; identity/kit colors, flag-derived default,
+hue-faithful lightened where a spec color fails); every rendered pair is
+AA-gated at build time and the build fails below threshold. Nations absent
+from the table render unthemed (allowlist). Requires the standard My-Team
+flow (build error with a `renderTeam` override). If your `teamCards` chunk
+renders its own insight-lead card, gate it on
+`typeof NATION_THEME!=='undefined'&&NATION_THEME[t.name]` so the banner and
+the card don't both carry the line.
+
 **Tokens** (all optional, soccer-defaulted):
 
 - `brand`: `paletteCss`, `themeColor`, `onAccent` (button text colors),

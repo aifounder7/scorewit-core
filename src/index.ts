@@ -35,11 +35,13 @@ export {
   assertContrast,
   blendOverHex,
   checkAppPaletteContrast,
+  checkNationThemeContrast,
   checkNotFoundPaletteContrast,
   contrastRatio,
   hexToRgb,
   relativeLuminance,
   type ContrastCheck,
+  type NationTheme,
   type Rgb,
 } from './contrast';
 export {

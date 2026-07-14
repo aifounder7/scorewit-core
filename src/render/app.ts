@@ -4,7 +4,10 @@ import type { AnalyticsConfig, PipelinePaths } from '../types';
 import {
   assertContrast,
   checkAppPaletteContrast,
+  checkNationThemeContrast,
   checkNotFoundPaletteContrast,
+  hexToRgb,
+  type NationTheme,
 } from '../contrast';
 
 /**
@@ -166,6 +169,18 @@ export interface AppShellConfig {
    *  demands (footer-only browsewrap is routinely unenforceable). Defaults to
    *  the umbrella terms URL every sibling pack's footer already links. */
   termsUrl?: string;
+  /** Opt-in team theming for the My Team tab (NATIONS ONLY — franchise
+   *  colors are trade dress and stay deferred). Unset = the shell renders
+   *  byte-identically. Set = the followed nation's tab gains a decorative
+   *  flag band + nation-tinted banner (name, flag, the validated artifact
+   *  insightLine) and the --team/--teamDim accent pair swaps to the nation's
+   *  AA-verified display accent. Colors are editorial data; every rendered
+   *  pair is gated at build time (checkNationThemeContrast) — the build
+   *  FAILS below WCAG AA. Nations absent from the table render unthemed
+   *  (allowlist, never derived). Requires the standard My-Team flow
+   *  (incompatible with clientJs.renderTeam). No animation: the only motion
+   *  on the tab stays the existing reduced-motion-gated flag wave. */
+  teamTheming?: { nations: Record<string, NationTheme> };
 }
 
 /** Read an SVG asset and inline it (comments and newlines stripped). */
@@ -392,7 +407,7 @@ const TEAMS = __TEAMS__;
 const MATCHDAY = __MATCHDAY__;
 const APP_NAME = "__APPNAME__";
 const APP_URL = "__APPURL__";
-__PACKCONSTS__
+__PACKCONSTS____THEMECONSTS__
 
 // ---- ported from src/game/rng.ts ----
 function mulberry32(seed){let a=seed>>>0;return function(){a=(a+0x6d2b79f5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};}
@@ -971,6 +986,98 @@ function renderTeamPicker(){
   stage.querySelectorAll('.teamlist .fchip').forEach(b=>{b.onclick=()=>{ setFavTeam(b.dataset.team); teamView='insights'; teamSearch=''; renderTeam(); };});
 }`;
 
+/** The themed My-Team flow (used ONLY when cfg.teamTheming is set): the
+ *  DEFAULT_RENDER_TEAM flow with a nation-themed wrapper when the followed
+ *  team has a NATION_THEME entry — a decorative flag band, a nation-tinted
+ *  banner carrying the validated artifact insightLine, and the one-token
+ *  --team/--teamDim/--onTeam override that shifts every incumbent accent
+ *  surface on the tab. A nation absent from the table renders the incumbent
+ *  markup (allowlist fallback). All colors arrive baked from the build-
+ *  validated table — the browser never derives one. */
+const THEMED_RENDER_TEAM = String.raw`function renderTeam(){
+  const fav=getFavTeam();
+  if(!fav){ renderTeamPicker(); return; }
+  const t=TEAM_BY_NAME[fav];
+  const th=NATION_THEME[t.name]||null;
+  const head='<div class="teamhead"><h2 class="name">'+teamLabel(t.name,true)+'</h2>'+
+    '<button class="linkbtn" id="changeteam">Change team</button></div>';
+  const subnav='<div class="subnav" id="tsub">'+
+      '<button class="tab'+(teamView==='insights'?' active':'')+'" data-tv="insights">Insights</button>'+
+      '<button class="tab'+(teamView==='quiz'?' active':'')+'" data-tv="quiz">Team quiz</button>'+
+    '</div>';
+  const body=teamView==='insights'?teamInsightsHtml(t):teamQuizHtml(t);
+  let html;
+  if(th){
+    html='<div class="nation" style="--team:'+th.a+';--teamDim:'+th.d+';--onTeam:'+th.o+'">'+
+      '<div class="natband'+(th.i?' inset':'')+'" style="background:'+th.g+'" aria-hidden="true"></div>'+
+      '<div class="natbanner">'+head+
+        (t.insightLine?'<div class="natlead">'+esc(t.insightLine)+'</div>':'')+
+      '</div>'+subnav+body+'</div>';
+  }else{
+    html=head+subnav+body;
+  }
+  stage.innerHTML=html;
+  document.getElementById('changeteam').onclick=()=>{ teamSearch=''; renderTeamPicker(); };
+  stage.querySelectorAll('#tsub .tab').forEach(b=>{b.onclick=()=>{teamView=b.dataset.tv;tq=null;tlast=null;renderTeam();};});
+  if(teamView==='quiz')wireTeamQuiz(t);
+  bindSrcLinks(stage);
+}
+
+function renderTeamPicker(){
+  const q=teamSearch.trim().toLowerCase();
+  const list=TEAMS.teams.filter(t=>!q||t.name.toLowerCase().includes(q));
+  let html='<div class="tbanner">__TEAMPICKERBANNER__</div>'+
+    '<input class="picker-search" id="psearch" type="text" placeholder="Search teams…" aria-label="Search teams" value="'+esc(teamSearch)+'" />'+
+    '<div class="teamlist">'+
+      list.map(t=>'<button class="fchip" data-team="'+esc(t.name)+'">'+teamLabel(t.name)+'</button>').join('')+
+    '</div>'+
+    (list.length?'':'<div class="empty">No teams match “'+esc(teamSearch)+'”.</div>');
+  stage.innerHTML=html;
+  const inp=document.getElementById('psearch');
+  inp.oninput=()=>{ teamSearch=inp.value; const pos=inp.selectionStart; renderTeamPicker(); const ni=document.getElementById('psearch'); ni.focus(); try{ni.setSelectionRange(pos,pos);}catch(e){} };
+  stage.querySelectorAll('.teamlist .fchip').forEach(b=>{b.onclick=()=>{ setFavTeam(b.dataset.team); teamView='insights'; teamSearch=''; renderTeam(); };});
+}`;
+
+/** Stylesheet block for the themed tab (appended before the pack's extraCss
+ *  ONLY when teamTheming is set — an unset pack's stylesheet is untouched). */
+const THEME_CSS = String.raw`
+  /* ---- Team theming (opt-in; nations only; decorative band + tinted banner) ---- */
+  .natband{height:6px;border-radius:3px;margin:10px 0 0}
+  .natband.inset{box-shadow:inset 0 0 0 1px var(--surface)}
+  .natbanner{background:var(--teamDim);border-radius:0 0 12px 12px;padding:14px 16px 15px;margin:0 0 4px}
+  .natbanner .teamhead{margin:0 0 8px}
+  .natlead{font-size:15px;line-height:1.5;font-weight:600;color:var(--text)}
+  .nation .btn.team{color:var(--onTeam)}`;
+
+/** Bake the validated nation table into the client-side lookup: the rgba
+ *  banner tint and the band gradient are precomputed HERE, at build time —
+ *  the browser only ever reads finished strings. */
+function themeChunks(theming: AppShellConfig['teamTheming']): { consts: string; css: string } {
+  if (!theming) return { consts: '', css: '' };
+  const baked: Record<string, { a: string; d: string; o: string; g: string; i?: 1 }> = {};
+  for (const [name, n] of Object.entries(theming.nations)) {
+    const rgb = hexToRgb(n.accent)!; // parseability already gated
+    const dir = n.vband ? '90deg' : '180deg';
+    const len = n.band.length;
+    const stops = n.band
+      .map((c, i) => `${c} ${((i / len) * 100).toFixed(1)}% ${(((i + 1) / len) * 100).toFixed(1)}%`)
+      .join(', ');
+    baked[name] = {
+      a: n.accent,
+      d: `rgba(${rgb.join(',')},0.14)`,
+      o: n.onAccent,
+      g: `linear-gradient(${dir}, ${stops})`,
+      ...(n.inset ? { i: 1 as const } : {}),
+    };
+  }
+  const consts =
+    `\n// ---- Team theming (editorial nation colors, AA-gated at build; see\n` +
+    `//      teamTheming on the pack). Keys are artifact team names; a name\n` +
+    `//      with no entry renders unthemed — an allowlist, not a derivation. ----\n` +
+    `const NATION_THEME=${JSON.stringify(baked)};`;
+  return { consts, css: THEME_CSS };
+}
+
 const DEFAULT_ON_ACCENT = {
   accent: '#06121f',
   practice: '#0c0a1a',
@@ -1133,6 +1240,18 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     checkAppPaletteContrast(brand.paletteCss, brand.onAccent ?? DEFAULT_ON_ACCENT),
     'app shell'
   );
+  if (cfg.teamTheming) {
+    if (client.renderTeam) {
+      throw new Error(
+        'teamTheming requires the standard My-Team flow — remove the clientJs.renderTeam override or the theming opt-in'
+      );
+    }
+    assertContrast(
+      checkNationThemeContrast(cfg.teamTheming.nations, brand.paletteCss),
+      'team theming'
+    );
+  }
+  const theme = themeChunks(cfg.teamTheming);
   const analytics = analyticsChunks(cfg.analytics, cfg.sport ?? '');
   let tpl = HTML;
   for (const [find, replace] of client.shellPatches ?? []) {
@@ -1161,7 +1280,9 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__ERALABEL__').join(client.eraLabel ?? DEFAULT_ERA_LABEL)
     .split('__RENDERTODAY__').join(client.renderToday ?? DEFAULT_RENDER_TODAY)
     // Before __TEAMPICKERBANNER__: the default team flow embeds that token.
-    .split('__RENDERTEAM__').join(client.renderTeam ?? DEFAULT_RENDER_TEAM)
+    // Theming set (and no override — gated above) swaps in the themed flow.
+    .split('__RENDERTEAM__').join(client.renderTeam ?? (cfg.teamTheming ? THEMED_RENDER_TEAM : DEFAULT_RENDER_TEAM))
+    .split('__THEMECONSTS__').join(theme.consts)
     // Default '' erases the token — the incumbent share text, byte-identical.
     .split('__SHARELINE__').join(client.shareLine ?? '')
     .split('__BTNTEXTPRACTICE__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).practice)
@@ -1178,7 +1299,7 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__ROUTETEAM__').join((config.routes ?? DEFAULT_ROUTES).team)
     .split('__RECLISTCOLS__').join(String(brand.recordGridCols ?? DEFAULT_RECORD_GRID_COLS))
     .split('__RESLINECSS__').join(brand.resultLineCss ?? DEFAULT_RESLINE_CSS)
-    .split('__EXTRACSS__').join(brand.extraCss ?? '')
+    .split('__EXTRACSS__').join(theme.css + (brand.extraCss ?? ''))
     .split('__APPNAME__').join(brand.appName)
     .split('__BRANDMARK__').join(brand.markSvg)
     .split('__THEMECOLOR__').join(brand.themeColor)

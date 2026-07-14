@@ -315,6 +315,11 @@ export interface SportPack<
   /** Href of the shell's terms-assent line ("By playing you agree to the
    *  Terms"). Unset = the umbrella terms URL the sibling footers link. */
   termsUrl?: string;
+  /** Opt-in My-Team nation theming (see AppShellConfig.teamTheming). Unset
+   *  keeps the shell byte-for-byte. The nation table is editorial data;
+   *  every rendered pair is AA-gated at build time and the build fails
+   *  below threshold. NATIONS ONLY — franchise colors are trade dress. */
+  teamTheming?: { nations: Record<string, import('./contrast').NationTheme> };
 
   /** Pull the upstream source and return the normalized dataset + coverage.
    *  The core writes both to paths.datasetDir. */

@@ -170,6 +170,63 @@ export function checkNotFoundPaletteContrast(
   ];
 }
 
+/** One nation's team-theming colors (editorial data supplied by the pack —
+ *  see teamTheming on SportPack). `band` is decorative only; `accent`
+ *  replaces `--team` on the themed tab and must measure as TEXT. */
+export interface NationTheme {
+  /** 2–4 flag/kit stripe colors for the decorative band. */
+  band: string[];
+  /** Display accent (hue-faithful, AA-verified) — becomes --team. */
+  accent: string;
+  /** Dark text used ON the accent (the themed quiz button). */
+  onAccent: string;
+  /** Render the band's inset ring (near-shell stripes, e.g. black). */
+  inset?: boolean;
+  /** Vertical band segments instead of horizontal stripes. */
+  vband?: boolean;
+}
+
+/** The themed-tab contract: every pair a nation-themed My-Team tab renders.
+ *  Structural garbage (missing/unparseable colors, bad band shape) throws
+ *  immediately; color pairs return as checks for assertContrast. */
+export function checkNationThemeContrast(
+  nations: Record<string, NationTheme>,
+  paletteCss: string
+): ContrastCheck[] {
+  const t = parseTokens(paletteCss);
+  for (const k of ['bg', 'elev', 'text'] as const) {
+    if (!t[k]) throw new Error(`teamTheming: shell palette is missing --${k}`);
+  }
+  const pair = (label: string, fg: string, bg: string, min = 4.5): ContrastCheck => {
+    const ratio = round2(contrastRatio(fg, bg));
+    return { label, fg, bg, ratio, min, pass: ratio >= min };
+  };
+  const out: ContrastCheck[] = [];
+  const names = Object.keys(nations);
+  if (!names.length) throw new Error('teamTheming: nations table is empty');
+  for (const [name, n] of Object.entries(nations)) {
+    const tag = `teamTheming "${name}"`;
+    if (!Array.isArray(n.band) || n.band.length < 2 || n.band.length > 4) {
+      throw new Error(`${tag}: band must carry 2–4 stripe colors`);
+    }
+    for (const b of n.band) {
+      if (!hexToRgb(b)) throw new Error(`${tag}: unparseable band color "${b}"`);
+    }
+    const rgb = hexToRgb(n.accent);
+    if (!rgb) throw new Error(`${tag}: unparseable accent "${n.accent}"`);
+    if (!hexToRgb(n.onAccent)) throw new Error(`${tag}: unparseable onAccent "${n.onAccent}"`);
+    const dim = blendOverHex(`rgba(${rgb.join(',')},0.14)`, t.bg);
+    out.push(
+      pair(`${tag}: accent on --bg`, n.accent, t.bg),
+      pair(`${tag}: accent on --elev`, n.accent, t.elev),
+      pair(`${tag}: accent on its banner tint`, n.accent, dim),
+      pair(`${tag}: --text on its banner tint`, t.text, dim),
+      pair(`${tag}: onAccent on accent`, n.onAccent, n.accent)
+    );
+  }
+  return out;
+}
+
 /** Throw (listing every failing pair with its measured ratio) unless all
  *  checks pass. The build fails; a shell below AA never ships. */
 export function assertContrast(checks: ContrastCheck[], context: string): void {
