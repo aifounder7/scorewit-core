@@ -178,6 +178,18 @@ function validatePages(
       if (p.chips.length < 1 || p.chips.length > 24) throw new Error(`${tag}: chips must have 1–24 items`);
       for (const c of p.chips) checkPlainText(tag, 'chips item', c);
     }
+    if (p.chipIcons !== undefined) {
+      // Decoration parallel to `chips`: the chip FACT strings stay plain-text
+      // (checked above, byte-unchanged for the validators); icons are raw
+      // inline HTML rendered before the escaped text.
+      if (p.chips === undefined) throw new Error(`${tag}: chipIcons requires chips`);
+      if (p.chipIcons.length !== p.chips.length) {
+        throw new Error(`${tag}: chipIcons must match chips length (${p.chipIcons.length} vs ${p.chips.length})`);
+      }
+      for (const ic of p.chipIcons) {
+        if (ic !== null) checkRawInline(tag, 'chipIcons item', ic);
+      }
+    }
   }
 }
 
@@ -218,8 +230,15 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
     );
   }
   if (page.chips?.length) {
+    // chipIcons (validated parallel decoration) render INSIDE the span before
+    // the escaped text; pages without them render byte-identically to before.
     blocks.push(
-      `<div class="chips">${page.chips.map((c) => `<span class="chip">${esc(c)}</span>`).join('')}</div>`
+      `<div class="chips">${page.chips
+        .map((c, i) => {
+          const ic = page.chipIcons?.[i];
+          return `<span class="chip">${ic ? `${ic} ` : ''}${esc(c)}</span>`;
+        })
+        .join('')}</div>`
     );
   }
   if (page.callout) {

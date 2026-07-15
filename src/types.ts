@@ -237,6 +237,12 @@ export interface SeoPage {
   heroStats?: SeoHeroStat[];
   /** Chip row (plain-text items): title years, formats, etc. */
   chips?: string[];
+  /** OPT-IN decorative icons for the chip row, parallel to `chips` (same
+   *  length; null = no icon for that chip). Raw inline HTML rendered INSIDE
+   *  the chip span BEFORE the escaped text — decoration only (aria-hidden
+   *  <img>/<span>), so the chip FACT strings stay plain-text and
+   *  byte-unchanged for the validators. Rejected when `chips` is absent. */
+  chipIcons?: (string | null)[];
   /** Left-accent-border callout (raw inline HTML) for key facts:
    *  "<b>First win</b> <span>— Spanish Grand Prix 2016.</span>" */
   callout?: string;

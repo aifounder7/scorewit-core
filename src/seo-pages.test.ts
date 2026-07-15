@@ -293,7 +293,39 @@ check('the lead is the typographic hero; tables carry the design language', () =
   assert.ok(/td\{[^}]*tabular-nums/.test(html), 'numeric alignment via tabular-nums');
 });
 
-console.log(`\n${failures === 0 ? 'ALL' : ''} ${10 - failures}/10 SEO cases passed.`);
+check('chipIcons decorate chips without touching the FACT strings', () => {
+  const ICON = '<img src="/medals/gold.svg" alt="" aria-hidden="true" width="14" height="14"/>';
+  // Icons render inside the span BEFORE the escaped chip text; null = plain.
+  const paths = tmpPaths();
+  writeSeoSite(
+    [page(4, { chips: ['Champions: A & B', 'Runners-up: C'], chipIcons: [ICON, null] })],
+    CFG,
+    paths
+  );
+  const html = fs.readFileSync(path.join(paths.siteDir, 'cup', '2024.html'), 'utf8');
+  assert.ok(html.includes(`<span class="chip">${ICON} Champions: A &amp; B</span>`), 'icon precedes the escaped text');
+  assert.ok(html.includes('<span class="chip">Runners-up: C</span>'), 'null icon renders the plain incumbent chip');
+  // Without chipIcons the chip markup is byte-identical to the incumbent form.
+  const plain = tmpPaths();
+  writeSeoSite([page(4, { chips: ['Champions: A & B', 'Runners-up: C'] })], CFG, plain);
+  const plainHtml = fs.readFileSync(path.join(plain.siteDir, 'cup', '2024.html'), 'utf8');
+  assert.ok(plainHtml.includes('<span class="chip">Champions: A &amp; B</span><span class="chip">Runners-up: C</span>'), 'no-opt-in chips unchanged');
+  // Gates: length mismatch, icons without chips, markup abuse all fail loudly.
+  assert.throws(
+    () => writeSeoSite([page(5, { chips: ['A', 'B'], chipIcons: [ICON] })], CFG, tmpPaths()),
+    /chipIcons must match chips length/
+  );
+  assert.throws(
+    () => writeSeoSite([page(5, { chipIcons: [ICON] })], CFG, tmpPaths()),
+    /chipIcons requires chips/
+  );
+  assert.throws(
+    () => writeSeoSite([page(5, { chips: ['A'], chipIcons: ['<script>x</script>'] })], CFG, tmpPaths()),
+    /contains a <script>/
+  );
+});
+
+console.log(`\n${failures === 0 ? 'ALL' : ''} ${11 - failures}/11 SEO cases passed.`);
 if (failures) {
   console.error(`SEO TEST FAILED — ${failures} case(s) wrong.`);
   process.exit(1);
