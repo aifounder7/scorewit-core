@@ -132,6 +132,13 @@ check('unset: sport is ignored — output byte-identical with or without it', ()
   assert.equal(renderAppHtml(cfg()), renderAppHtml(cfg(undefined, 'testball')));
 });
 
+check('shell head: self-referential canonical on the app URL, exactly once', () => {
+  const html = renderAppHtml(cfg());
+  const tag = '<link rel="canonical" href="https://example.test/" />';
+  assert.ok(html.includes(tag), 'index declares its own canonical host URL');
+  assert.equal(html.indexOf(tag), html.lastIndexOf(tag), 'canonical appears once');
+});
+
 check('plausible: gated provider loader + anonymous events, Vercel wiring gone', () => {
   const html = renderAppHtml(cfg({ provider: 'plausible', domain: 'quiz.example' }, 'testball'));
   assert.ok(html.includes("s.setAttribute('data-domain','quiz.example')"));
