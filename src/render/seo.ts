@@ -317,6 +317,10 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
   h2{font-size:16px;letter-spacing:-.01em;margin:26px 0 8px}
   p,li{font-size:15px;color:var(--text);margin:8px 0}
   a{color:var(--accent);text-underline-offset:2px}
+  .faq{margin:10px 0 18px;font-size:15px}
+  .faq dt{font-weight:700;color:var(--text);margin:16px 0 3px}
+  .faq dt:first-of-type{margin-top:0}
+  .faq dd{font-weight:400;color:var(--text);margin:0}
   table{border-collapse:separate;border-spacing:0;width:100%;margin:14px 0 18px;font-size:14px;
     background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
   th,td{text-align:left;padding:9px 14px}
