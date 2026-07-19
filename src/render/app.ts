@@ -429,6 +429,14 @@ function selectDaily(bank,key){const d=dayNumber(key);const take=takeForDay(d);c
 // ---- ported from src/game/scoring.ts ----
 const MAX_POINTS=100;
 function scoreAnswer(q,resp){if(q.type==='multiple_choice'){const ok=resp===q.answer;return{points:ok?100:0,correct:ok};}const guess=Number(resp);const ans=Number(q.answer);const s=q.scoring||{fullPointsWithin:0,zeroBeyond:10};const diff=Math.abs(guess-ans);if(!isFinite(diff))return{points:0,correct:false};if(diff<=s.fullPointsWithin)return{points:100,correct:true};if(diff>=s.zeroBeyond)return{points:0,correct:false};return{points:Math.round(100*(s.zeroBeyond-diff)/(s.zeroBeyond-s.fullPointsWithin)),correct:false};}
+// ---- tap-only pills: a closest_guess question WITH options renders as pills
+// ---- (banks built with numericPills); one without keeps the typed input.
+function hasPills(q){return q.type==='multiple_choice'||!!q.options;}
+// Numeric pills carry the bare value: the question text states the quantity,
+// and per-value unit grammar ("1 goals") has no safe cross-sport fix.
+function pillsHtml(q){return '<div class="opts">'+q.options.map((o,i)=>'<button class="opt" data-i="'+i+'">'+(q.type==='multiple_choice'?teamLabel(o):esc(o))+'</button>').join('')+'</div>';}
+function pillValue(q,o){return q.type==='multiple_choice'?o:Number(o);}
+function lockPills(q,resp){const ans=q.type==='multiple_choice'?q.answer:Number(q.answer);stage.querySelectorAll('button.opt').forEach(b=>{b.disabled=true;const v=pillValue(q,q.options[+b.dataset.i]);if(v===ans)b.classList.add('correct');else if(v===resp)b.classList.add('wrong');});}
 
 // ---- ported from streak.ts (daily streak + stats; user-local, no facts) ----
 // Per-day score is the round aggregate on a 0..600 scale (six questions × 100).
@@ -507,15 +515,15 @@ function render(){
   updateStreakBar();
   const q=questions[idx];
   let html=chip(q)+'<div class="q">'+esc(q.text)+'</div>';
-  if(q.type==='multiple_choice'){
-    html+='<div class="opts">'+q.options.map((o,i)=>'<button class="opt" data-i="'+i+'">'+teamLabel(o)+'</button>').join('')+'</div>';
+  if(hasPills(q)){
+    html+=pillsHtml(q);
   }else{
     html+='<div class="cg"><input id="cg" type="number" inputmode="numeric" placeholder="your guess" aria-label="Your guess" /><span class="unit">'+esc(q.unit||'')+'</span><button class="btn" id="cgsubmit">Guess</button></div>';
   }
   html+='<div id="reveal"></div>';
   stage.innerHTML=html;
-  if(q.type==='multiple_choice'){
-    stage.querySelectorAll('button.opt').forEach(b=>{b.onclick=()=>answer(q.options[+b.dataset.i]);});
+  if(hasPills(q)){
+    stage.querySelectorAll('button.opt').forEach(b=>{b.onclick=()=>answer(pillValue(q,q.options[+b.dataset.i]));});
   }else{
     const inp=stage.querySelector('#cg');
     const go=()=>{if(inp.value!=='')answer(Number(inp.value));};
@@ -532,8 +540,8 @@ function answer(resp){
   total+=sc.points; results.push(sc.points);
   const cls=sc.points>=100?'ok':sc.points>0?'partial':'no';
   // lock options
-  if(q.type==='multiple_choice'){
-    stage.querySelectorAll('button.opt').forEach(b=>{b.disabled=true;const v=q.options[+b.dataset.i];if(v===q.answer)b.classList.add('correct');else if(v===resp)b.classList.add('wrong');});
+  if(hasPills(q)){
+    lockPills(q,resp);
   }else{
     stage.querySelector('#cg').disabled=true;stage.querySelector('#cgsubmit').disabled=true;
   }
@@ -677,7 +685,7 @@ function renderPractice(){
     '<div class="flabel">Era</div><div class="chiprow">'+fchips('era',ERAS)+'</div></div>';
   if(pq){
     html+=chip(pq)+'<div class="q">'+esc(pq.text)+'</div>';
-    if(pq.type==='multiple_choice'){html+='<div class="opts">'+pq.options.map((o,i)=>'<button class="opt" data-i="'+i+'">'+teamLabel(o)+'</button>').join('')+'</div>';}
+    if(hasPills(pq)){html+=pillsHtml(pq);}
     else{html+='<div class="cg"><input id="pcg" type="number" inputmode="numeric" placeholder="your guess" aria-label="Your guess" /><span class="unit">'+esc(pq.unit||'')+'</span><button class="btn practice" id="pcgsubmit">Guess</button></div>';}
     html+='<div id="preveal"></div>';
   }else{
@@ -688,13 +696,13 @@ function renderPractice(){
   stage.querySelectorAll('.fchip').forEach(b=>{b.onclick=()=>{const k=b.dataset.k,v=b.dataset.v;pf[k]=v===''?null:v;pq=null;plast=null;renderPractice();};});
   const draw=document.getElementById('pdraw'); if(draw)draw.onclick=drawPractice;
   if(pq){
-    if(pq.type==='multiple_choice'){stage.querySelectorAll('button.opt').forEach(b=>{b.onclick=()=>answerPractice(pq.options[+b.dataset.i]);});}
+    if(hasPills(pq)){stage.querySelectorAll('button.opt').forEach(b=>{b.onclick=()=>answerPractice(pillValue(pq,pq.options[+b.dataset.i]));});}
     else{const inp=stage.querySelector('#pcg');const go=()=>{if(inp.value!=='')answerPractice(Number(inp.value));};document.getElementById('pcgsubmit').onclick=go;inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();});inp.focus();}
   }
 }
 function answerPractice(resp){__TRACKPRACTICE__
   const q=pq;const sc=scoreAnswer(q,resp);const cls=sc.points>=100?'ok':sc.points>0?'partial':'no';
-  if(q.type==='multiple_choice'){stage.querySelectorAll('button.opt').forEach(b=>{b.disabled=true;const v=q.options[+b.dataset.i];if(v===q.answer)b.classList.add('correct');else if(v===resp)b.classList.add('wrong');});}
+  if(hasPills(q)){lockPills(q,resp);}
   else{stage.querySelector('#pcg').disabled=true;stage.querySelector('#pcgsubmit').disabled=true;}
   const ansLine=q.type==='closest_guess'?('You guessed '+resp+' · answer '+q.answer+' '+(q.unit||'')):'';
   document.getElementById('preveal').innerHTML='<div class="reveal"><div class="pts '+cls+'">+'+sc.points+(sc.correct?' · spot on':sc.points>0?' · close':' · missed')+'</div>'+
@@ -747,7 +755,7 @@ function teamQuizHtml(t){
   let html='<div class="tbanner">'+pool.length+' question'+(pool.length===1?'':'s')+' featuring '+teamLabel(t.name)+' · unlimited, no streak or score</div>';
   if(tq){
     html+=chip(tq)+'<div class="q">'+esc(tq.text)+'</div>';
-    if(tq.type==='multiple_choice'){html+='<div class="opts">'+tq.options.map((o,i)=>'<button class="opt" data-i="'+i+'">'+teamLabel(o)+'</button>').join('')+'</div>';}
+    if(hasPills(tq)){html+=pillsHtml(tq);}
     else{html+='<div class="cg"><input id="tcg" type="number" inputmode="numeric" placeholder="your guess" aria-label="Your guess" /><span class="unit">'+esc(tq.unit||'')+'</span><button class="btn team" id="tcgsubmit">Guess</button></div>';}
     html+='<div id="treveal"></div>';
   }else{
@@ -763,12 +771,12 @@ function drawTeamQuestion(t){
 function wireTeamQuiz(t){
   const draw=document.getElementById('tdraw'); if(draw)draw.onclick=()=>drawTeamQuestion(t);
   if(!tq)return;
-  if(tq.type==='multiple_choice'){stage.querySelectorAll('button.opt').forEach(b=>{b.onclick=()=>answerTeam(t,tq.options[+b.dataset.i]);});}
+  if(hasPills(tq)){stage.querySelectorAll('button.opt').forEach(b=>{b.onclick=()=>answerTeam(t,pillValue(tq,tq.options[+b.dataset.i]));});}
   else{const inp=stage.querySelector('#tcg');const go=()=>{if(inp.value!=='')answerTeam(t,Number(inp.value));};document.getElementById('tcgsubmit').onclick=go;inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();});inp.focus();}
 }
 function answerTeam(t,resp){
   const q=tq;const sc=scoreAnswer(q,resp);const cls=sc.points>=100?'ok':sc.points>0?'partial':'no';
-  if(q.type==='multiple_choice'){stage.querySelectorAll('button.opt').forEach(b=>{b.disabled=true;const v=q.options[+b.dataset.i];if(v===q.answer)b.classList.add('correct');else if(v===resp)b.classList.add('wrong');});}
+  if(hasPills(q)){lockPills(q,resp);}
   else{stage.querySelector('#tcg').disabled=true;stage.querySelector('#tcgsubmit').disabled=true;}
   const ansLine=q.type==='closest_guess'?('You guessed '+resp+' · answer '+q.answer+' '+(q.unit||'')):'';
   document.getElementById('treveal').innerHTML='<div class="reveal"><div class="pts '+cls+'">+'+sc.points+(sc.correct?' · spot on':sc.points>0?' · close':' · missed')+'</div>'+
@@ -817,7 +825,7 @@ function renderMatchupQuiz(){
   html+='<div class="tdbanner2">'+pool.length+' question'+(pool.length===1?'':'s')+' featuring '+teamLabel(f.team1)+' or '+teamLabel(f.team2)+' · unlimited, no streak or score</div>';
   if(mdq){
     html+=chip(mdq)+'<div class="q">'+esc(mdq.text)+'</div>';
-    if(mdq.type==='multiple_choice')html+='<div class="opts">'+mdq.options.map((o,i)=>'<button class="opt" data-i="'+i+'">'+teamLabel(o)+'</button>').join('')+'</div>';
+    if(hasPills(mdq))html+=pillsHtml(mdq);
     else html+='<div class="cg"><input id="mdcg" type="number" inputmode="numeric" placeholder="your guess" aria-label="Your guess" /><span class="unit">'+esc(mdq.unit||'')+'</span><button class="btn today" id="mdcgs">Guess</button></div>';
     html+='<div id="mdrev"></div>';
   }else{
@@ -827,13 +835,13 @@ function renderMatchupQuiz(){
   document.getElementById('mdback').onclick=()=>{mdQuizMid=null;mdq=null;mdlast=null;renderToday();};
   const draw=document.getElementById('mddraw'); if(draw)draw.onclick=()=>drawMatchupQ(f);
   if(mdq){
-    if(mdq.type==='multiple_choice')stage.querySelectorAll('button.opt').forEach(b=>{b.onclick=()=>answerMatchup(f,mdq.options[+b.dataset.i]);});
+    if(hasPills(mdq))stage.querySelectorAll('button.opt').forEach(b=>{b.onclick=()=>answerMatchup(f,pillValue(mdq,mdq.options[+b.dataset.i]));});
     else{const inp=stage.querySelector('#mdcg');const go=()=>{if(inp.value!=='')answerMatchup(f,Number(inp.value));};document.getElementById('mdcgs').onclick=go;inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();});inp.focus();}
   }
 }
 function answerMatchup(f,resp){
   const q=mdq;const sc=scoreAnswer(q,resp);const cls=sc.points>=100?'ok':sc.points>0?'partial':'no';
-  if(q.type==='multiple_choice')stage.querySelectorAll('button.opt').forEach(b=>{b.disabled=true;const v=q.options[+b.dataset.i];if(v===q.answer)b.classList.add('correct');else if(v===resp)b.classList.add('wrong');});
+  if(hasPills(q))lockPills(q,resp);
   else{stage.querySelector('#mdcg').disabled=true;stage.querySelector('#mdcgs').disabled=true;}
   const ansLine=q.type==='closest_guess'?('You guessed '+resp+' · answer '+q.answer+' '+(q.unit||'')):'';
   document.getElementById('mdrev').innerHTML='<div class="reveal"><div class="pts '+cls+'">+'+sc.points+(sc.correct?' · spot on':sc.points>0?' · close':' · missed')+'</div>'+

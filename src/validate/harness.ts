@@ -51,6 +51,29 @@ export function runValidateHarness<
     } else {
       if (typeof q.answer !== 'number') fail(q.id, 'closest_guess answer must be numeric');
       if (!q.scoring) fail(q.id, 'closest_guess missing scoring');
+      if (pack.numericPills && !q.options) fail(q.id, 'numericPills: missing pill options');
+      // Pill invariants (checked as CONSTRAINTS, never by re-running the
+      // synthesizer): exactly one pill equals the answer — whose value the
+      // pack's check independently re-derives — and every distractor is
+      // wrong-by-design: outside the full-points band, non-negative, distinct.
+      if (q.options) {
+        if (q.options.length !== 4) fail(q.id, 'pills: need exactly 4 options');
+        else if (new Set(q.options).size !== 4) fail(q.id, 'pills: duplicate options');
+        else {
+          const nums = q.options.map(Number);
+          const ans = q.answer as number;
+          const fpw = q.scoring?.fullPointsWithin ?? 0;
+          if (nums.some((n) => !Number.isFinite(n))) fail(q.id, 'pills: non-numeric option');
+          else {
+            if (nums.some((n) => n < 0)) fail(q.id, 'pills: negative option');
+            if (nums.filter((n) => n === ans).length !== 1)
+              fail(q.id, 'pills: answer must appear exactly once');
+            for (const n of nums)
+              if (n !== ans && Math.abs(n - ans) <= fpw)
+                fail(q.id, `pills: distractor ${n} inside the full-points band (reads as also-correct)`);
+          }
+        }
+      }
     }
 
     // pack-level per-question gates (era labels, in-progress restrictions, ...)

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { selectBank } from './bank';
 import { mulberry32, shuffle } from './rng';
+import { numericPillOptions } from './numeric-pills';
 import { writeSite } from './render/app';
 import { legalSeoPages } from './legal';
 import { writeSeoSite } from './render/seo';
@@ -130,6 +131,16 @@ export function runGenerate<
   }
 
   const questions = shuffle(rng, selected);
+
+  // Tap-only numeric questions (opt-in): synthesize each closest_guess
+  // question's 4-pill option set. Seeded per question id, deliberately not
+  // from the shared rng — the bank differs only by the added options fields.
+  if (pack.numericPills) {
+    for (const q of questions) {
+      if (q.type === 'closest_guess') q.options = numericPillOptions(q, pack.config.seed);
+    }
+  }
+
   fs.mkdirSync(path.dirname(out.bank), { recursive: true });
   fs.writeFileSync(
     out.bank,

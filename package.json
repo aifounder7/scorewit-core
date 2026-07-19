@@ -1,6 +1,6 @@
 {
   "name": "@scorewit/core",
-  "version": "0.12.2",
+  "version": "0.13.0",
   "description": "Sport-agnostic engine for Scorewit daily trivia apps: deterministic ingest \u2192 generate \u2192 validate \u2192 render pipeline, single-file app shell, seeded RNG, streak model, and the generic SportPack interface.",
   "license": "MIT",
   "author": "Jay",
@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "tsx src/contrast.test.ts && tsx src/streak.test.ts && tsx src/bank-target.test.ts && tsx src/seo-pages.test.ts && tsx src/analytics.test.ts && tsx src/insights.test.ts && tsx src/share-line.test.ts && tsx src/team-theming.test.ts"
+    "test": "tsx src/contrast.test.ts && tsx src/numeric-pills.test.ts && tsx src/streak.test.ts && tsx src/bank-target.test.ts && tsx src/seo-pages.test.ts && tsx src/analytics.test.ts && tsx src/insights.test.ts && tsx src/share-line.test.ts && tsx src/team-theming.test.ts"
   },
   "devDependencies": {
     "@types/node": "^25.9.2",

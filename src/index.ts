@@ -51,6 +51,7 @@ export {
   writeSeoSite,
   type SeoRenderConfig,
 } from './render/seo';
+export { numericPillOptions, type NumericPillInput } from './numeric-pills';
 export { guardScopedPool, type ScopedPoolHooks, type ScopedQuizEntry } from './scoped-quiz';
 export { LEGAL_CONTACT, LEGAL_EFFECTIVE_DATE, legalSeoPages } from './legal';
 export {

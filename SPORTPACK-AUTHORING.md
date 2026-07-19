@@ -210,6 +210,20 @@ renders its own insight-lead card, gate it on
 `typeof NATION_THEME!=='undefined'&&NATION_THEME[t.name]` so the banner and
 the card don't both carry the line.
 
+**Opt-in: `numericPills`** (tap-only numeric questions): set `numericPills:
+true` on the pack and generate gives every `closest_guess` question a
+4-option pill set — the true answer + 3 wrong-by-design distractors — and
+the shell renders those questions as tappable pills instead of the typed
+input (daily, practice, My-Team, and matchup quizzes alike). Synthesis is
+deterministic per question (`hashString(id) ^ config.seed`, NOT the shared
+generator rng), so opting in adds `options` fields and changes nothing else
+in the bank. Distractors match the answer's granularity (0.5-step for
+half-point answers), sit strictly outside `scoring.fullPointsWithin` (so
+exactly one pill scores 100 — the validate harness enforces this plus
+distinctness and non-negativity as independent constraints), and scale with
+`zeroBeyond`; scoring is untouched, so near pills keep banded partial
+credit. Unset = bank byte-identical, typed input renders as before.
+
 **Tokens** (all optional, soccer-defaulted):
 
 - `brand`: `paletteCss`, `themeColor`, `onAccent` (button text colors),

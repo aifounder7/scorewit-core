@@ -326,6 +326,14 @@ export interface SportPack<
    *  every rendered pair is AA-gated at build time and the build fails
    *  below threshold. NATIONS ONLY — franchise colors are trade dress. */
   teamTheming?: { nations: Record<string, import('./contrast').NationTheme> };
+  /** Opt-in tap-only numeric questions: at generate time every closest_guess
+   *  question gets a deterministic 4-pill option set — the true answer + 3
+   *  range-aware distractors, seeded per question id (see numeric-pills.ts) —
+   *  and the shell renders closest_guess WITH options as tappable pills
+   *  instead of the typed input. Scoring is untouched: near pills keep the
+   *  banded partial credit. Unset = the bank stays byte-for-byte and the
+   *  typed-input path renders exactly as before. */
+  numericPills?: boolean;
 
   /** Pull the upstream source and return the normalized dataset + coverage.
    *  The core writes both to paths.datasetDir. */
