@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { AnalyticsConfig, PipelinePaths } from '../types';
+import type { AnalyticsConfig, CalendarSpotlightConfig, PipelinePaths } from '../types';
 import {
   assertContrast,
   checkAppPaletteContrast,
@@ -125,6 +125,10 @@ export interface PackClientJs {
    *  sheet is a fact surface like any other. Default: none (share text
    *  byte-identical to the incumbent shell). */
   shareLine?: string;
+  /** calendarSpotlight accessor (required when the opt-in is set): must
+   *  define spotlightInfo(fixture) over the pack's matchday fixture shape —
+   *  see CalendarSpotlightConfig in types.ts for the returned object. */
+  spotlight?: string;
   /** Byte-precise escape hatch: exact-match [find, replace] edits applied to
    *  the shell template before token substitution. Each pair MUST match
    *  exactly once or the render throws. Use for migrating a hand-forked
@@ -164,6 +168,10 @@ export interface AppShellConfig {
   analytics?: AnalyticsConfig;
   /** The `sport` event prop (pack.id). Only read when analytics is set. */
   sport?: string;
+  /** Opt-in calendar spotlight (see CalendarSpotlightConfig in types.ts).
+   *  Unset = the shell renders byte-identically and the daily selection is
+   *  untouched. Requires client.spotlight. */
+  calendarSpotlight?: CalendarSpotlightConfig;
   /** Href of the terms-assent line rendered under the play area ("By playing
    *  you agree to the Terms") — the conspicuous in-flow notice case law
    *  demands (footer-only browsewrap is routinely unenforceable). Defaults to
@@ -424,7 +432,7 @@ function dateKeyFromDayNum(n){const d=new Date(EPOCH_UTC+n*86400000);return d.to
 function todayKey(d=new Date()){const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const da=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+da;}
 function takeForDay(d){const e=d%2===0;return{'easy/multiple_choice':e?1:2,'easy/closest_guess':e?1:0,'medium/multiple_choice':1,'medium/closest_guess':1,'hard/multiple_choice':e?2:1,'hard/closest_guess':e?0:1};}
 function consumedBefore(key,d){const even=Math.floor((d+1)/2);const odd=Math.floor(d/2);switch(key){case 'medium/multiple_choice':case 'medium/closest_guess':return d;case 'easy/closest_guess':return even;case 'easy/multiple_choice':return 2*d-even;case 'hard/closest_guess':return odd;case 'hard/multiple_choice':return 2*d-odd;}}
-function selectDaily(bank,key){const d=dayNumber(key);const take=takeForDay(d);const pools={};for(const q of bank.questions){const k=q.difficulty+'/'+q.type;(pools[k]=pools[k]||[]).push(q);}const out=[];for(const tier of TIERS){for(const type of TYPES){const k=tier+'/'+type;const n=take[k];if(!n)continue;const pool=(pools[k]||[]).slice().sort((a,b)=>a.id<b.id?-1:1);const seed=(hashString(k)^bank.seed)>>>0;const perm=shuffle(mulberry32(seed),pool);const start=consumedBefore(k,d);for(let i=0;i<n;i++)out.push(perm[(start+i)%perm.length]);}}return out;}
+function selectDaily(bank,key){const d=dayNumber(key);const take=takeForDay(d);const pools={};for(const q of bank.questions){const k=q.difficulty+'/'+q.type;(pools[k]=pools[k]||[]).push(q);}const out=[];for(const tier of TIERS){for(const type of TYPES){const k=tier+'/'+type;const n=take[k];if(!n)continue;const pool=(pools[k]||[]).slice().sort((a,b)=>a.id<b.id?-1:1);const seed=(hashString(k)^bank.seed)>>>0;const perm=shuffle(mulberry32(seed),pool);const start=consumedBefore(k,d);for(let i=0;i<n;i++)out.push(perm[(start+i)%perm.length]);}}__DAILYSWAP__return out;}
 
 // ---- ported from src/game/scoring.ts ----
 const MAX_POINTS=100;
@@ -476,7 +484,7 @@ function start(){
   const key=currentDailyKey();
   questions=selectDaily(BANK,key); idx=0; total=0; results=[];
   subEl.textContent='Round for '+key+' — same six for everyone';
-  enterDaily();
+  enterDaily();__SPOTLIGHTHOOK__
 }
 // Decide play-vs-result for today: a finished day shows its saved result; an
 // unfinished day plays (resuming from the current question).
@@ -508,13 +516,13 @@ function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>
 
 __ANALYTICSJS__
 
-__PACKDECOR__
+__PACKDECOR____SPOTLIGHTJS__
 
 function render(){
   if(idx>=questions.length){finishDaily();return;}
   updateStreakBar();
   const q=questions[idx];
-  let html=chip(q)+'<div class="q">'+esc(q.text)+'</div>';
+  let html=chip(q)+__QBADGE__'<div class="q">'+esc(q.text)+'</div>';
   if(hasPills(q)){
     html+=pillsHtml(q);
   }else{
@@ -670,7 +678,7 @@ function setMode(m){
   document.getElementById('progress').style.display=daily?'':'none';
   document.getElementById('score').style.visibility=daily?'visible':'hidden';
   if(daily){enterDaily();}else if(m==='today'){renderToday();}else if(m==='practice'){renderPractice();}else{renderTeam();}
-  updateStreakBar();
+  updateStreakBar();__SPOTLIGHTHOOK__
 }
 function fchips(kind,values){
   const cur=pf[kind];
@@ -1180,6 +1188,96 @@ const SETTINGS_CARD_JS = `  // Settings — the analytics-off switch the privacy
 `;
 
 /** The six shell substitutions for a given analytics config (or its absence). */
+/** Calendar-spotlight chunks (opt-in; every piece '' when unset so the shell
+ *  renders byte-identically). The runtime logic ships ONLY for adopters:
+ *  spotlightState/spotlightHtml/renderSpotlight (banner) and, when cfg.quiz
+ *  is set, raceWeekAdjust/raceWeekBadge (the guaranteed venue question).
+ *  Deterministic: pure functions of the daily key + committed artifacts;
+ *  the swap's seeded pick reuses the shell's mulberry32/hashString. */
+const SPOTLIGHT_CSS =
+  '\n  .spot{display:block;margin:10px 0 2px;padding:9px 12px;border:1px solid var(--accent);border-radius:10px;background:var(--accentDim);color:var(--accent);font-size:14px;line-height:1.35;font-weight:600}' +
+  '\n  a.spot{text-decoration:none}a.spot:hover{filter:brightness(1.1)}' +
+  '\n  .rwchip{display:inline-block;margin:0 0 8px;padding:2px 10px;border:1px solid var(--accent);border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--accent);background:var(--accentDim)}';
+
+function spotlightChunks(cfg: CalendarSpotlightConfig | undefined, client: PackClientJs) {
+  if (!cfg) return { js: '', hook: '', dailySwap: '', qBadge: '', css: '' };
+  const bannerJs = `
+
+// ---- calendar spotlight (opt-in): deterministic event-week banner ----
+${client.spotlight}
+function rwDayNum(k){const p=k.split('-').map(Number);return Date.UTC(p[0],p[1]-1,p[2])/86400000;}
+function spotlightState(key){
+  let info=null;
+  for(const d of MATCHDAY.days){for(const f of d.fixtures){const s=spotlightInfo(f);if(s){info=s;break;}}if(info)break;}
+  if(!info||key>info.end)return null;
+  if(key>=info.start)return{phase:'active',info:info};
+  return{phase:'upcoming',info:info,days:rwDayNum(info.end)-rwDayNum(key)};
+}
+function spotlightHtml(key){
+  const st=spotlightState(key);if(!st)return '';
+  if(st.phase==='active'){
+    const tpl=st.info.hubPath?${JSON.stringify(cfg.activeHtml)}:${JSON.stringify(cfg.activeTextNoHub ?? cfg.activeHtml)};
+    const t=tpl.split('{event}').join(esc(st.info.event)).split('{venue}').join(esc(st.info.venue));
+    return st.info.hubPath?'<a class="spot" href="'+st.info.hubPath+'">'+t+'</a>':'<div class="spot">'+t+'</div>';
+  }
+  const days=st.days===1?'1 day':st.days+' days';
+  return '<div class="spot">'+${JSON.stringify(cfg.upcomingText)}.split('{event}').join(esc(st.info.event)).split('{days}').join(days)+'</div>';
+}
+function renderSpotlight(){
+  const sub=document.getElementById('sub');if(!sub)return;
+  let el=document.getElementById('spotbar');
+  if(!el){el=document.createElement('div');el.id='spotbar';sub.insertAdjacentElement('afterend',el);}
+  const h=mode==='daily'?spotlightHtml(currentDailyKey()):'';
+  el.innerHTML=h;el.style.display=h?'':'none';
+}`;
+  const quizJs = !cfg.quiz
+    ? ''
+    : `
+// ---- guaranteed venue question: during the window the daily six carries
+// ---- exactly ONE venue-tied question. No natural pick -> the LAST slot
+// ---- (lowest salience; the round's opening flow is preserved) swaps for a
+// ---- seeded venue pick; surplus natural picks yield to their own bucket
+// ---- permutation's next non-tied question. Pool < min -> silent skip.
+let RW_ID=null;
+function rwPerm(bank,k){const pool=bank.questions.filter(q=>q.difficulty+'/'+q.type===k).sort((a,b)=>a.id<b.id?-1:1);return shuffle(mulberry32((hashString(k)^bank.seed)>>>0),pool);}
+function raceWeekAdjust(out,key,bank){
+  RW_ID=null;
+  const st=spotlightState(key);
+  if(!st||st.phase!=='active'||!st.info.quizIds)return;
+  const byId={};for(const q of bank.questions)byId[q.id]=q;
+  const pool=st.info.quizIds.map(id=>byId[id]).filter(Boolean).sort((a,b)=>a.id<b.id?-1:1);
+  if(pool.length<${JSON.stringify(cfg.quiz.min)})return;
+  const tied={};for(const q of pool)tied[q.id]=1;
+  const naturals=[];for(let i=0;i<out.length;i++)if(tied[out[i].id])naturals.push(i);
+  if(naturals.length===0){
+    const used={};for(const q of out)used[q.id]=1;
+    const cands=pool.filter(q=>!used[q.id]);
+    if(!cands.length)return;
+    const r=mulberry32((hashString('raceweek/'+key)^bank.seed)>>>0);
+    const pick=cands[Math.floor(r()*cands.length)];
+    out[out.length-1]=pick;RW_ID=pick.id;return;
+  }
+  RW_ID=out[naturals[0]].id;
+  for(let j=1;j<naturals.length;j++){
+    const i=naturals[j];const q=out[i];const k=q.difficulty+'/'+q.type;
+    const perm=rwPerm(bank,k);const used={};for(const x of out)used[x.id]=1;
+    let start=0;for(let s=0;s<perm.length;s++)if(perm[s].id===q.id){start=s;break;}
+    for(let step=1;step<=perm.length;step++){
+      const cand=perm[(start+step)%perm.length];
+      if(!tied[cand.id]&&!used[cand.id]){out[i]=cand;break;}
+    }
+  }
+}
+function raceWeekBadge(q){return mode==='daily'&&RW_ID&&q.id===RW_ID?'<span class="rwchip">'+${JSON.stringify(cfg.quiz.badge)}+'</span>':'';}`;
+  return {
+    js: bannerJs + quizJs,
+    hook: 'renderSpotlight();',
+    dailySwap: cfg.quiz ? 'raceWeekAdjust(out,key,bank);' : '',
+    qBadge: cfg.quiz ? 'raceWeekBadge(q)+' : '',
+    css: SPOTLIGHT_CSS,
+  };
+}
+
 function analyticsChunks(a: AnalyticsConfig | undefined, sport: string) {
   if (!a) {
     return {
@@ -1260,8 +1358,14 @@ export function renderAppHtml(cfg: AppShellConfig): string {
       'team theming'
     );
   }
+  if (cfg.calendarSpotlight && !client.spotlight) {
+    throw new Error(
+      'calendarSpotlight requires a clientJs.spotlight chunk defining spotlightInfo(fixture)'
+    );
+  }
   const theme = themeChunks(cfg.teamTheming);
   const analytics = analyticsChunks(cfg.analytics, cfg.sport ?? '');
+  const spotlight = spotlightChunks(cfg.calendarSpotlight, client);
   let tpl = HTML;
   for (const [find, replace] of client.shellPatches ?? []) {
     const n = tpl.split(find).length - 1;
@@ -1294,6 +1398,11 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__THEMECONSTS__').join(theme.consts)
     // Default '' erases the token — the incumbent share text, byte-identical.
     .split('__SHARELINE__').join(client.shareLine ?? '')
+    // Calendar spotlight (all '' when the opt-in is unset — byte-identical).
+    .split('__SPOTLIGHTJS__').join(spotlight.js)
+    .split('__SPOTLIGHTHOOK__').join(spotlight.hook)
+    .split('__DAILYSWAP__').join(spotlight.dailySwap)
+    .split('__QBADGE__').join(spotlight.qBadge)
     .split('__BTNTEXTPRACTICE__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).practice)
     .split('__BTNTEXTTEAM__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).team)
     .split('__BTNTEXTTODAY__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).today)
@@ -1308,7 +1417,7 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__ROUTETEAM__').join((config.routes ?? DEFAULT_ROUTES).team)
     .split('__RECLISTCOLS__').join(String(brand.recordGridCols ?? DEFAULT_RECORD_GRID_COLS))
     .split('__RESLINECSS__').join(brand.resultLineCss ?? DEFAULT_RESLINE_CSS)
-    .split('__EXTRACSS__').join(theme.css + (brand.extraCss ?? ''))
+    .split('__EXTRACSS__').join(theme.css + spotlight.css + (brand.extraCss ?? ''))
     .split('__APPNAME__').join(brand.appName)
     .split('__BRANDMARK__').join(brand.markSvg)
     .split('__THEMECOLOR__').join(brand.themeColor)

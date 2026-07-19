@@ -224,6 +224,26 @@ distinctness and non-negativity as independent constraints), and scale with
 `zeroBeyond`; scoring is untouched, so near pills keep banded partial
 credit. Unset = bank byte-identical, typed input renders as before.
 
+**Opt-in: `calendarSpotlight`** (event-week banner + guaranteed venue
+question): set `calendarSpotlight: { activeHtml, upcomingText, quiz? }` on
+the pack AND supply a `clientJs.spotlight` chunk defining
+`spotlightInfo(fixture)` over your matchday fixture shape (return `null` or
+`{ event, venue, hubPath, start, end, quizIds }` — see
+`CalendarSpotlightConfig` in types.ts). The daily tab then carries a
+deterministic banner: inside the `[start, end]` window it links the venue's
+SEO hub (`activeHtml`, placeholders `{event}`/`{venue}`); before it, a
+countdown (`upcomingText`, `{event}`/`{days}`); after `end` it hides until
+the refresh rolls the artifact to the next fixture. With `quiz: { min,
+badge }` set, a daily round inside the window carries EXACTLY ONE
+venue-tied question (from the fixture's `quizIds` pool): none landing
+naturally swaps the round's LAST slot for a seeded pick (badge chip
+rendered on it); a surplus natural pick yields its slot to its bucket
+permutation's next non-tied question; a pool under `min` skips silently.
+This CHANGES the daily round on event days by design — everything is a
+pure function of the day-key clock + committed artifacts, so every visitor
+on the same day key still gets the same six. Unset = shell byte-identical,
+selection untouched.
+
 **Tokens** (all optional, soccer-defaulted):
 
 - `brand`: `paletteCss`, `themeColor`, `onAccent` (button text colors),

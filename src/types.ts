@@ -172,6 +172,53 @@ export interface AnalyticsConfig {
 }
 
 /**
+ * OPT-IN calendar spotlight (unset = the shell renders byte-identically and
+ * the daily selection is untouched).
+ *
+ * The pack's clientJs.spotlight chunk must define spotlightInfo(fixture) over
+ * its own matchday-artifact fixture shape, returning null or:
+ *   { event:   display name ("Belgian Grand Prix" — generic names only),
+ *     venue:   venue display name,
+ *     hubPath: root-absolute path of the venue's SEO hub ("/circuit/spa-..."),
+ *     start:   YYYY-MM-DD first day of the event window (first session),
+ *     end:     YYYY-MM-DD last day (the event itself),
+ *     quizIds: bank question ids the pack's pipeline tied to the venue
+ *              (only read when `quiz` is set) }
+ *
+ * DETERMINISM: banner and swap are pure functions of the shell's existing
+ * day-key clock plus the committed matchday/bank artifacts — same output for
+ * every visitor on the same day key, nothing predictive (schedule fields
+ * only; facts stay validator-derived).
+ */
+export interface CalendarSpotlightConfig {
+  /** Banner text inside the window; placeholders {event}, {venue}. Rendered
+   *  inside a link to hubPath. Inline HTML entities allowed. */
+  activeHtml: string;
+  /** Banner text inside the window when spotlightInfo returns a falsy
+   *  hubPath (venue has no SEO hub — e.g. a brand-new circuit): rendered as
+   *  plain (non-link) text; placeholders {event}, {venue}. Without it the
+   *  activeHtml text renders unlinked — set this when activeHtml's copy
+   *  promises a link ("full history →"). */
+  activeTextNoHub?: string;
+  /** Banner text before the window; placeholders {event}, {days}
+   *  ({days} renders "1 day" / "N days"). */
+  upcomingText: string;
+  /** Optional guaranteed venue question: during the window the daily round
+   *  carries exactly ONE venue-tied question. If none lands naturally, the
+   *  round's LAST slot (lowest salience — the opening flow is preserved) is
+   *  swapped for a seeded pick from the venue pool; surplus natural picks
+   *  beyond one yield their slot to their bucket-permutation successor.
+   *  Skips silently when the venue pool has fewer than `min` questions.
+   *  NOTE: this changes the daily round on event days BY DESIGN. */
+  quiz?: {
+    /** Minimum venue-tied pool size for the guarantee to engage (e.g. 3). */
+    min: number;
+    /** Chip text on the guaranteed question, e.g. "🏁 race week". */
+    badge: string;
+  };
+}
+
+/**
  * One pre-rendered, crawlable SEO page (opt-in via pack.seoPages — see the
  * SEO pre-render section of SPORTPACK-AUTHORING.md). ADDITIVE ONLY: pages are
  * written as NEW files under site/ and never touch the app shell.
@@ -334,6 +381,17 @@ export interface SportPack<
    *  banded partial credit. Unset = the bank stays byte-for-byte and the
    *  typed-input path renders exactly as before. */
   numericPills?: boolean;
+  /** Opt-in calendar spotlight: a deterministic banner on the daily tab —
+   *  "event week" (linking to the venue hub) inside the event window, a
+   *  "next event in N days" countdown before it — plus, optionally, a
+   *  guaranteed venue-tied question swapped into the daily round during the
+   *  window (see CalendarSpotlightConfig / calendar-spotlight.md in
+   *  SPORTPACK-AUTHORING.md). Requires a clientJs.spotlight chunk defining
+   *  spotlightInfo(fixture) over the pack's matchday artifact. Everything is
+   *  a pure function of the day key + the committed matchday/bank artifacts.
+   *  Unset = the shell renders byte-identically and the daily selection is
+   *  untouched. */
+  calendarSpotlight?: CalendarSpotlightConfig;
 
   /** Pull the upstream source and return the normalized dataset + coverage.
    *  The core writes both to paths.datasetDir. */

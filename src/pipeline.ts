@@ -225,6 +225,8 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       termsUrl: pack.termsUrl,
       // Opt-in nation theming (unset = byte-identical shell).
       teamTheming: pack.teamTheming,
+      // Opt-in calendar spotlight (unset = byte-identical shell).
+      calendarSpotlight: pack.calendarSpotlight,
     },
     pack.assets,
     paths
