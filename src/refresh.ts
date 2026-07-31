@@ -59,12 +59,23 @@ function commitAndPush(opts: RefreshOptions, meta: unknown) {
     cwd: opts.root,
     stdio: 'inherit',
   });
-  // Identity preflight: entire history must be exactly one identity line.
-  const identities = new Set(git(opts.root, ['log', '--format=%an %ae %cn %ce']).split('\n'));
-  const expected = `${opts.identity} ${opts.identity}`;
-  if (identities.size !== 1 || [...identities][0] !== expected) {
+  // Identity preflight: every commit must be the alias identity. PRs merged in
+  // the GitHub UI are the one sanctioned exception: their author is the alias
+  // account under its login name (still the alias noreply email), and their
+  // committer is GitHub's web-merge identity — neither can leak a real name.
+  const WEB_MERGE_COMMITTER = 'GitHub noreply@github.com';
+  const aliasEmail = opts.identity.slice(opts.identity.lastIndexOf(' ') + 1);
+  const expected = `${opts.identity}\u0000${opts.identity}`;
+  const offending = git(opts.root, ['log', '--format=%an %ae%x00%cn %ce'])
+    .split('\n')
+    .filter((line) => {
+      if (line === expected) return false;
+      const [author, committer] = line.split('\u0000');
+      return !(committer === WEB_MERGE_COMMITTER && author.endsWith(` ${aliasEmail}`));
+    });
+  if (offending.length > 0) {
     console.error(
-      `Identity preflight failed (found ${identities.size} identities) — refusing to push.`
+      `Identity preflight failed (${offending.length} commit(s) outside the alias identity) — refusing to push.`
     );
     process.exit(1);
   }
