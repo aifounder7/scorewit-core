@@ -113,6 +113,15 @@ export interface PackConfig<T extends string = string> {
   /** Tab route paths (History API + host rewrites). Defaults:
    *  /today, /practice, /my-team. */
   routes?: { today: string; practice: string; team: string };
+  /** OPT-IN path prefix for serving the pack under a sub-path of a larger
+   *  origin (e.g. "/f1" on www.scorewit.com) — see src/render/base-path.ts.
+   *  When set, every root-relative emission (head asset links, tab routes
+   *  incl. the daily root, manifest start_url, the SEO template's "/" links)
+   *  is prefixed, brand.appUrl must END WITH the prefix (it keeps driving
+   *  the absolute emissions: canonical, og, sitemap, share), and the build
+   *  FAILS on any emitted root-relative link that escapes the prefix.
+   *  Unset = byte-identical output. */
+  basePath?: string;
 }
 
 /**

@@ -9,6 +9,11 @@ import {
   hexToRgb,
   type NationTheme,
 } from '../contrast';
+import {
+  assertNoRootRelativeLeaks,
+  assertValidBasePath,
+  replaceExactlyOnce,
+} from './base-path';
 
 /**
  * The single-file app shell. Emits a standalone, dependency-free HTML page
@@ -158,6 +163,9 @@ export interface AppShellConfig {
     storagePrefix: string;
     epochUtcArgs: string;
     routes?: { today: string; practice: string; team: string };
+    /** Opt-in serving prefix (see PackConfig.basePath / render/base-path.ts).
+     *  Unset = the shell renders byte-identically. */
+    basePath?: string;
   };
   data: { bank: unknown; teams: unknown; matchday: unknown };
   /** Final per-target pass over the app HTML (default: identity). */
@@ -1343,6 +1351,8 @@ function track(name,data){if(analyticsOff())return;try{${impl}}catch(e){}}`;
  *  accessibility guarantee is computed at build time (see src/contrast.ts). */
 export function renderAppHtml(cfg: AppShellConfig): string {
   const { brand, copy, client, config, data } = cfg;
+  const basePath = config.basePath;
+  if (basePath !== undefined) assertValidBasePath(basePath, brand.appUrl);
   assertContrast(
     checkAppPaletteContrast(brand.paletteCss, brand.onAccent ?? DEFAULT_ON_ACCENT),
     'app shell'
@@ -1367,6 +1377,42 @@ export function renderAppHtml(cfg: AppShellConfig): string {
   const analytics = analyticsChunks(cfg.analytics, cfg.sport ?? '');
   const spotlight = spotlightChunks(cfg.calendarSpotlight, client);
   let tpl = HTML;
+  // OPT-IN basePath: rewrite the template's root-anchored emissions with the
+  // exact-once discipline — BEFORE pack shellPatches, so a patch that anchors
+  // on the pre-rewrite text fails loudly instead of double-editing. Unset =
+  // the template text is untouched (existing patch anchors stay valid).
+  if (basePath) {
+    const edits: [string, string, string][] = [
+      [
+        `<link rel="icon" href="icon.svg"`,
+        `<link rel="icon" href="${basePath}/icon.svg"`,
+        'head icon link',
+      ],
+      [
+        `<link rel="apple-touch-icon" href="apple-touch-icon.png"`,
+        `<link rel="apple-touch-icon" href="${basePath}/apple-touch-icon.png"`,
+        'head apple-touch-icon link',
+      ],
+      [
+        `<link rel="manifest" href="manifest.webmanifest"`,
+        `<link rel="manifest" href="${basePath}/manifest.webmanifest"`,
+        'head manifest link',
+      ],
+      [
+        `const ROUTE_FOR_MODE={daily:'/',`,
+        `const ROUTE_FOR_MODE={daily:'${basePath}',`,
+        'daily route',
+      ],
+      [
+        `const MODE_FOR_ROUTE={'/':'daily',`,
+        `const MODE_FOR_ROUTE={'${basePath}':'daily',`,
+        'daily route (reverse map)',
+      ],
+    ];
+    for (const [find, replace, what] of edits) {
+      tpl = replaceExactlyOnce(tpl, find, replace, what);
+    }
+  }
   for (const [find, replace] of client.shellPatches ?? []) {
     const n = tpl.split(find).length - 1;
     if (n !== 1) {
@@ -1374,6 +1420,15 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     }
     tpl = tpl.split(find).join(replace);
   }
+  // Tab routes: prefixed under basePath (unset = the same object, byte-identical).
+  const baseRoutes = config.routes ?? DEFAULT_ROUTES;
+  const routes = basePath
+    ? {
+        today: basePath + baseRoutes.today,
+        practice: basePath + baseRoutes.practice,
+        team: basePath + baseRoutes.team,
+      }
+    : baseRoutes;
   return tpl.replace('__BANK__', JSON.stringify(data.bank))
     .replace('__TEAMS__', JSON.stringify(data.teams))
     .replace('__MATCHDAY__', JSON.stringify(data.matchday))
@@ -1412,9 +1467,9 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__TABTODAY__').join((copy.tabLabels ?? DEFAULT_TAB_LABELS).today)
     .split('__TABPRACTICE__').join((copy.tabLabels ?? DEFAULT_TAB_LABELS).practice)
     .split('__TABTEAM__').join((copy.tabLabels ?? DEFAULT_TAB_LABELS).team)
-    .split('__ROUTETODAY__').join((config.routes ?? DEFAULT_ROUTES).today)
-    .split('__ROUTEPRACTICE__').join((config.routes ?? DEFAULT_ROUTES).practice)
-    .split('__ROUTETEAM__').join((config.routes ?? DEFAULT_ROUTES).team)
+    .split('__ROUTETODAY__').join(routes.today)
+    .split('__ROUTEPRACTICE__').join(routes.practice)
+    .split('__ROUTETEAM__').join(routes.team)
     .split('__RECLISTCOLS__').join(String(brand.recordGridCols ?? DEFAULT_RECORD_GRID_COLS))
     .split('__RESLINECSS__').join(brand.resultLineCss ?? DEFAULT_RESLINE_CSS)
     .split('__EXTRACSS__').join(theme.css + spotlight.css + (brand.extraCss ?? ''))
@@ -1453,7 +1508,24 @@ export function renderNotFoundHtml(cfg: AppShellConfig): string {
     ),
     '404 page'
   );
-  return NOT_FOUND_HTML.split('__APPNAME__').join(cfg.brand.appName)
+  const basePath = cfg.config.basePath;
+  let tpl = NOT_FOUND_HTML;
+  if (basePath) {
+    assertValidBasePath(basePath, cfg.brand.appUrl);
+    tpl = replaceExactlyOnce(
+      tpl,
+      `<link rel="icon" href="/icon.svg"`,
+      `<link rel="icon" href="${basePath}/icon.svg"`,
+      '404 icon link'
+    );
+    tpl = replaceExactlyOnce(
+      tpl,
+      `<link rel="apple-touch-icon" href="/apple-touch-icon.png"`,
+      `<link rel="apple-touch-icon" href="${basePath}/apple-touch-icon.png"`,
+      '404 apple-touch-icon link'
+    );
+  }
+  return tpl.split('__APPNAME__').join(cfg.brand.appName)
     .split('__BRANDMARK__').join(cfg.brand.markSvg)
     .split('__THEMECOLOR__').join(cfg.brand.themeColor)
     .split('__NFPALETTE__').join(cfg.brand.notFoundPaletteCss)
@@ -1479,8 +1551,19 @@ export function writeSite(
   fs.writeFileSync(paths.previewFile, finalize(html, 'preview'));
 
   fs.mkdirSync(paths.siteDir, { recursive: true });
-  fs.writeFileSync(path.join(paths.siteDir, 'index.html'), finalize(html, 'site'));
-  fs.writeFileSync(path.join(paths.siteDir, '404.html'), renderNotFoundHtml(cfg));
+  const siteHtml = finalize(html, 'site');
+  const notFoundHtml = renderNotFoundHtml(cfg);
+  // basePath gate: a prefixed pack must never ship a root-relative link that
+  // escapes its prefix — on the shared origin it would land on a DIFFERENT
+  // product (see render/base-path.ts). Pack copy (404 actions, footer) that
+  // still says href="/practice" fails the build here.
+  const basePath = cfg.config.basePath;
+  if (basePath) {
+    assertNoRootRelativeLeaks(siteHtml, basePath, 'app shell (site/index.html)');
+    assertNoRootRelativeLeaks(notFoundHtml, basePath, '404 page (site/404.html)');
+  }
+  fs.writeFileSync(path.join(paths.siteDir, 'index.html'), siteHtml);
+  fs.writeFileSync(path.join(paths.siteDir, '404.html'), notFoundHtml);
 
   // PWA manifest — generated so the name/colors stay in lockstep with the
   // brand constants (add-to-home-screen installability).
@@ -1488,7 +1571,9 @@ export function writeSite(
     name: cfg.brand.appName,
     short_name: cfg.brand.appName,
     description: cfg.copy.manifestDescription ?? cfg.copy.metaDescription,
-    start_url: '/',
+    // Under a basePath the app installs from (and scopes to) its prefix; the
+    // icon srcs stay relative — they resolve against the manifest's own URL.
+    start_url: basePath ? `${basePath}/` : '/',
     display: 'standalone',
     background_color: cfg.brand.themeColor,
     theme_color: cfg.brand.themeColor,

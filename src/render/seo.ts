@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { PipelinePaths, SeoPage } from '../types';
 import type { AppCopy, Brand } from './app';
+import { assertNoRootRelativeLeaks, assertValidBasePath } from './base-path';
 
 /**
  * SEO pre-render (opt-in via pack.seoPages): wrap each pack-rendered page in
@@ -66,6 +67,12 @@ export interface SeoRenderConfig {
   /** CTA label (raw inline HTML). Default: "Play today&rsquo;s round &rarr;".
    *  Set per sport, e.g. "Play today&rsquo;s F1 round &rarr;". */
   cta?: string;
+  /** Opt-in serving prefix (see PackConfig.basePath / render/base-path.ts):
+   *  prefixes the template's root-relative links (icon, topbar, CTA) and
+   *  gates every emitted page against root-relative leaks. brand.appUrl must
+   *  end with it (it keeps driving canonical/og/sitemap URLs). Unset = pages
+   *  render byte-identically. */
+  basePath?: string;
 }
 
 // ---------- accent theming (derived, deterministic) ----------
@@ -200,6 +207,8 @@ function validatePages(
 export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
   const { brand, copy } = cfg;
   const url = `${brand.appUrl}/${page.path}`;
+  // Root-relative template links carry the opt-in prefix ('' = unchanged).
+  const base = cfg.basePath ?? '';
   const accent = accentOf(cfg);
   const onAccent = brand.onAccent?.accent ?? '#06121f';
   const cta = cfg.cta ?? 'Play today&rsquo;s round &rarr;';
@@ -248,7 +257,7 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
   if (page.trustNote) {
     blocks.push(`<div class="verify"><span class="ck">✓</span> <span>${page.trustNote}</span></div>`);
   }
-  blocks.push(`<p class="ctarow"><a class="cta" href="/">${cta}</a></p>`);
+  blocks.push(`<p class="ctarow"><a class="cta" href="${base}/">${cta}</a></p>`);
 
   return `<!doctype html>
 <html lang="en">
@@ -258,7 +267,7 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
 <title>${esc(page.title)}</title>
 <meta name="description" content="${esc(page.description)}" />
 <link rel="canonical" href="${esc(url)}" />
-<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="icon" href="${base}/icon.svg" type="image/svg+xml" />
 <meta name="theme-color" content="${esc(brand.themeColor)}" />
 <meta property="og:title" content="${esc(page.ogTitle ?? page.title)}" />
 <meta property="og:description" content="${esc(page.ogDescription ?? page.description)}" />
@@ -340,7 +349,7 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
 </style>
 </head>
 <body>
-<header class="topbar"><span class="accentbar"></span><a class="mark" href="/" aria-label="${esc(brand.appName)}">${brand.markSvg}</a><a class="brand" href="/">${brandHtml}</a></header>
+<header class="topbar"><span class="accentbar"></span><a class="mark" href="${base}/" aria-label="${esc(brand.appName)}">${brand.markSvg}</a><a class="brand" href="${base}/">${brandHtml}</a></header>
 <main>
 ${blocks.join('\n')}
 </main>
@@ -376,6 +385,7 @@ export function writeSeoSite(
   paths: PipelinePaths,
   legalPages: SeoPage[] = []
 ): { count: number } {
+  if (cfg.basePath) assertValidBasePath(cfg.basePath, cfg.brand.appUrl);
   validatePages(pages, cfg);
   // Legal pages go through the SAME quality gates (title/description
   // lengths, thin-body floor, single-H1, JSON-LD serializability, …) with
@@ -386,7 +396,11 @@ export function writeSeoSite(
   for (const p of all) {
     const dest = path.join(paths.siteDir, `${p.path}.html`);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.writeFileSync(dest, renderSeoPage(p, cfg));
+    const html = renderSeoPage(p, cfg);
+    // basePath gate: pack-rendered bodies (internal links, flag/medal srcs)
+    // must stay inside the prefix — see render/base-path.ts.
+    if (cfg.basePath) assertNoRootRelativeLeaks(html, cfg.basePath, `seoPages["${p.path}"]`);
+    fs.writeFileSync(dest, html);
   }
   fs.writeFileSync(path.join(paths.siteDir, 'sitemap.xml'), renderSitemap(all, cfg.brand.appUrl));
   fs.writeFileSync(path.join(paths.siteDir, 'robots.txt'), renderRobots(cfg.brand.appUrl));

@@ -68,6 +68,11 @@ export {
 export { runValidateHarness } from './validate/harness';
 export { runRefresh, type RefreshOptions, type RefreshStep } from './refresh';
 export {
+  assertNoRootRelativeLeaks,
+  assertValidBasePath,
+  findRootRelativeLeaks,
+} from './render/base-path';
+export {
   loadInlineSvg,
   renderAppHtml,
   renderNotFoundHtml,

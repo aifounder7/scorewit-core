@@ -175,6 +175,38 @@ footer already links). In-flow assent per the 2025 case law — a footer-only
 terms link is routinely unenforceable browsewrap. Override `pack.termsUrl`
 only if the pack's canonical terms live elsewhere.
 
+## Serving under a path prefix (opt-in: `config.basePath`, v0.15.0)
+
+A pack served under a sub-path of a larger origin (e.g. `/f1` on
+`www.scorewit.com`) sets BOTH:
+
+- `config.basePath: '/f1'` — prefixes every root-relative emission: head
+  asset links, the client router's route maps (incl. the hardcoded daily
+  `/`), the tab routes, the PWA manifest `start_url`, and the SEO template's
+  `/` links;
+- `brand.appUrl: 'https://www.scorewit.com/f1'` — the FULL public URL
+  including the prefix; it keeps driving every absolute emission (canonical,
+  og:url/og:image, sitemap `<loc>`s, robots' Sitemap line, share text). The
+  build fails unless `appUrl` ends with `basePath`.
+
+The build then GATES every emitted page (app shell, 404, every SEO page)
+against root-relative leaks: any `href="/…"`/`src="/…"` that escapes the
+prefix fails the build — on a shared origin that link lands on a different
+product. Pack-side copy must therefore carry the prefix itself:
+`notFoundActionsHtml`, SEO bodyHtml internal links, flag/medal `src`s, the
+`spotlight` chunk's `hubPath`, and any relative asset `src` in client chunks
+(relative srcs break on the bare `/f1` path — root-absolutize them with the
+prefix). The default/`vercel` analytics head is root-relative
+(`/_vercel/…`) and is rejected by the gate by design — use `plausible` (or
+`custom` with an absolute endpoint).
+
+Serving model: the origin's front-door repo rewrites `/f1/:path*` to this
+pack's deployment WITH THE PREFIX STRIPPED (`/:path*`), so the pack's site
+TREE keeps its unprefixed file layout (and its own vercel.json route
+rewrites keep their unprefixed sources) while every URL in the CONTENT
+carries the prefix. `basePath` unset = byte-identical output — that is the
+hard gate, covered by src/base-path.test.ts.
+
 ## The app-shell surface
 
 The shell owns the engine (daily selection, scoring, streak/stats, practice,
