@@ -196,6 +196,13 @@ export interface AppShellConfig {
    *  `const FAMILY=null` and an empty, display:none container — but unset is
    *  a transition state, not a supported profile: every family pack sets it. */
   family?: FamilyConfig;
+  /** Opt-in post-answer entity links (see EntityLinkMap below): matched
+   *  entity mentions in post-answer fact/insight surfaces gain subtle
+   *  same-tab links to the pack's SEO pages. The map arriving here must
+   *  already be existence-guarded (guardEntityLinks) against the emitted
+   *  page set — the pipeline does this. Unset = `const ENTITYLINKS=null`
+   *  and linkFact degrades to esc(). */
+  entityLinks?: EntityLinkMap;
   /** Opt-in cookieless engagement events (see AnalyticsConfig in types.ts).
    *  Unset = the shell renders byte-identically (the original inline Vercel
    *  wiring) and no new events are emitted. */
@@ -301,6 +308,12 @@ __PALETTE__
   .reveal a{display:inline-block;margin-top:8px;color:var(--accent);font-size:13px;font-weight:600;
     text-decoration:underline;text-underline-offset:2px;cursor:pointer}
   .reveal a:hover{opacity:.85}
+  /* Post-answer entity links (opt-in; absent = no .elink is ever rendered).
+     Subtle tier: inherit the surrounding text color (AA by construction),
+     dotted underline firming to solid on hover/focus; same-tab navigation. */
+  a.elink{display:inline;margin:0;padding:0;color:inherit;font-size:inherit;font-weight:inherit;
+    text-decoration:underline;text-decoration-style:dotted;text-decoration-thickness:1px;text-underline-offset:2px}
+  a.elink:hover,a.elink:focus-visible{text-decoration-style:solid}
   .row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:10px}
   .final{text-align:center;padding:24px 0}
   .final .big{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
@@ -462,6 +475,7 @@ const MATCHDAY = __MATCHDAY__;
 const APP_NAME = "__APPNAME__";
 const APP_URL = "__APPURL__";
 const FAMILY = __FAMILY__;
+const ENTITYLINKS = __ENTITYLINKS__;
 __PACKCONSTS____THEMECONSTS__
 
 // ---- ported from src/game/rng.ts ----
@@ -560,6 +574,47 @@ function renderProgress(){
 function chip(q){return '<div class="meta"><span class="d">'+q.difficulty+'</span><span class="e">'+q.era+'</span><span class="t">'+q.topic.replace(/_/g,' ')+'</span></div>';}
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 
+// ---- Post-answer entity links (opt-in; ENTITYLINKS null = plain esc()) ----
+// Render-layer wrapping ONLY: the validated fact string is never edited —
+// matched entity mentions are wrapped in same-tab <a class="elink"> at
+// display time (longest name wins, word-boundary-gated, one link per
+// mention), and a bare score token BETWEEN the two entities of a known pair
+// links the pair's head-to-head page. Question text and options never pass
+// through linkFact — they keep the plain esc() path.
+const ELINK_NAMES=ENTITYLINKS?Object.keys(ENTITYLINKS.entities).sort((a,b)=>b.length-a.length):[];
+function elinkEdge(c){return !c||!/[A-Za-z0-9]/.test(c);}
+function linkFact(s){
+  s=String(s);
+  if(!ENTITYLINKS)return esc(s);
+  const hits=[];
+  for(const n of ELINK_NAMES){
+    let i=0;
+    while((i=s.indexOf(n,i))!==-1){
+      const j=i+n.length;
+      if(elinkEdge(s[i-1])&&elinkEdge(s[j])&&!hits.some(h=>i<h.end&&j>h.start))hits.push({start:i,end:j,name:n});
+      i=j;
+    }
+  }
+  hits.sort((a,b)=>a.start-b.start);
+  const links=hits.map(h=>({start:h.start,end:h.end,href:ENTITYLINKS.entities[h.name]}));
+  const pairs=ENTITYLINKS.pairs||{};
+  for(let k=0;k+1<hits.length;k++){
+    const m=/^(\s+)(\d+[–-]\d+)\s+$/.exec(s.slice(hits[k].end,hits[k+1].start));
+    if(!m)continue;
+    const href=pairs[[hits[k].name,hits[k+1].name].sort().join('|')];
+    if(!href)continue;
+    const at=hits[k].end+m[1].length;
+    links.push({start:at,end:at+m[2].length,href:href});
+  }
+  links.sort((a,b)=>a.start-b.start);
+  let out='',pos=0;
+  for(const l of links){
+    out+=esc(s.slice(pos,l.start))+'<a class="elink" href="'+l.href+'">'+esc(s.slice(l.start,l.end))+'</a>';
+    pos=l.end;
+  }
+  return out+esc(s.slice(pos));
+}
+
 __ANALYTICSJS__
 
 __PACKDECOR____SPOTLIGHTJS__
@@ -604,12 +659,12 @@ function answer(resp){
   document.getElementById('reveal').innerHTML=
     '<div class="reveal"><div class="pts '+cls+'">+'+sc.points+(sc.correct?' · spot on':sc.points>0?' · close':' · missed')+'</div>'+
     (ansLine?'<div class="note">'+esc(ansLine)+'</div>':'')+
-    '<div class="fact">'+esc(q.revealFact)+'</div>'+
+    '<div class="fact">'+linkFact(q.revealFact)+'</div>'+
     '<a href="'+q.citation.urls[0]+'" target="_blank" rel="noopener noreferrer">↗ '+esc(q.citation.label)+'</a>'+
     '<div class="row"><span></span><button class="btn" id="next">'+(last?'See results':'Next question')+'</button></div></div>';
   document.getElementById('next').onclick=()=>{idx++;renderProgress();render();};
   // Robust source link: open a new tab; if a sandboxed frame blocks that, navigate directly.
-  const src=document.querySelector('#reveal a');
+  const src=document.querySelector('#reveal a:not(.elink)');
   if(src){src.addEventListener('click',e=>{e.preventDefault();const href=src.getAttribute('href');const w=window.open(href,'_blank','noopener');if(!w){window.location.href=href;}});}
   renderProgress();
 }
@@ -786,11 +841,11 @@ function answerPractice(resp){__TRACKPRACTICE__
   const ansLine=q.type==='closest_guess'?('You guessed '+resp+' · answer '+q.answer+' '+(q.unit||'')):'';
   document.getElementById('preveal').innerHTML='<div class="reveal"><div class="pts '+cls+'">+'+sc.points+(sc.correct?' · spot on':sc.points>0?' · close':' · missed')+'</div>'+
     (ansLine?'<div class="note">'+esc(ansLine)+'</div>':'')+
-    '<div class="fact">'+esc(q.revealFact)+'</div>'+
+    '<div class="fact">'+linkFact(q.revealFact)+'</div>'+
     '<a href="'+q.citation.urls[0]+'" target="_blank" rel="noopener noreferrer">↗ '+esc(q.citation.label)+'</a>'+
     '<div class="row"><span></span><button class="btn practice" id="pnext">Another one</button></div></div>';
   document.getElementById('pnext').onclick=drawPractice;
-  const src=document.querySelector('#preveal a'); if(src){src.addEventListener('click',e=>{e.preventDefault();const href=src.getAttribute('href');const w=window.open(href,'_blank','noopener');if(!w){window.location.href=href;}});}
+  const src=document.querySelector('#preveal a:not(.elink)'); if(src){src.addEventListener('click',e=>{e.preventDefault();const href=src.getAttribute('href');const w=window.open(href,'_blank','noopener');if(!w){window.location.href=href;}});}
 }
 
 // ---- Fav-team mode (team pick in localStorage; insights + team-filtered feed) ----
@@ -811,7 +866,7 @@ function clearFavTeam(){ try{localStorage.removeItem(TEAM_KEY);}catch(e){} }
 function srcLink(s){ return '<a href="'+s.url+'" target="_blank" rel="noopener noreferrer">source ↗</a>'; }
 function bindSrcLinks(root){
   (root||document).querySelectorAll('a[href]').forEach(a=>{
-    if(a.dataset.bound)return; a.dataset.bound='1';
+    if(a.dataset.bound||a.classList.contains('elink'))return; a.dataset.bound='1';
     a.addEventListener('click',e=>{e.preventDefault();const h=a.getAttribute('href');const w=window.open(h,'_blank','noopener');if(!w)window.location.href=h;});
   });
 }
@@ -860,7 +915,7 @@ function answerTeam(t,resp){
   const ansLine=q.type==='closest_guess'?('You guessed '+resp+' · answer '+q.answer+' '+(q.unit||'')):'';
   document.getElementById('treveal').innerHTML='<div class="reveal"><div class="pts '+cls+'">+'+sc.points+(sc.correct?' · spot on':sc.points>0?' · close':' · missed')+'</div>'+
     (ansLine?'<div class="note">'+esc(ansLine)+'</div>':'')+
-    '<div class="fact">'+esc(q.revealFact)+'</div>'+
+    '<div class="fact">'+linkFact(q.revealFact)+'</div>'+
     '<a href="'+q.citation.urls[0]+'" target="_blank" rel="noopener noreferrer">↗ '+esc(q.citation.label)+'</a>'+
     '<div class="row"><span></span><button class="btn team" id="tnext">Another one</button></div></div>';
   document.getElementById('tnext').onclick=()=>drawTeamQuestion(t);
@@ -924,7 +979,7 @@ function answerMatchup(f,resp){
   else{stage.querySelector('#mdcg').disabled=true;stage.querySelector('#mdcgs').disabled=true;}
   const ansLine=q.type==='closest_guess'?('You guessed '+resp+' · answer '+q.answer+' '+(q.unit||'')):'';
   document.getElementById('mdrev').innerHTML='<div class="reveal"><div class="pts '+cls+'">+'+sc.points+(sc.correct?' · spot on':sc.points>0?' · close':' · missed')+'</div>'+
-    (ansLine?'<div class="note">'+esc(ansLine)+'</div>':'')+'<div class="fact">'+esc(q.revealFact)+'</div>'+
+    (ansLine?'<div class="note">'+esc(ansLine)+'</div>':'')+'<div class="fact">'+linkFact(q.revealFact)+'</div>'+
     '<a href="'+q.citation.urls[0]+'" target="_blank" rel="noopener noreferrer">↗ '+esc(q.citation.label)+'</a>'+
     '<div class="row"><span></span><button class="btn today" id="mdnext">Another one</button></div></div>';
   document.getElementById('mdnext').onclick=()=>drawMatchupQ(f);
@@ -1232,6 +1287,66 @@ function familyConsts(family: FamilyConfig | undefined, storagePrefix: string): 
   });
 }
 
+// ---------- Opt-in post-answer entity links (see SportPack.entityLinks) ----------
+
+/** Pack-supplied map from entity display names — exactly as they appear in
+ *  validated fact/insight strings — to the pack's SEO page paths (SeoPage.path
+ *  coordinates: root-relative, no leading slash). `pairs` keys are the two
+ *  display names sorted and joined with '|'; the value is the pair's
+ *  head-to-head page path. */
+export interface EntityLinkMap {
+  entities: Record<string, string>;
+  pairs?: Record<string, string>;
+}
+
+/** Existence guard: keep only entries whose target is an emitted SEO page
+ *  path. An unresolvable entity renders as plain text — never a dead link. */
+export function guardEntityLinks(
+  map: EntityLinkMap,
+  emittedPaths: Set<string>
+): EntityLinkMap {
+  const keep = (o: Record<string, string>) =>
+    Object.fromEntries(Object.entries(o).filter(([, p]) => emittedPaths.has(p)));
+  return {
+    entities: keep(map.entities),
+    ...(map.pairs ? { pairs: keep(map.pairs) } : {}),
+  };
+}
+
+// Entity paths are emitted into href attributes unescaped — hold them to the
+// SeoPage.path shape (root-relative page path; no scheme/host/query/quote).
+const ENTITY_PATH_RE = /^[a-z0-9][A-Za-z0-9/_-]*$/;
+
+/** The `const ENTITYLINKS = …` client value: validated JSON with hrefs
+ *  prefixed under basePath, or "null" when unset. Pair keys are re-sorted
+ *  defensively so the client's sorted lookup always hits. */
+function entityLinksConsts(
+  links: EntityLinkMap | undefined,
+  basePath: string | undefined
+): string {
+  if (!links) return 'null';
+  const prefix = basePath ?? '';
+  const ser = (o: Record<string, string>, what: string, sortKey: boolean) => {
+    const out: Record<string, string> = {};
+    for (const [name, p] of Object.entries(o)) {
+      if (!name.trim()) throw new Error(`entityLinks: empty ${what} name`);
+      if (!ENTITY_PATH_RE.test(p)) {
+        throw new Error(
+          `entityLinks ${what} "${name}": path must be a plain root-relative page path, got "${p}"`
+        );
+      }
+      const key = sortKey ? name.split('|').sort().join('|') : name;
+      out[key] = `${prefix}/${p}`;
+    }
+    return out;
+  };
+  // <-escape so a name can never terminate the inline <script>.
+  return JSON.stringify({
+    entities: ser(links.entities, 'entity', false),
+    pairs: ser(links.pairs ?? {}, 'pair', true),
+  }).replace(/</g, '\\u003c');
+}
+
 
 // ---------- Opt-in cookieless engagement analytics (see AnalyticsConfig) ----------
 // The five DEFAULT_ANALYTICS_* strings below are the ORIGINAL inline wiring,
@@ -1537,6 +1652,8 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__ANALYTICSSETTINGS__').join(analytics.settings)
     .split('__TERMSURL__').join(cfg.termsUrl ?? DEFAULT_TERMS_URL)
     .split('__FAMILY__').join(familyConsts(cfg.family, config.storagePrefix))
+    // Post-answer entity links (unset = null; linkFact degrades to esc()).
+    .split('__ENTITYLINKS__').join(entityLinksConsts(cfg.entityLinks, basePath))
     .split('__PACKCONSTS__').join(client.consts)
     .split('__PACKDECOR__').join(client.decorations)
     .split('__PACKTEAMCARDS__').join(client.teamCards)

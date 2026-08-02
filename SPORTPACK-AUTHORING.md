@@ -234,6 +234,30 @@ pack sets it (unset renders an empty hidden container and exists only so a
 fresh scaffold builds before its family wiring lands). Covered by
 src/family-continue.test.ts, including a vm run of the shipped inline code.
 
+## Post-answer entity links (opt-in: `entityLinks`, v0.16.1)
+
+Set `entityLinks: (ds) => ({ entities, pairs? })` to make entity mentions in
+POST-ANSWER surfaces link the pack's own SEO pages. `entities` maps display
+names — exactly as they appear in validated fact strings — to `SeoPage.path`
+targets (`'club/arsenal-fc'`); `pairs` maps sorted `'A|B'` name-pairs to the
+pair's head-to-head page. The DESIGN RULE is absolute: links render only on
+post-answer surfaces (reveal facts, panels, settled-result rows) — NEVER
+inside an unanswered question or its options; core tests assert the question
+surface is anchor-free and that the spoiler-free share text stays plain.
+
+Mechanics (the chipIcons precedent, applied to the shell): the validated fact
+string is NEVER edited — the shell's `linkFact(s)` wraps matched mentions in
+same-tab `<a class="elink">` at display time (longest name wins, word
+boundaries gate, one link per mention; a bare `1-2` score token BETWEEN a
+known pair's two names links the h2h page). Stripping the anchors recovers
+`esc(s)` byte-for-byte. The pipeline existence-guards every target against
+the emitted SEO page set (requires `seoPages`; a missing target renders as
+plain text, never a dead link), and hrefs are basePath-prefixed. Pack chunks
+(teamCards / todayCards / renderToday) may call `linkFact(...)` themselves to
+light up panel and settled-results surfaces — same rules apply. Styling is
+the subtle tier: inherited color (AA by construction), dotted underline,
+solid on hover. Covered by src/entity-links.test.ts.
+
 ## The app-shell surface
 
 The shell owns the engine (daily selection, scoring, streak/stats, practice,

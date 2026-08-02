@@ -405,6 +405,18 @@ export interface SportPack<
    *  Unset = the shell renders byte-identically and the daily selection is
    *  untouched. */
   calendarSpotlight?: CalendarSpotlightConfig;
+  /** Opt-in post-answer entity linking: a dataset-derived map from entity
+   *  display names (and sorted 'A|B' name-pairs) to the pack's SEO page
+   *  paths (SeoPage.path coordinates). The shell wraps matching mentions on
+   *  POST-ANSWER surfaces only — reveal facts, and any pack chunk that calls
+   *  linkFact — in subtle same-tab links. The validated strings are NEVER
+   *  edited (render-layer wrapping, the chipIcons precedent); question text
+   *  and options never pass through linkFact; every target is existence-
+   *  guarded against the emitted SEO page set at build time (a missing
+   *  target renders as plain text, never a dead link). Requires seoPages.
+   *  Unset = `const ENTITYLINKS=null` and the shell renders facts exactly
+   *  as before. */
+  entityLinks?(ds: DS): import('./render/app').EntityLinkMap;
 
   /** Pull the upstream source and return the normalized dataset + coverage.
    *  The core writes both to paths.datasetDir. */

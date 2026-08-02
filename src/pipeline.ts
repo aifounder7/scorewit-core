@@ -3,7 +3,7 @@ import path from 'node:path';
 import { selectBank } from './bank';
 import { mulberry32, shuffle } from './rng';
 import { numericPillOptions } from './numeric-pills';
-import { writeSite } from './render/app';
+import { guardEntityLinks, writeSite, type EntityLinkMap } from './render/app';
 import { legalSeoPages } from './legal';
 import { writeSeoSite } from './render/seo';
 import { runValidateHarness } from './validate/harness';
@@ -211,6 +211,33 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
   const bank = JSON.parse(fs.readFileSync(out.bank, 'utf8'));
   const teams = JSON.parse(fs.readFileSync(out.teams, 'utf8'));
   const matchday = JSON.parse(fs.readFileSync(out.matchday, 'utf8'));
+
+  // The SEO page list is computed BEFORE the shell when either consumer needs
+  // it: entityLinks existence-guards the shell's link map against the emitted
+  // paths, and writeSeoSite below emits the same list (computed exactly once).
+  let seoPageList: ReturnType<NonNullable<AnySportPack['seoPages']>> | null = null;
+  let seoDs: unknown = null;
+  if (pack.seoPages) {
+    seoDs = loadCommittedDataset(pack, paths).ds;
+    seoPageList = pack.seoPages(seoDs);
+  }
+  let entityLinks: EntityLinkMap | undefined;
+  if (pack.entityLinks) {
+    if (!seoPageList) {
+      throw new Error('entityLinks requires seoPages — the link targets are the emitted SEO pages');
+    }
+    const raw = pack.entityLinks(seoDs);
+    entityLinks = guardEntityLinks(raw, new Set(seoPageList.map((p) => p.path)));
+    const kept = { e: Object.keys(entityLinks.entities).length, p: Object.keys(entityLinks.pairs ?? {}).length };
+    const dropped =
+      Object.keys(raw.entities).length - kept.e +
+      (Object.keys(raw.pairs ?? {}).length - kept.p);
+    console.log(
+      `entityLinks: ${kept.e} entities + ${kept.p} pairs linkable` +
+        (dropped ? ` (${dropped} unresolvable → plain text)` : '')
+    );
+  }
+
   const { htmlBytes } = writeSite(
     {
       brand: pack.brand,
@@ -225,6 +252,9 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       termsUrl: pack.termsUrl,
       // Family default: the post-round continue strip (every pack sets it).
       family: pack.family,
+      // Opt-in post-answer entity links (existence-guarded above; unset =
+      // ENTITYLINKS null and the shell renders facts exactly as before).
+      entityLinks,
       // Opt-in nation theming (unset = byte-identical shell).
       teamTheming: pack.teamTheming,
       // Opt-in calendar spotlight (unset = byte-identical shell).
@@ -241,11 +271,9 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
 
   // Opt-in SEO pre-render (ADDITIVE ONLY — new files under site/, the app
   // shell above is untouched; packs without the hook emit nothing).
-  if (pack.seoPages) {
-    const { ds } = loadCommittedDataset(pack, paths);
-    const pages = pack.seoPages(ds);
+  if (seoPageList) {
     const { count } = writeSeoSite(
-      pages,
+      seoPageList,
       {
         brand: pack.brand,
         copy: pack.copy,
