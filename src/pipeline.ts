@@ -223,6 +223,8 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       analytics: pack.analytics,
       sport: pack.id,
       termsUrl: pack.termsUrl,
+      // Family default: the post-round continue strip (every pack sets it).
+      family: pack.family,
       // Opt-in nation theming (unset = byte-identical shell).
       teamTheming: pack.teamTheming,
       // Opt-in calendar spotlight (unset = byte-identical shell).

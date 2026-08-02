@@ -250,7 +250,7 @@ check('settings card: exactly once when analytics is set, absent when unset', ()
 });
 
 check('terms-assent line: exactly once in every variant; default URL; override honored', () => {
-  const assent = 'By playing you agree to the <a href="https://scorewit.com/terms">Terms</a>';
+  const assent = 'By playing you agree to the <a href="https://www.scorewit.com/terms">Terms</a>';
   const variants = [
     renderAppHtml(cfg()),
     renderAppHtml(cfg({ provider: 'plausible', domain: 'quiz.example' }, 'testball')),

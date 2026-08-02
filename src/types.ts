@@ -377,6 +377,10 @@ export interface SportPack<
   /** Href of the shell's terms-assent line ("By playing you agree to the
    *  Terms"). Unset = the umbrella terms URL the sibling footers link. */
   termsUrl?: string;
+  /** Post-round continue strip (see AppShellConfig.family) — the family
+   *  standard every Scorewit pack sets: the sibling games + the hub, with
+   *  same-origin played-today state, under the share module. */
+  family?: import('./render/app').FamilyConfig;
   /** Opt-in My-Team nation theming (see AppShellConfig.teamTheming). Unset
    *  keeps the shell byte-for-byte. The nation table is editorial data;
    *  every rendered pair is AA-gated at build time and the build fails

@@ -170,7 +170,7 @@ DUAA statistics exception). Unset analytics = no card, no flag, byte-identical.
 
 **Terms-assent line (v0.10.0, always rendered):** a conspicuous
 "By playing you agree to the Terms" line under the play area, linking
-`termsUrl` (default: the umbrella `https://scorewit.com/terms` every sibling
+`termsUrl` (default: the umbrella `https://www.scorewit.com/terms` every sibling
 footer already links). In-flow assent per the 2025 case law — a footer-only
 terms link is routinely unenforceable browsewrap. Override `pack.termsUrl`
 only if the pack's canonical terms live elsewhere.
@@ -206,6 +206,33 @@ TREE keeps its unprefixed file layout (and its own vercel.json route
 rewrites keep their unprefixed sources) while every URL in the CONTENT
 carries the prefix. `basePath` unset = byte-identical output — that is the
 hard gate, covered by src/base-path.test.ts.
+
+## Post-round continue strip (family standard: `family`, v0.16.0)
+
+The result screen renders a compact strip under the share module: the OTHER
+family games as chips (played-today ✓ where same-origin storage allows,
+unplayed first) plus a link to the portfolio hub. Configure it on the shell:
+
+```ts
+family: {
+  heading: 'More Scorewit',
+  hub: { url: 'https://www.scorewit.com/', label: 'All games →' },
+  games: [ // the six siblings — NOT self (validated); hub-canonical data
+    { name: 'Box-Box', url: 'https://www.scorewit.com/f1', storagePrefix: 'scorewitf1' },
+    // …
+  ],
+}
+```
+
+Names/URLs/prefixes must mirror the hub's `automation/portfolio.json` — the
+strip reads a sibling's `${storagePrefix}.history[todayKey()]` exactly the way
+the front door does, and only when the sibling URL is same-origin (cross-origin
+chips just say "play"). All copy comes from this config; URLs are validated to
+a plain absolute-https shape at render time. Links only — no autoplay, no
+nagging. This is the FAMILY DEFAULT, not an experiment opt-in: every Scorewit
+pack sets it (unset renders an empty hidden container and exists only so a
+fresh scaffold builds before its family wiring lands). Covered by
+src/family-continue.test.ts, including a vm run of the shipped inline code.
 
 ## The app-shell surface
 
