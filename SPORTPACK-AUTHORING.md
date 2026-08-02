@@ -170,7 +170,7 @@ DUAA statistics exception). Unset analytics = no card, no flag, byte-identical.
 
 **Terms-assent line (v0.10.0, always rendered):** a conspicuous
 "By playing you agree to the Terms" line under the play area, linking
-`termsUrl` (default: the umbrella `https://scorewit.com/terms` every sibling
+`termsUrl` (default: the umbrella `https://www.scorewit.com/terms` every sibling
 footer already links). In-flow assent per the 2025 case law — a footer-only
 terms link is routinely unenforceable browsewrap. Override `pack.termsUrl`
 only if the pack's canonical terms live elsewhere.

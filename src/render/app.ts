@@ -1197,7 +1197,7 @@ const DEFAULT_TODAY_NO_MATCHES = 'No World Cup matches today';
 
 // Assent-line default: the umbrella terms URL that every sibling pack's
 // footer already links (the umbrella app serves the same page at this URL).
-const DEFAULT_TERMS_URL = 'https://scorewit.com/terms';
+const DEFAULT_TERMS_URL = 'https://www.scorewit.com/terms';
 
 // ---------- Post-round continue strip (see FamilyConfig) ----------
 
