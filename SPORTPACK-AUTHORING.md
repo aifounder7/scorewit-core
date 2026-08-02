@@ -207,6 +207,33 @@ rewrites keep their unprefixed sources) while every URL in the CONTENT
 carries the prefix. `basePath` unset = byte-identical output — that is the
 hard gate, covered by src/base-path.test.ts.
 
+## Post-round continue strip (family standard: `family`, v0.16.0)
+
+The result screen renders a compact strip under the share module: the OTHER
+family games as chips (played-today ✓ where same-origin storage allows,
+unplayed first) plus a link to the portfolio hub. Configure it on the shell:
+
+```ts
+family: {
+  heading: 'More Scorewit',
+  hub: { url: 'https://www.scorewit.com/', label: 'All games →' },
+  games: [ // the six siblings — NOT self (validated); hub-canonical data
+    { name: 'Box-Box', url: 'https://www.scorewit.com/f1', storagePrefix: 'scorewitf1' },
+    // …
+  ],
+}
+```
+
+Names/URLs/prefixes must mirror the hub's `automation/portfolio.json` — the
+strip reads a sibling's `${storagePrefix}.history[todayKey()]` exactly the way
+the front door does, and only when the sibling URL is same-origin (cross-origin
+chips just say "play"). All copy comes from this config; URLs are validated to
+a plain absolute-https shape at render time. Links only — no autoplay, no
+nagging. This is the FAMILY DEFAULT, not an experiment opt-in: every Scorewit
+pack sets it (unset renders an empty hidden container and exists only so a
+fresh scaffold builds before its family wiring lands). Covered by
+src/family-continue.test.ts, including a vm run of the shipped inline code.
+
 ## The app-shell surface
 
 The shell owns the engine (daily selection, scoring, streak/stats, practice,

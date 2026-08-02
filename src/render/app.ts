@@ -56,6 +56,28 @@ export interface Brand {
   extraCss?: string;
 }
 
+/** One sibling game on the post-round continue strip. */
+export interface FamilyGame {
+  /** Display name, exactly as the portfolio hub names the game. */
+  name: string;
+  /** Absolute canonical URL of the sibling (e.g. https://www.scorewit.com/f1). */
+  url: string;
+  /** The sibling's localStorage prefix — the strip reads
+   *  `${prefix}.history[todayKey()]` (same-origin only) for played state. */
+  storagePrefix: string;
+}
+
+/** The post-round "continue" strip under the share module: the OTHER family
+ *  games (self excluded — validated) with today's played/unplayed state where
+ *  same-origin storage allows, unplayed first, plus a link to the portfolio
+ *  hub. The family standard — every Scorewit pack sets it. Links only: no
+ *  autoplay, no nagging; all copy comes from this config, never invented. */
+export interface FamilyConfig {
+  heading: string;
+  hub: { url: string; label: string };
+  games: FamilyGame[];
+}
+
 export interface AppCopy {
   title: string;
   metaDescription: string;
@@ -170,6 +192,10 @@ export interface AppShellConfig {
   data: { bank: unknown; teams: unknown; matchday: unknown };
   /** Final per-target pass over the app HTML (default: identity). */
   finalizeHtml?: (html: string, target: 'preview' | 'site') => string;
+  /** Post-round continue strip (see FamilyConfig above). Unset renders
+   *  `const FAMILY=null` and an empty, display:none container — but unset is
+   *  a transition state, not a supported profile: every family pack sets it. */
+  family?: FamilyConfig;
   /** Opt-in cookieless engagement events (see AnalyticsConfig in types.ts).
    *  Unset = the shell renders byte-identically (the original inline Vercel
    *  wiring) and no new events are emitted. */
@@ -284,6 +310,17 @@ __PALETTE__
   .sharebox{display:none;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
     background:var(--elev);border:1px solid var(--surface);border-radius:10px;padding:12px 14px;
     margin:12px auto 0;max-width:320px;color:var(--text);font-size:15px;text-align:left;user-select:all;line-height:1.45}
+  /* Post-round continue strip — visually subordinate to the share module. */
+  .continue{margin:26px auto 0;padding-top:16px;border-top:1px solid var(--surface);max-width:420px}
+  .continue:empty{display:none}
+  .continue .chead{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+  .continue .crow{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .continue .cchip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border:1px solid var(--surface);
+    border-radius:999px;color:var(--text);font-size:13px;font-weight:600;text-decoration:none}
+  .continue .cchip span{color:var(--accent);font-size:11px;font-weight:700}
+  .continue .cchip.done{opacity:.55}
+  .continue .cchip.done span{color:var(--text2)}
+  .continue .chub{display:inline-block;margin-top:12px;color:var(--text2);font-size:12px}
   .tabs{display:flex;gap:6px;margin:14px 0 2px}
   .tab{appearance:none;background:transparent;border:1px solid var(--surface);color:var(--text2);
     padding:7px 16px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer}
@@ -424,6 +461,7 @@ const TEAMS = __TEAMS__;
 const MATCHDAY = __MATCHDAY__;
 const APP_NAME = "__APPNAME__";
 const APP_URL = "__APPURL__";
+const FAMILY = __FAMILY__;
 __PACKCONSTS____THEMECONSTS__
 
 // ---- ported from src/game/rng.ts ----
@@ -603,6 +641,29 @@ function copyText(text){
     document.body.removeChild(ta);ok?res():rej();
   });
 }
+// Post-round continue strip: the sibling games plus the hub, under the share
+// module. Played-today state is read the way the front door reads it — the
+// sibling's prefix.history[todayKey()] — and only for same-origin siblings
+// (cross-origin storage is unreadable by design; those chips show "play").
+// Unplayed first (stable within groups), links only: no autoplay, no nagging.
+function familyPlayedToday(prefix){
+  try{const h=JSON.parse(localStorage.getItem(prefix+'.history'))||{};return !!h[todayKey()];}catch(e){return false;}
+}
+function renderContinue(){
+  if(!FAMILY)return;
+  const el=document.getElementById('continue');
+  if(!el)return;
+  const rows=FAMILY.games.map(g=>{
+    let played=false;
+    try{if(new URL(g.url,location.href).origin===location.origin)played=familyPlayedToday(g.prefix);}catch(e){}
+    return {g:g,played:played};
+  });
+  rows.sort((a,b)=>(a.played?1:0)-(b.played?1:0));
+  el.innerHTML='<div class="chead">'+esc(FAMILY.heading)+'</div>'+
+    '<div class="crow">'+rows.map(r=>'<a class="cchip'+(r.played?' done':'')+'" href="'+r.g.url+'">'+esc(r.g.name)+
+      '<span>'+(r.played?'✓ played':'play →')+'</span></a>').join('')+'</div>'+
+    '<a class="chub" href="'+FAMILY.hub.url+'">'+esc(FAMILY.hub.label)+'</a>';
+}
 // Persist today's result once, the moment the round is completed, then show it.
 function finishDaily(){
   const key=currentDailyKey();
@@ -622,7 +683,8 @@ function renderResult(){
     '<div class="note">__RESULTNOTE__</div>'+
     '<div class="row" style="justify-content:center;gap:10px"><button class="btn" id="share">Share</button><button class="btn ghost" id="statsbtn">Stats</button></div>'+
     '<div class="note" id="shared" style="visibility:hidden">Copied to clipboard</div>'+
-    '<pre class="sharebox" id="sharebox"></pre></div>';
+    '<pre class="sharebox" id="sharebox"></pre>'+
+    '<div class="continue" id="continue"></div></div>';
   document.getElementById('statsbtn').onclick=renderStats;
   document.getElementById('share').onclick=async()=>{
     __TRACKSHARE__
@@ -643,6 +705,7 @@ function renderResult(){
     box.textContent=text;
     box.style.display='block';
   };
+  renderContinue();
   updateStreakBar();
   renderProgress();
 }
@@ -1136,6 +1199,39 @@ const DEFAULT_TODAY_NO_MATCHES = 'No World Cup matches today';
 // footer already links (the umbrella app serves the same page at this URL).
 const DEFAULT_TERMS_URL = 'https://scorewit.com/terms';
 
+// ---------- Post-round continue strip (see FamilyConfig) ----------
+
+// Family URLs are emitted into href attributes unescaped — hold them to a
+// shape that cannot break out of the attribute or downgrade the scheme.
+const FAMILY_URL_RE = /^https:\/\/[a-z0-9.-]+(\/[A-Za-z0-9/_-]*)?$/;
+
+/** The `const FAMILY = …` client value: validated JSON, or "null" when unset. */
+function familyConsts(family: FamilyConfig | undefined, storagePrefix: string): string {
+  if (!family) return 'null';
+  if (!family.heading.trim()) throw new Error('family: empty heading');
+  if (!family.hub.label.trim()) throw new Error('family: empty hub.label');
+  if (!FAMILY_URL_RE.test(family.hub.url)) {
+    throw new Error(`family: hub.url must be a plain absolute https URL, got "${family.hub.url}"`);
+  }
+  if (!family.games.length) throw new Error('family: games must be non-empty');
+  for (const g of family.games) {
+    if (!g.name.trim() || !g.storagePrefix.trim()) {
+      throw new Error(`family: empty name/storagePrefix in games`);
+    }
+    if (!FAMILY_URL_RE.test(g.url)) {
+      throw new Error(`family ${g.name}: url must be a plain absolute https URL, got "${g.url}"`);
+    }
+    if (g.storagePrefix === storagePrefix) {
+      throw new Error(`family ${g.name}: the pack itself must not be in games (self is excluded)`);
+    }
+  }
+  return JSON.stringify({
+    heading: family.heading,
+    hub: family.hub,
+    games: family.games.map((g) => ({ name: g.name, url: g.url, prefix: g.storagePrefix })),
+  });
+}
+
 
 // ---------- Opt-in cookieless engagement analytics (see AnalyticsConfig) ----------
 // The five DEFAULT_ANALYTICS_* strings below are the ORIGINAL inline wiring,
@@ -1440,6 +1536,7 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__TRACKPRACTICE__').join(analytics.trackPractice)
     .split('__ANALYTICSSETTINGS__').join(analytics.settings)
     .split('__TERMSURL__').join(cfg.termsUrl ?? DEFAULT_TERMS_URL)
+    .split('__FAMILY__').join(familyConsts(cfg.family, config.storagePrefix))
     .split('__PACKCONSTS__').join(client.consts)
     .split('__PACKDECOR__').join(client.decorations)
     .split('__PACKTEAMCARDS__').join(client.teamCards)
