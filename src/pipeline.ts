@@ -248,6 +248,9 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       finalizeHtml: pack.finalizeHtml,
       // Opt-in cookieless engagement events (unset = byte-identical shell).
       analytics: pack.analytics,
+      // Opt-in almanac light theme + yesterday link (unset = byte-identical).
+      theme: pack.theme,
+      yesterdayLink: pack.yesterdayLink,
       sport: pack.id,
       termsUrl: pack.termsUrl,
       // Family default: the post-round continue strip (every pack sets it).
@@ -279,6 +282,8 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
         copy: pack.copy,
         routes: pack.config.routes ?? { today: '/today', practice: '/practice', team: '/my-team' },
         basePath: pack.config.basePath,
+        // One pack-level opt-in themes BOTH render surfaces (shell above).
+        theme: pack.theme,
         ...(pack.seoConfig ?? {}),
       },
       paths,

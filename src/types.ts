@@ -374,6 +374,14 @@ export interface SportPack<
   /** Opt-in cookieless engagement events (see AnalyticsConfig). Unset keeps
    *  the shell byte-for-byte and emits nothing new. */
   analytics?: AnalyticsConfig;
+  /** Opt-in "Almanac hybrid" light theme (see theme-almanac.ts): one setting
+   *  themes the app shell, the 404, AND every SEO/archive page with the
+   *  sport's resolved accent. Unset keeps everything byte-for-byte —
+   *  per-pack rollback is deleting this line. */
+  theme?: import('./theme-almanac').AlmanacTheme;
+  /** Opt-in "yesterday's round" link under the shell's play area (see
+   *  AppShellConfig.yesterdayLink). Unset keeps the shell byte-for-byte. */
+  yesterdayLink?: { href: string; label: string };
   /** Href of the shell's terms-assent line ("By playing you agree to the
    *  Terms"). Unset = the umbrella terms URL the sibling footers link. */
   termsUrl?: string;
