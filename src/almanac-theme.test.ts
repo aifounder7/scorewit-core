@@ -211,4 +211,34 @@ assert.ok(lit.includes('.dot.done{background:var(--accent);border-color:var(--ac
 assert.ok(lit.includes('button:focus-visible,a:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--text);outline-offset:2px}'), 'focus rings');
 assert.ok(lit.includes('@media (prefers-reduced-motion:reduce)'), 'reduced-motion guard');
 
+// ---------- 6. result pips (RESULT PIPS unification) ----------
+
+import { RESULT_GLYPHS, RESULT_TIERS } from './theme-almanac';
+
+// Themed: the share grid speaks traffic tiers and the end-of-round card
+// renders the unified pip row — no legacy square glyphs anywhere.
+const GLYPH_MAP = `p>=100?'${RESULT_GLYPHS.correct}':p>0?'${RESULT_GLYPHS.partial}':'${RESULT_GLYPHS.wrong}'`;
+assert.ok(lit.includes(`const grid=results.map(p=>${GLYPH_MAP}).join('');`), 'themed share grid uses 🟢/🟡/🔴');
+assert.ok(!lit.includes('🟩') && !lit.includes('🟨') && !lit.includes('🟥'), 'no legacy squares in the themed shell');
+assert.ok(!lit.includes('class="squares"'), 'themed end-of-round card drops the emoji squares');
+assert.ok(lit.includes('class="respips"'), 'themed end-of-round card renders the pip row');
+assert.ok(lit.includes(`.rp.ok{background:${RESULT_TIERS.correct}}`), 'correct tier: filled soccer-green disc');
+assert.ok(lit.includes(`.rp.part{background:${RESULT_TIERS.partial}}`), 'partial tier: filled T20-gold disc');
+assert.ok(
+  lit.includes(`.rp.no{background:transparent;border:2px solid ${RESULT_TIERS.wrong}}`),
+  'wrong tier: 2px F1-red RING, no fill'
+);
+// The pip row keeps a text channel (role="img" label in the reveal voice).
+assert.ok(lit.includes(`role="img" aria-label=`), 'pip row carries an accessible label');
+// Unthemed: the incumbent glyphs and squares — byte-identity is pinned in
+// section 1; this is the explicit statement of what that pin protects.
+assert.ok(plain.includes(`p>=100?'🟩':p>0?'🟨':'🟥'`), 'unthemed shell keeps the square glyphs');
+assert.ok(!plain.includes('respips') && !plain.includes('.rp.ok'), 'pip component leaves no unthemed residue');
+// Contrast: every tier value is a non-text state marker — >= 3:1 on paper
+// AND card (the ring-red-on-paper gate from the brief measures here too).
+for (const [tier, v] of Object.entries(RESULT_TIERS)) {
+  assert.ok(contrastRatio(v, PAPER) >= 3, `${tier} pip >= 3:1 on paper`);
+  assert.ok(contrastRatio(v, CARD) >= 3, `${tier} pip >= 3:1 on card`);
+}
+
 console.log('almanac-theme.test: all assertions passed');
