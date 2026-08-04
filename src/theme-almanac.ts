@@ -85,6 +85,27 @@ export function almanacAccent(key: AlmanacAccentKey): string {
   return a.resolved;
 }
 
+/** The unified result-pip tiers (RESULT PIPS unification): one circle
+ *  vocabulary across the hub cards, the end-of-round card, and (as emoji
+ *  glyphs) the share line. Colors are PINNED to the resolved almanac accent
+ *  values — soccer green, T20 gold, F1 red — not derived from
+ *  ALMANAC_ACCENTS: a future accent re-resolution must never silently move
+ *  result semantics. Tier shapes: correct = filled disc · partial (banded
+ *  closest-guess credit) = filled disc · wrong = 2px RING, no fill ·
+ *  unanswered = the faint --faded ring the shell already draws. Shape
+ *  carries state without color (grayscale/color-blind safe); every value is
+ *  gated >= 3:1 non-text on paper and card in almanac-theme.test.ts. */
+export const RESULT_TIERS = {
+  correct: '#2c6e49',
+  partial: '#83620a',
+  wrong: '#b3382c',
+} as const;
+
+/** Share-line glyphs for the same tiers (wrong = 🔴). The share grid has no
+ *  unanswered tier: a daily round only persists — and only then can be
+ *  shared — once all six questions are answered. */
+export const RESULT_GLYPHS = { correct: '🟢', partial: '🟡', wrong: '🔴' } as const;
+
 /** `rgba(r,g,b,a)` of a hex accent — the tint the light theme washes behind
  *  chips/banners (0.10: subtle on paper, and the accent still measures as
  *  text on the composited result — gated). */
@@ -166,6 +187,13 @@ export function almanacShellCss(): string {
   .tab{min-height:44px}
   button.opt{min-height:44px}
   .pkbtn{min-height:44px}
+  /* result pips (end-of-round card): the unified tier circles — filled disc /
+     filled disc / 2px ring — shape carries state without color */
+  .respips{display:flex;gap:9px;justify-content:center;margin:14px 0}
+  .rp{width:14px;height:14px;border-radius:50%;box-sizing:border-box}
+  .rp.ok{background:${RESULT_TIERS.correct}}
+  .rp.part{background:${RESULT_TIERS.partial}}
+  .rp.no{background:transparent;border:2px solid ${RESULT_TIERS.wrong}}
   /* the PLAYED stamp carries the final score (accent ink, -11 degrees) */
   .final .big{display:inline-block;font-family:${ALMANAC_MONO_STACK};font-size:26px;font-weight:800;
     color:var(--accent);border:2.5px solid var(--accent);border-radius:8px;padding:8px 18px;

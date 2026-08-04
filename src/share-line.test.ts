@@ -91,7 +91,22 @@ check('set: the pack block lands between the streak line and the app URL, once',
   assert.ok(!html.includes('__SHARELINE__'), 'no unresolved token');
 });
 
-console.log(`\n${failures === 0 ? 'ALL' : ''} ${2 - failures}/2 cases passed.`);
+check('almanac theme: share grid glyphs are the traffic tiers, tail byte-unchanged', () => {
+  const html = renderAppHtml({ ...cfg(), theme: { name: 'almanac', accent: 'soccer' } });
+  assert.ok(
+    html.includes("const grid=results.map(p=>p>=100?'🟢':p>0?'🟡':'🔴').join('');"),
+    'themed share grid must use 🟢/🟡/🔴'
+  );
+  assert.ok(html.includes(INCUMBENT_TAIL), 'everything after the grid line stays byte-identical');
+  assert.ok(!html.includes('🟩'), 'no legacy square glyphs');
+});
+
+check('theme unset: share grid keeps the incumbent square glyphs', () => {
+  const html = renderAppHtml(cfg());
+  assert.ok(html.includes("const grid=results.map(p=>p>=100?'🟩':p>0?'🟨':'🟥').join('');"));
+});
+
+console.log(`\n${failures === 0 ? 'ALL' : ''} ${4 - failures}/4 cases passed.`);
 if (failures) {
   console.error(`SHARE-LINE TEST FAILED — ${failures} case(s) wrong.`);
   process.exit(1);

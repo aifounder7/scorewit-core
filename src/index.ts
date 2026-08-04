@@ -63,6 +63,8 @@ export {
   ALMANAC_MONO_STACK,
   ALMANAC_ON_ACCENT,
   ALMANAC_TOKENS,
+  RESULT_GLYPHS,
+  RESULT_TIERS,
   type AlmanacAccentKey,
   type AlmanacTheme,
 } from './theme-almanac';

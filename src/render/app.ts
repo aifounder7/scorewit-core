@@ -21,6 +21,7 @@ import {
   almanacShellCss,
   ALMANAC_ON_ACCENT,
   ALMANAC_TOKENS,
+  RESULT_GLYPHS,
   type AlmanacTheme,
 } from '../theme-almanac';
 
@@ -1683,6 +1684,35 @@ export function renderAppHtml(cfg: AppShellConfig): string {
         `const MODE_FOR_ROUTE={'/':'daily',`,
         `const MODE_FOR_ROUTE={'${basePath}':'daily',`,
         'daily route (reverse map)',
+      ],
+    ];
+    for (const [find, replace, what] of edits) {
+      tpl = replaceExactlyOnce(tpl, find, replace, what);
+    }
+  }
+  // RESULT PIPS unification (rides the almanac theme): the two result
+  // surfaces the shell owns swap to the unified traffic tiers — share-line
+  // glyphs 🟢/🟡/🔴 and the end-of-round pip row (filled disc / filled disc /
+  // 2px ring; CSS + colors in theme-almanac RESULT_TIERS). Exact-once, and
+  // BEFORE pack shellPatches (same rule as basePath) so a patch anchoring
+  // the pre-swap text fails loudly. Theme unset = untouched — the
+  // byte-identity contract pinned in almanac-theme.test.ts.
+  if (cfg.theme) {
+    const edits: [string, string, string][] = [
+      [
+        `const grid=results.map(p=>p>=100?'🟩':p>0?'🟨':'🟥').join('');`,
+        `const grid=results.map(p=>p>=100?'${RESULT_GLYPHS.correct}':p>0?'${RESULT_GLYPHS.partial}':'${RESULT_GLYPHS.wrong}').join('');`,
+        'share grid glyphs',
+      ],
+      [
+        `const squares=results.map(p=>p>=100?'🟩':p>0?'🟨':'🟥').join('');`,
+        `const pips=results.map(p=>'<i class="rp '+(p>=100?'ok':p>0?'part':'no')+'"></i>').join('');`,
+        'end-of-round pip row',
+      ],
+      [
+        `'<div class="squares">'+squares+'</div>'+`,
+        `'<div class="respips" role="img" aria-label="'+results.filter(p=>p>=100).length+' spot on, '+results.filter(p=>p>0&&p<100).length+' close, '+results.filter(p=>!p).length+' missed">'+pips+'</div>'+`,
+        'end-of-round pip markup',
       ],
     ];
     for (const [find, replace, what] of edits) {
