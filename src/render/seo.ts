@@ -3,6 +3,12 @@ import path from 'node:path';
 import type { PipelinePaths, SeoPage } from '../types';
 import type { AppCopy, Brand } from './app';
 import { assertNoRootRelativeLeaks, assertValidBasePath } from './base-path';
+import {
+  almanacAccent,
+  almanacBrandHtml,
+  almanacSeoCss,
+  type AlmanacTheme,
+} from '../theme-almanac';
 
 /**
  * SEO pre-render (opt-in via pack.seoPages): wrap each pack-rendered page in
@@ -67,6 +73,12 @@ export interface SeoRenderConfig {
   /** CTA label (raw inline HTML). Default: "Play today&rsquo;s round &rarr;".
    *  Set per sport, e.g. "Play today&rsquo;s F1 round &rarr;". */
   cta?: string;
+  /** Opt-in light theme (see theme-almanac.ts): the archive-page chrome
+   *  swaps to the almanac paper skin with the sport's RESOLVED accent (the
+   *  theme wins over `accent`). Template structure, JSON-LD, and the
+   *  answer-first body are untouched. Unset = the incumbent dark chrome,
+   *  byte-identical. */
+  theme?: AlmanacTheme;
   /** Opt-in serving prefix (see PackConfig.basePath / render/base-path.ts):
    *  prefixes the template's root-relative links (icon, topbar, CTA) and
    *  gates every emitted page against root-relative leaks. brand.appUrl must
@@ -209,16 +221,19 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
   const url = `${brand.appUrl}/${page.path}`;
   // Root-relative template links carry the opt-in prefix ('' = unchanged).
   const base = cfg.basePath ?? '';
-  const accent = accentOf(cfg);
+  // Almanac theme wins the accent (RESOLVED value — the a11y-passed tone).
+  const accent = cfg.theme ? almanacAccent(cfg.theme.accent) : accentOf(cfg);
   const onAccent = brand.onAccent?.accent ?? '#06121f';
   const cta = cfg.cta ?? 'Play today&rsquo;s round &rarr;';
 
   // "Scorewit Cricket" -> "Scorewit <span>Cricket</span>" (single-word names
-  // render plain).
+  // render plain). Almanac: the Score|wit masthead treatment instead.
   const [brandFirst, ...brandRest] = brand.appName.split(' ');
-  const brandHtml = brandRest.length
-    ? `${esc(brandFirst)} <span>${esc(brandRest.join(' '))}</span>`
-    : esc(brand.appName);
+  const brandHtml = cfg.theme
+    ? almanacBrandHtml(brand.appName)
+    : brandRest.length
+      ? `${esc(brandFirst)} <span>${esc(brandRest.join(' '))}</span>`
+      : esc(brand.appName);
 
   const blocks: string[] = [];
   if (page.eyebrowHtml) blocks.push(`<div class="eyebrow">${page.eyebrowHtml}</div>`);
@@ -275,7 +290,7 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
 <meta property="og:url" content="${esc(url)}" />
 <script type="application/ld+json">${jsonLdText(page.jsonLd)}</script>
 <style>
-  :root{--bg:${brand.themeColor};--surface:#161619;--surface2:#1C1C21;--line:#2A2A30;
+${cfg.theme ? almanacSeoCss(cfg.theme.accent) : `  :root{--bg:${brand.themeColor};--surface:#161619;--surface2:#1C1C21;--line:#2A2A30;
     --text:#F4F4F6;--muted:#9A9AA3;--faint:#84848D;
     --accent:${accent};--accent-soft:${rgba(accent, 0.12)};--accent-line:${rgba(accent, 0.35)};--accent-lite:${lighten(accent, 0.45)}}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -345,7 +360,7 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
   .cta:hover{filter:brightness(1.08)}
   footer{max-width:760px;margin:24px auto 0;padding:22px 22px 48px;border-top:1px solid var(--line);
     color:var(--faint);font-size:12.5px;line-height:1.7}
-  footer a{color:var(--muted)}
+  footer a{color:var(--muted)}`}
 </style>
 </head>
 <body>

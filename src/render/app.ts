@@ -14,6 +14,15 @@ import {
   assertValidBasePath,
   replaceExactlyOnce,
 } from './base-path';
+import {
+  almanacNotFoundCss,
+  almanacNotFoundPaletteCss,
+  almanacPaletteCss,
+  almanacShellCss,
+  ALMANAC_ON_ACCENT,
+  ALMANAC_TOKENS,
+  type AlmanacTheme,
+} from '../theme-almanac';
 
 /**
  * The single-file app shell. Emits a standalone, dependency-free HTML page
@@ -218,6 +227,16 @@ export interface AppShellConfig {
    *  demands (footer-only browsewrap is routinely unenforceable). Defaults to
    *  the umbrella terms URL every sibling pack's footer already links. */
   termsUrl?: string;
+  /** Opt-in light theme (the "Almanac hybrid" paper skin — see
+   *  theme-almanac.ts). Set = the shell swaps to the almanac palette,
+   *  component chrome, and system rounded-sans stack, with the sport's
+   *  resolved accent driving chips, pips, links, buttons, and the PLAYED
+   *  stamp. Unset = the incumbent dark shell renders byte-identically
+   *  (fixture-tested) — rollback per pack is deleting the opt-in. */
+  theme?: AlmanacTheme;
+  /** Opt-in "yesterday's round" shell link, rendered under the terms-assent
+   *  line (e.g. into the pack's archive). Unset = byte-identical shell. */
+  yesterdayLink?: { href: string; label: string };
   /** Opt-in team theming for the My Team tab (NATIONS ONLY — franchise
    *  colors are trade dress and stay deferred). Unset = the shell renders
    *  byte-identically. Set = the followed nation's tab gains a decorative
@@ -463,7 +482,7 @@ __RESLINECSS__
   <div class="streakbar" id="streakbar" style="display:none"></div>
   <div class="progress" id="progress" aria-hidden="true"></div>
   <div id="stage"></div>
-  <div class="assent">By playing you agree to the <a href="__TERMSURL__">Terms</a></div>
+  <div class="assent">By playing you agree to the <a href="__TERMSURL__">Terms</a></div>__YESTERDAY__
 </main>
   __FOOTERHTML__
 </div>
@@ -1560,8 +1579,53 @@ function track(name,data){if(analyticsOff())return;try{${impl}}catch(e){}}`;
 /** The app shell with every token filled in. Refuses (throws) when the
  *  pack's palette fails WCAG AA on any pair the stylesheet renders — the
  *  accessibility guarantee is computed at build time (see src/contrast.ts). */
+/** The brand the render actually uses: the pack's own brand, or — when the
+ *  almanac theme is set — the same brand with the palette, 404 palette,
+ *  theme color, and on-accent text swapped to the theme's paper tokens.
+ *  Everything else (name, URL, mark, grid shape, extraCss) stays the
+ *  pack's. Theme unset = the exact same object (byte-identical path). */
+export function effectiveBrand(cfg: AppShellConfig): Brand {
+  const t = cfg.theme;
+  if (!t) return cfg.brand;
+  if (t.name !== 'almanac') {
+    throw new Error(`theme: unknown theme "${(t as { name: string }).name}" (only 'almanac' exists)`);
+  }
+  return {
+    ...cfg.brand,
+    themeColor: ALMANAC_TOKENS.paper,
+    paletteCss: almanacPaletteCss(t.accent),
+    notFoundPaletteCss: almanacNotFoundPaletteCss(t.accent),
+    onAccent: ALMANAC_ON_ACCENT,
+  };
+}
+
+const YESTERDAY_HREF_RE = /^(https:\/\/[a-z0-9.-]+)?\/[A-Za-z0-9/_-]*$/;
+
+/** The opt-in "yesterday's round" link block + its CSS — both empty strings
+ *  when unset, so the tokens erase with zero residue. */
+function yesterdayParts(y: AppShellConfig['yesterdayLink']): { html: string; css: string } {
+  if (!y) return { html: '', css: '' };
+  if (!y.label.trim()) throw new Error('yesterdayLink: empty label');
+  if (/[<>]/.test(y.label)) throw new Error('yesterdayLink: label is plain text — markup is not allowed');
+  if (!YESTERDAY_HREF_RE.test(y.href)) {
+    throw new Error(`yesterdayLink: href must be a root-absolute path or https URL (got "${y.href}")`);
+  }
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  return {
+    html: `\n  <div class="ylink"><a href="${esc(y.href)}">${y.label
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')}</a></div>`,
+    css:
+      '\n  .ylink{margin-top:14px;text-align:center;font-size:13px}' +
+      '\n  .ylink a{color:var(--text2);font-weight:600;text-decoration:underline;text-underline-offset:2px}' +
+      '\n  .ylink a:hover{color:var(--text)}',
+  };
+}
+
 export function renderAppHtml(cfg: AppShellConfig): string {
-  const { brand, copy, client, config, data } = cfg;
+  const { copy, client, config, data } = cfg;
+  const brand = effectiveBrand(cfg);
   const basePath = config.basePath;
   if (basePath !== undefined) assertValidBasePath(basePath, brand.appUrl);
   assertContrast(
@@ -1587,6 +1651,7 @@ export function renderAppHtml(cfg: AppShellConfig): string {
   const theme = themeChunks(cfg.teamTheming);
   const analytics = analyticsChunks(cfg.analytics, cfg.sport ?? '');
   const spotlight = spotlightChunks(cfg.calendarSpotlight, client);
+  const yesterday = yesterdayParts(cfg.yesterdayLink);
   let tpl = HTML;
   // OPT-IN basePath: rewrite the template's root-anchored emissions with the
   // exact-once discipline — BEFORE pack shellPatches, so a patch that anchors
@@ -1686,7 +1751,10 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__ROUTETEAM__').join(routes.team)
     .split('__RECLISTCOLS__').join(String(brand.recordGridCols ?? DEFAULT_RECORD_GRID_COLS))
     .split('__RESLINECSS__').join(brand.resultLineCss ?? DEFAULT_RESLINE_CSS)
-    .split('__EXTRACSS__').join(theme.css + spotlight.css + (brand.extraCss ?? ''))
+    .split('__YESTERDAY__').join(yesterday.html)
+    .split('__EXTRACSS__').join(
+      (cfg.theme ? almanacShellCss() : '') + theme.css + spotlight.css + yesterday.css + (brand.extraCss ?? '')
+    )
     .split('__APPNAME__').join(brand.appName)
     .split('__BRANDMARK__').join(brand.markSvg)
     .split('__THEMECOLOR__').join(brand.themeColor)
@@ -1715,17 +1783,18 @@ export function renderAppHtml(cfg: AppShellConfig): string {
  *  and minimal: same theme + inlined mark as the app, noindex, root-absolute
  *  URLs so it renders correctly at any request depth. */
 export function renderNotFoundHtml(cfg: AppShellConfig): string {
+  const brand = effectiveBrand(cfg);
   assertContrast(
     checkNotFoundPaletteContrast(
-      cfg.brand.notFoundPaletteCss,
-      (cfg.brand.onAccent ?? DEFAULT_ON_ACCENT).accent
+      brand.notFoundPaletteCss,
+      (brand.onAccent ?? DEFAULT_ON_ACCENT).accent
     ),
     '404 page'
   );
   const basePath = cfg.config.basePath;
   let tpl = NOT_FOUND_HTML;
   if (basePath) {
-    assertValidBasePath(basePath, cfg.brand.appUrl);
+    assertValidBasePath(basePath, brand.appUrl);
     tpl = replaceExactlyOnce(
       tpl,
       `<link rel="icon" href="/icon.svg"`,
@@ -1739,12 +1808,12 @@ export function renderNotFoundHtml(cfg: AppShellConfig): string {
       '404 apple-touch-icon link'
     );
   }
-  return tpl.split('__APPNAME__').join(cfg.brand.appName)
-    .split('__BRANDMARK__').join(cfg.brand.markSvg)
-    .split('__THEMECOLOR__').join(cfg.brand.themeColor)
-    .split('__NFPALETTE__').join(cfg.brand.notFoundPaletteCss)
-    .split('__BTNTEXT__').join((cfg.brand.onAccent ?? DEFAULT_ON_ACCENT).accent)
-    .split('__NFEXTRACSS__').join(cfg.copy.notFoundExtraCss ?? '')
+  return tpl.split('__APPNAME__').join(brand.appName)
+    .split('__BRANDMARK__').join(brand.markSvg)
+    .split('__THEMECOLOR__').join(brand.themeColor)
+    .split('__NFPALETTE__').join(brand.notFoundPaletteCss)
+    .split('__BTNTEXT__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).accent)
+    .split('__NFEXTRACSS__').join((cfg.theme ? almanacNotFoundCss() : '') + (cfg.copy.notFoundExtraCss ?? ''))
     .split('__NFHEADING__').join(cfg.copy.notFoundHeading)
     .split('__NFBODY__').join(cfg.copy.notFoundBody)
     .split('__NFACTIONS__').join(cfg.copy.notFoundActionsHtml);
@@ -1760,6 +1829,7 @@ export function writeSite(
   assets: AssetSpec,
   paths: PipelinePaths
 ): { htmlBytes: number } {
+  const brand = effectiveBrand(cfg);
   const html = renderAppHtml(cfg);
   const finalize = cfg.finalizeHtml ?? ((h: string) => h);
   fs.writeFileSync(paths.previewFile, finalize(html, 'preview'));
@@ -1782,15 +1852,15 @@ export function writeSite(
   // PWA manifest — generated so the name/colors stay in lockstep with the
   // brand constants (add-to-home-screen installability).
   const manifest = {
-    name: cfg.brand.appName,
-    short_name: cfg.brand.appName,
+    name: brand.appName,
+    short_name: brand.appName,
     description: cfg.copy.manifestDescription ?? cfg.copy.metaDescription,
     // Under a basePath the app installs from (and scopes to) its prefix; the
     // icon srcs stay relative — they resolve against the manifest's own URL.
     start_url: basePath ? `${basePath}/` : '/',
     display: 'standalone',
-    background_color: cfg.brand.themeColor,
-    theme_color: cfg.brand.themeColor,
+    background_color: brand.themeColor,
+    theme_color: brand.themeColor,
     icons: [
       { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
       { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },

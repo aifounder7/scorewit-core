@@ -52,6 +52,20 @@ export {
   type SeoRenderConfig,
 } from './render/seo';
 export { numericPillOptions, type NumericPillInput } from './numeric-pills';
+export {
+  almanacAccent,
+  almanacBrandHtml,
+  almanacNotFoundPaletteCss,
+  almanacPaletteCss,
+  almanacSeoCss,
+  ALMANAC_ACCENTS,
+  ALMANAC_FONT_STACK,
+  ALMANAC_MONO_STACK,
+  ALMANAC_ON_ACCENT,
+  ALMANAC_TOKENS,
+  type AlmanacAccentKey,
+  type AlmanacTheme,
+} from './theme-almanac';
 export { guardScopedPool, type ScopedPoolHooks, type ScopedQuizEntry } from './scoped-quiz';
 export { LEGAL_CONTACT, LEGAL_EFFECTIVE_DATE, legalSeoPages } from './legal';
 export {
@@ -73,6 +87,7 @@ export {
   findRootRelativeLeaks,
 } from './render/base-path';
 export {
+  effectiveBrand,
   loadInlineSvg,
   renderAppHtml,
   renderNotFoundHtml,
