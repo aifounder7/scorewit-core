@@ -54,19 +54,29 @@ export const ALMANAC_TOKENS = {
   partial: '#926a09',
 } as const;
 
-/** Per-sport accents. `given` = the spec's starting value; `resolved` = what
- *  the accessibility pass ships (tone-darkened where a rendered pair fails,
- *  hue fixed). Until that pass lands, resolved === given and the build gate
- *  is the honest arbiter: NFL orange and T20 gold fail white-on-accent at
- *  chip sizes exactly as the spec predicts. */
+/** Per-sport accents: `given` = the spec's starting value; `resolved` = the
+ *  accessibility pass's shipped tone. Resolution discipline: HSL lightness
+ *  stepped down in 0.25% steps — hue and saturation FIXED — until the accent
+ *  passes EVERY rendered pair, which is stricter than the spec's three
+ *  usage gates because the shell also renders accent text on the #f1ead9
+ *  chip surface and on its own 10% tint wash (the binding constraints):
+ *    (a) accent text on paper #faf5ec and card #fffdf8   >= 4.5
+ *    (b) white on accent (chips/buttons, small bold)      >= 4.5
+ *    (c) accent stamp ink on card                         >= 3   (implied by a)
+ *    (+) accent on #f1ead9 chips and on tint(accent,.10)  >= 4.5
+ *  NFL orange and T20 gold fail (b) as given — the reason this pass exists —
+ *  and cricket teal fails only the stricter (+) pairs. The other four pass
+ *  as given and ship unchanged. Full before/after table in the DAYLIGHT
+ *  report; the numbers are re-computed by almanac-theme.test.ts on every
+ *  test run, so the table can never drift from the shipped values. */
 export const ALMANAC_ACCENTS: Record<AlmanacAccentKey, { given: string; resolved: string }> = {
   soccer: { given: '#2c6e49', resolved: '#2c6e49' },
   f1: { given: '#b3382c', resolved: '#b3382c' },
   epl: { given: '#5b3fd4', resolved: '#5b3fd4' },
-  cricket: { given: '#1f7a7a', resolved: '#1f7a7a' },
-  nfl: { given: '#c96a1e', resolved: '#c96a1e' },
+  cricket: { given: '#1f7a7a', resolved: '#1d7373' },
+  nfl: { given: '#c96a1e', resolved: '#9f5418' },
   baseball: { given: '#2b5fa3', resolved: '#2b5fa3' },
-  t20: { given: '#a1780c', resolved: '#a1780c' },
+  t20: { given: '#a1780c', resolved: '#83620a' },
 };
 
 export function almanacAccent(key: AlmanacAccentKey): string {
@@ -165,6 +175,14 @@ export function almanacShellCss(): string {
   /* all-caps retired as a voice: labels go sentence case */
   .meta,.brand small,.card h3,.flabel,.daylabel,.fxround,.statlab,.reclist .lab,.continue .chead,.pklabel,.wdl .lab{text-transform:none;letter-spacing:.01em}
   .toast{background:${T.card};border-color:var(--bdr);box-shadow:0 6px 24px rgba(32,33,31,.18)}
+  /* a11y pass: visible keyboard focus — 2px ink ring, offset 2px, on every
+     interactive element (the ink ring measures 14.9:1 on paper) */
+  button:focus-visible,a:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  /* a11y pass: the theme inherits the shell's micro-transitions (options,
+     toast) — under reduced motion they go instant */
+  @media (prefers-reduced-motion:reduce){
+    button.opt,.toast{transition:none}
+  }
 `;
 }
 
@@ -175,7 +193,8 @@ export function almanacNotFoundCss(): string {
   body{font-family:${ALMANAC_FONT_STACK}}
   .btn{border-radius:999px;min-height:44px}
   .name{border-bottom:3px double var(--text);display:inline-block;padding-bottom:8px}
-  .name small{text-transform:none;letter-spacing:.01em}`;
+  .name small{text-transform:none;letter-spacing:.01em}
+  a:focus-visible{outline:2px solid var(--text);outline-offset:2px}`;
 }
 
 // ---------- the archive-page (SEO template) chrome ----------
@@ -268,5 +287,6 @@ export function almanacSeoCss(key: AlmanacAccentKey): string {
   .cta:hover{filter:brightness(1.08)}
   footer{max-width:760px;margin:24px auto 0;padding:22px 22px 48px;border-top:1px solid var(--line);
     color:var(--faint);font-size:12.5px;line-height:1.7}
-  footer a{color:var(--muted)}`;
+  footer a{color:var(--muted)}
+  a:focus-visible{outline:2px solid var(--text);outline-offset:2px}`;
 }

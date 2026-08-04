@@ -172,4 +172,43 @@ scorewitCfg.brand = { ...scorewitCfg.brand, appName: 'Scorewit Cricket' };
 const witSeo = renderSeoPage(seoPage, scorewitCfg);
 assert.ok(witSeo.includes('Score<span class="wit">wit</span> <span class="qual">Cricket</span>'), 'Score|wit masthead');
 
+// ---------- 5. the accessibility pass ----------
+
+// Every accent renders (the shell's WCAG gate throws below AA — rendering
+// IS the guarantee), and the three spec'd usage gates hold on the resolved
+// tones: (a) accent text on paper AND card >= 4.5; (b) white on accent
+// >= 4.5 (chips are small bold text — body standard, not large-text 3:1);
+// (c) stamp ink on card >= 3.
+import { contrastRatio } from './contrast';
+const PAPER = ALMANAC_TOKENS.paper;
+const CARD = ALMANAC_TOKENS.card;
+for (const key of Object.keys(ALMANAC_ACCENTS) as AlmanacAccentKey[]) {
+  const { given, resolved } = ALMANAC_ACCENTS[key];
+  renderAppHtml(almanacCfg(key)); // gate runs inside — throws on any AA miss
+  assert.ok(contrastRatio(resolved, PAPER) >= 4.5, `${key}: accent on paper >= 4.5`);
+  assert.ok(contrastRatio(resolved, CARD) >= 4.5, `${key}: accent on card >= 4.5`);
+  assert.ok(contrastRatio('#ffffff', resolved) >= 4.5, `${key}: white on accent >= 4.5`);
+  assert.ok(contrastRatio(resolved, CARD) >= 3, `${key}: stamp ink on card >= 3`);
+  // Tone-only discipline: hue fixed within hex-quantization rounding (<1°).
+  const hue = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    if (!d) return 0;
+    const h = max === r ? ((g - b) / d + (g < b ? 6 : 0)) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return h * 60;
+  };
+  assert.ok(Math.abs(hue(given) - hue(resolved)) < 1, `${key}: hue is fixed (tone-only darkening)`);
+}
+// The faded token: text surfaces carry the 4.5 tone; the raw spec value
+// stays a >=3:1 non-text ring on card (the pip outline).
+assert.ok(contrastRatio(ALMANAC_TOKENS.fadedText, PAPER) >= 4.5, 'fadedText holds 4.5 on paper');
+assert.ok(contrastRatio(ALMANAC_TOKENS.faded, CARD) >= 3, 'faded ring holds 3 on card');
+// State is never color-alone: filled pips vs bordered rings (shape), and the
+// PLAYED stamp is text.
+assert.ok(lit.includes('.dot{height:9px;width:9px;flex:0 0 9px;border-radius:50%;background:transparent;border:1.5px solid var(--faded)}'), 'empty pip is a ring');
+assert.ok(lit.includes('.dot.done{background:var(--accent);border-color:var(--accent)}'), 'filled pip is a disc');
+// Visible keyboard focus + reduced-motion guard ride the theme.
+assert.ok(lit.includes('button:focus-visible,a:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--text);outline-offset:2px}'), 'focus rings');
+assert.ok(lit.includes('@media (prefers-reduced-motion:reduce)'), 'reduced-motion guard');
+
 console.log('almanac-theme.test: all assertions passed');
