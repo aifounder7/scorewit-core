@@ -704,9 +704,13 @@ function answer(resp){
     '<a href="'+q.citation.urls[0]+'" target="_blank" rel="noopener noreferrer">↗ '+esc(q.citation.label)+'</a>'+
     '<div class="row"><span></span><button class="btn" id="next">'+(last?'See results':'Next question')+'</button></div></div>';
   document.getElementById('next').onclick=()=>{idx++;renderProgress();render();};
-  // Robust source link: open a new tab; if a sandboxed frame blocks that, navigate directly.
-  const src=document.querySelector('#reveal a:not(.elink)');
-  if(src){src.addEventListener('click',e=>{e.preventDefault();const href=src.getAttribute('href');const w=window.open(href,'_blank','noopener');if(!w){window.location.href=href;}});}
+  // Source link: NATIVE anchor navigation only (target="_blank" +
+  // rel="noopener noreferrer" on the markup above). The old "robust" JS
+  // handler double-navigated: a scripted open with the 'noopener' feature
+  // returns null BY SPEC even on success, so its popup-blocked fallback
+  // (assigning the current tab's href) fired on every click and destroyed
+  // the in-progress round. Native behavior handles click, Enter, and
+  // middle-click with exactly one navigation intent — source-link.test.ts.
   renderProgress();
 }
 
@@ -886,7 +890,8 @@ function answerPractice(resp){__TRACKPRACTICE__
     '<a href="'+q.citation.urls[0]+'" target="_blank" rel="noopener noreferrer">↗ '+esc(q.citation.label)+'</a>'+
     '<div class="row"><span></span><button class="btn practice" id="pnext">Another one</button></div></div>';
   document.getElementById('pnext').onclick=drawPractice;
-  const src=document.querySelector('#preveal a:not(.elink)'); if(src){src.addEventListener('click',e=>{e.preventDefault();const href=src.getAttribute('href');const w=window.open(href,'_blank','noopener');if(!w){window.location.href=href;}});}
+  // Source link: native anchor navigation only — same double-navigation fix
+  // as the daily reveal (see the note in answer()).
 }
 
 // ---- Fav-team mode (team pick in localStorage; insights + team-filtered feed) ----
@@ -905,12 +910,16 @@ function getFavTeam(){
 function setFavTeam(n){ try{localStorage.setItem(TEAM_KEY,n);}catch(e){} track('team_picked',{team:n}); }
 function clearFavTeam(){ try{localStorage.removeItem(TEAM_KEY);}catch(e){} }
 function srcLink(s){ return '<a href="'+s.url+'" target="_blank" rel="noopener noreferrer">source ↗</a>'; }
-function bindSrcLinks(root){
-  (root||document).querySelectorAll('a[href]').forEach(a=>{
-    if(a.dataset.bound||a.classList.contains('elink'))return; a.dataset.bound='1';
-    a.addEventListener('click',e=>{e.preventDefault();const h=a.getAttribute('href');const w=window.open(h,'_blank','noopener');if(!w)window.location.href=h;});
-  });
-}
+// bindSrcLinks: RETIRED to a compatibility no-op (pack todayCards/teamCards
+// still call it). It used to graft the same double-navigating handler as the
+// old reveal code onto every candidate anchor — a scripted open with the
+// 'noopener' feature returns null BY SPEC, so the popup-blocked fallback
+// fired on every click and navigated the game tab away. Citation anchors all
+// carry target="_blank" rel="noopener noreferrer" from srcLink()/the reveal
+// templates; internal links (.elink and friends) are same-tab by design —
+// native anchor behavior is correct for both, with exactly one navigation
+// intent per activation (click, Enter, middle-click).
+function bindSrcLinks(root){}
 __PACKTEAMHELPERS__
 
 __RENDERTEAM__
