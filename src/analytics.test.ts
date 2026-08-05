@@ -91,16 +91,25 @@ const NEW_MARKERS = [
 
 /** Extract the spliced analytics JS chunk and return its live functions,
  *  executed against stubs (no browser): the flag gate is TESTED, not grepped. */
-function evalAnalytics(html: string, storage: ReturnType<typeof fakeStorage>, win: Record<string, unknown>, nav: Record<string, unknown>) {
+function evalAnalytics(
+  html: string,
+  storage: ReturnType<typeof fakeStorage>,
+  win: Record<string, unknown>,
+  nav: Record<string, unknown>,
+  // SHARE V2: the chunk's top-level share-visit hook reads location.hash and
+  // cleans it via history.replaceState — stubbed here so the chunk runs.
+  loc: Record<string, unknown> = { hash: '', pathname: '/', search: '' },
+  hist: Record<string, unknown> = { replaceState: () => {} }
+) {
   const start = html.indexOf('// ---- Engagement events');
   const end = html.indexOf('\n\nfunction teamLabel', start);
   assert.ok(start >= 0 && end > start, 'analytics chunk found in shell');
   const src = html.slice(start, end);
   const fn = new Function(
-    'window', 'localStorage', 'navigator', 'fetch',
+    'window', 'localStorage', 'navigator', 'fetch', 'location', 'history',
     src + '\nreturn {track:track,analyticsOff:analyticsOff,setAnalyticsOff:setAnalyticsOff};'
   );
-  return fn(win, storage, nav, () => {}) as {
+  return fn(win, storage, nav, () => {}, loc, hist) as {
     track: (name: string, data?: unknown) => void;
     analyticsOff: () => boolean;
     setAnalyticsOff: (v: boolean) => void;
@@ -237,6 +246,27 @@ check('analytics-off switch: plausible toggle mirrors plausible_ignore; others d
   const vapi = evalAnalytics(vhtml, vstore, { va: () => {} }, {});
   vapi.setAnalyticsOff(true);
   assert.ok(!vstore.has('plausible_ignore'), 'non-plausible providers leave plausible_ignore alone');
+});
+
+check('share-visit (SHARE V2): #s fires once + cleans the fragment; other hashes no-op; opt-out wins', () => {
+  const html = renderAppHtml(cfg({ provider: 'plausible', domain: 'quiz.example' }, 'testball'));
+  let fired: string[] = [];
+  let replaced = 0;
+  const run = (hash: string, store = fakeStorage()) =>
+    evalAnalytics(html, store, { plausible: (n: string) => { fired.push(n); } }, {},
+      { hash, pathname: '/p', search: '?q' }, { replaceState: () => { replaced++; } });
+  run('#s');
+  assert.deepEqual(fired, ['share-visit'], 'exactly one share-visit event');
+  assert.equal(replaced, 1, 'fragment cleaned via replaceState');
+  fired = []; replaced = 0;
+  run('#stats'); run('');
+  assert.deepEqual(fired, []); assert.equal(replaced, 0, 'non-#s hashes untouched');
+  fired = []; replaced = 0;
+  run('#s', fakeStorage({ 'testwit.analyticsOff': '1' }));
+  assert.equal(fired.length, 0, 'analytics-off suppresses the event');
+  assert.equal(replaced, 1, 'fragment still cleaned for opted-out visitors');
+  // unset analytics = no hook at all (byte-identity path)
+  assert.ok(!renderAppHtml(cfg()).includes('share-visit'), 'no hook without analytics');
 });
 
 check('settings card: exactly once when analytics is set, absent when unset', () => {
