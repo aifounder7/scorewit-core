@@ -96,15 +96,23 @@ export function almanacAccent(key: AlmanacAccentKey): string {
  *  carries state without color (grayscale/color-blind safe); every value is
  *  gated >= 3:1 non-text on paper and card in almanac-theme.test.ts. */
 export const RESULT_TIERS = {
-  correct: '#2c6e49',
-  partial: '#83620a',
+  /** SHARE V2 tuning: brightened from the soccer accent #2c6e49 for paper
+   *  legibility (3.61:1 on paper, 3.86 on card — non-text >= 3 gate). */
+  correct: '#35915c',
+  /** Given #d19a06; tone-resolved (hue fixed at 43.7°, lightness stepped
+   *  down 0.25% at a time — the DAYLIGHT accent discipline) to the lightest
+   *  tone passing the >= 3 non-text gate on paper AND card (3.02 / 3.23).
+   *  Kept as light as the gate allows so the amber fill stays separable
+   *  from the green fill in grayscale (ratio 1.20, gated in the test). */
+  partial: '#b68605',
   wrong: '#b3382c',
 } as const;
 
-/** Share-line glyphs for the same tiers (wrong = 🔴). The share grid has no
- *  unanswered tier: a daily round only persists — and only then can be
+/** Share-line glyphs for the same tiers (wrong = ⭕ — the RING, matching the
+ *  on-page wrong-tier language; 🔴 retired in SHARE V2). The share grid has
+ *  no unanswered tier: a daily round only persists — and only then can be
  *  shared — once all six questions are answered. */
-export const RESULT_GLYPHS = { correct: '🟢', partial: '🟡', wrong: '🔴' } as const;
+export const RESULT_GLYPHS = { correct: '🟢', partial: '🟡', wrong: '⭕' } as const;
 
 /** `rgba(r,g,b,a)` of a hex accent — the tint the light theme washes behind
  *  chips/banners (0.10: subtle on paper, and the accent still measures as
@@ -188,12 +196,13 @@ export function almanacShellCss(): string {
   button.opt{min-height:44px}
   .pkbtn{min-height:44px}
   /* result pips (end-of-round card): the unified tier circles — filled disc /
-     filled disc / 2px ring — shape carries state without color */
-  .respips{display:flex;gap:9px;justify-content:center;margin:14px 0}
-  .rp{width:14px;height:14px;border-radius:50%;box-sizing:border-box}
+     filled disc / 2.5px ring — shape carries state without color. SHARE V2
+     tuning: 12px pips, 8px gap (the hub cards match). */
+  .respips{display:flex;gap:8px;justify-content:center;margin:14px 0}
+  .rp{width:12px;height:12px;border-radius:50%;box-sizing:border-box}
   .rp.ok{background:${RESULT_TIERS.correct}}
   .rp.part{background:${RESULT_TIERS.partial}}
-  .rp.no{background:transparent;border:2px solid ${RESULT_TIERS.wrong}}
+  .rp.no{background:transparent;border:2.5px solid ${RESULT_TIERS.wrong}}
   /* the PLAYED stamp carries the final score (accent ink, -11 degrees) */
   .final .big{display:inline-block;font-family:${ALMANAC_MONO_STACK};font-size:26px;font-weight:800;
     color:var(--accent);border:2.5px solid var(--accent);border-radius:8px;padding:8px 18px;

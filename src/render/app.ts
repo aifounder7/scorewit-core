@@ -162,6 +162,27 @@ export interface PackClientJs {
    *  sheet is a fact surface like any other. Default: none (share text
    *  byte-identical to the incumbent shell). */
   shareLine?: string;
+  /** SHARE V2 (opt-in; mutually exclusive with shareLine): the share sheet
+   *  becomes exactly three lines —
+   *    {icon} Scorewit {shareName} #{roundNumber}
+   *    {grid} {score}/600 · {rankTitle}
+   *    🔥 Day {streak} · beat me: scorewit.com/{path}#s
+   *  Grid glyphs are the unified tiers (🟢/🟡/⭕ — the wrong glyph is the
+   *  RING, matching the on-page pip). roundNumber counts from the pack's
+   *  daily epoch (epochUtcArgs = daily key #1) using the shell's existing
+   *  day clock — no new clocks. rankLadder maps the round score to a title:
+   *  bands 0-119 / 120-239 / 240-359 / 360-479 / 480-600, with EXACTLY 600
+   *  upgrading to the 6th (perfect) title; the end-of-round card shows the
+   *  same earned title. The URL is the scheme-less appUrl with the #s
+   *  share-visit fragment. Unset = the incumbent share text, byte-identical. */
+  shareV2?: {
+    /** The identity word(s) after "Scorewit" ("World Cup", "F1", ...). */
+    shareName: string;
+    /** Emoji prefix — the pack's hub-card icon(s). */
+    shareIcon: string;
+    /** Exactly 6 titles, worst → perfect. Editorial copy: founder-approved. */
+    rankLadder: string[];
+  };
   /** calendarSpotlight accessor (required when the opt-in is set): must
    *  define spotlightInfo(fixture) over the pack's matchday fixture shape —
    *  see CalendarSpotlightConfig in types.ts for the returned object. */
@@ -1564,7 +1585,10 @@ const ANOFF_KEY='__STOREPREFIX__.analyticsOff';
 function analyticsOff(){try{return localStorage.getItem(ANOFF_KEY)==='1';}catch(e){return false;}}
 function setAnalyticsOff(v){try{v?localStorage.setItem(ANOFF_KEY,'1'):localStorage.removeItem(ANOFF_KEY);}catch(e){}${mirror}}
 function streakBucket(s){return s>=30?'30+':s>=7?'7-29':s>=2?'2-6':'1';}
-function track(name,data){if(analyticsOff())return;try{${impl}}catch(e){}}`;
+function track(name,data){if(analyticsOff())return;try{${impl}}catch(e){}}
+// Share-visit (SHARE V2): a bare #s fragment marks an inbound shared link —
+// count it once (no props, nothing personal), then clean the address bar.
+if(location.hash==='#s'){track('share-visit');try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}`;
   return {
     head,
     js,
@@ -1690,20 +1714,77 @@ export function renderAppHtml(cfg: AppShellConfig): string {
       tpl = replaceExactlyOnce(tpl, find, replace, what);
     }
   }
+  // SHARE V2 (opt-in via client.shareV2): replace the whole incumbent
+  // buildShareText with the three-line format. Runs BEFORE the theme edits
+  // (the incumbent 🟩🟨🟥 bytes are the anchor) and BEFORE pack shellPatches
+  // — a patch anchoring the retired share code fails loudly, which is the
+  // desired signal that its seam has been superseded. Unset = untouched.
+  const v2 = client.shareV2;
+  if (v2) {
+    if (client.shareLine) {
+      throw new Error('shareV2 and shareLine are mutually exclusive (v2 is exactly three lines)');
+    }
+    if (!v2.shareName?.trim()) throw new Error('shareV2.shareName must be a non-empty string');
+    if (!v2.shareIcon?.trim()) throw new Error('shareV2.shareIcon must be a non-empty string');
+    if (!Array.isArray(v2.rankLadder) || v2.rankLadder.length !== 6 || v2.rankLadder.some((r) => !r?.trim())) {
+      throw new Error('shareV2.rankLadder must be exactly 6 non-empty strings (worst → perfect)');
+    }
+    // Scheme-less share URL: the pack's appUrl minus scheme and www.
+    const shareUrl = brand.appUrl.replace(/^https?:\/\/(www\.)?/, '');
+    tpl = replaceExactlyOnce(
+      tpl,
+      `function buildShareText(streak){
+  // Spoiler-free: one square per question, score, streak, link. No question content.
+  const grid=results.map(p=>p>=100?'🟩':p>0?'🟨':'🟥').join('');
+  const lines=[APP_NAME+' '+currentDailyKey(), grid+' '+total+'/'+(questions.length*100)];
+  if(streak>1) lines.push('🔥 '+streak+'-day streak');
+__SHARELINE__  if(APP_URL) lines.push(APP_URL);
+  return lines.join('\\n');
+}`,
+      `// ---- SHARE V2 (see share-v2.test.ts) — three spoiler-free lines:
+// identity + round number, tier grid + score + earned rank title, streak
+// day + scheme-less link carrying the #s share-visit fragment. Round #1 =
+// the pack's daily epoch; the shell's existing day clock, no new clocks.
+const SHARE_NAME=${JSON.stringify(v2.shareName)};
+const SHARE_ICON=${JSON.stringify(v2.shareIcon)};
+const RANKS=${JSON.stringify(v2.rankLadder)};
+const SHARE_URL=${JSON.stringify(shareUrl)};
+function roundNumber(){return dayNumber(currentDailyKey())+1;}
+function rankTitle(sc){return sc>=600?RANKS[5]:RANKS[Math.min(4,Math.floor(sc/120))];}
+function buildShareText(streak){
+  const grid=results.map(p=>p>=100?'${RESULT_GLYPHS.correct}':p>0?'${RESULT_GLYPHS.partial}':'${RESULT_GLYPHS.wrong}').join('');
+  return SHARE_ICON+' Scorewit '+SHARE_NAME+' #'+roundNumber()+'\\n'+
+    grid+' '+total+'/'+(questions.length*100)+' · '+rankTitle(total)+'\\n'+
+    '🔥 Day '+streak+' · beat me: '+SHARE_URL+'#s';
+}
+// ---- end SHARE V2 ----`,
+      'shareV2 buildShareText'
+    );
+    // The end-of-round card shows the same earned title, above the streak chip.
+    tpl = replaceExactlyOnce(
+      tpl,
+      `(streak>0?'<div class="streakchip">`,
+      `'<div class="ranktitle">'+rankTitle(total)+'</div>'+(streak>0?'<div class="streakchip">`,
+      'shareV2 end-of-round rank title'
+    );
+  }
   // RESULT PIPS unification (rides the almanac theme): the two result
   // surfaces the shell owns swap to the unified traffic tiers — share-line
-  // glyphs 🟢/🟡/🔴 and the end-of-round pip row (filled disc / filled disc /
-  // 2px ring; CSS + colors in theme-almanac RESULT_TIERS). Exact-once, and
+  // glyphs and the end-of-round pip row (filled disc / filled disc /
+  // 2.5px ring; CSS + colors in theme-almanac RESULT_TIERS). Exact-once, and
   // BEFORE pack shellPatches (same rule as basePath) so a patch anchoring
   // the pre-swap text fails loudly. Theme unset = untouched — the
-  // byte-identity contract pinned in almanac-theme.test.ts.
+  // byte-identity contract pinned in almanac-theme.test.ts. With shareV2 set
+  // the glyph edit is skipped: v2 already emitted the tier glyphs.
   if (cfg.theme) {
     const edits: [string, string, string][] = [
-      [
-        `const grid=results.map(p=>p>=100?'🟩':p>0?'🟨':'🟥').join('');`,
-        `const grid=results.map(p=>p>=100?'${RESULT_GLYPHS.correct}':p>0?'${RESULT_GLYPHS.partial}':'${RESULT_GLYPHS.wrong}').join('');`,
-        'share grid glyphs',
-      ],
+      ...(v2
+        ? []
+        : ([[
+            `const grid=results.map(p=>p>=100?'🟩':p>0?'🟨':'🟥').join('');`,
+            `const grid=results.map(p=>p>=100?'${RESULT_GLYPHS.correct}':p>0?'${RESULT_GLYPHS.partial}':'${RESULT_GLYPHS.wrong}').join('');`,
+            'share grid glyphs',
+          ]] as [string, string, string][])),
       [
         `const squares=results.map(p=>p>=100?'🟩':p>0?'🟨':'🟥').join('');`,
         `const pips=results.map(p=>'<i class="rp '+(p>=100?'ok':p>0?'part':'no')+'"></i>').join('');`,
@@ -1783,7 +1864,11 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     .split('__RESLINECSS__').join(brand.resultLineCss ?? DEFAULT_RESLINE_CSS)
     .split('__YESTERDAY__').join(yesterday.html)
     .split('__EXTRACSS__').join(
-      (cfg.theme ? almanacShellCss() : '') + theme.css + spotlight.css + yesterday.css + (brand.extraCss ?? '')
+      (cfg.theme ? almanacShellCss() : '') +
+        // SHARE V2: the earned rank title on the end-of-round card (accent is
+        // AA-gated on every rendered pair like all palette colors).
+        (v2 ? '\n  .ranktitle{font-size:15px;font-weight:800;color:var(--accent);margin:2px 0 8px}\n' : '') +
+        theme.css + spotlight.css + yesterday.css + (brand.extraCss ?? '')
     )
     .split('__APPNAME__').join(brand.appName)
     .split('__BRANDMARK__').join(brand.markSvg)

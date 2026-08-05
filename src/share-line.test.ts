@@ -94,8 +94,8 @@ check('set: the pack block lands between the streak line and the app URL, once',
 check('almanac theme: share grid glyphs are the traffic tiers, tail byte-unchanged', () => {
   const html = renderAppHtml({ ...cfg(), theme: { name: 'almanac', accent: 'soccer' } });
   assert.ok(
-    html.includes("const grid=results.map(p=>p>=100?'🟢':p>0?'🟡':'🔴').join('');"),
-    'themed share grid must use 🟢/🟡/🔴'
+    html.includes("const grid=results.map(p=>p>=100?'🟢':p>0?'🟡':'⭕').join('');"),
+    'themed share grid must use 🟢/🟡/⭕ (🔴 retired in SHARE V2)'
   );
   assert.ok(html.includes(INCUMBENT_TAIL), 'everything after the grid line stays byte-identical');
   assert.ok(!html.includes('🟩'), 'no legacy square glyphs');

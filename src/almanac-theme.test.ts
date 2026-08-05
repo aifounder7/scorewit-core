@@ -225,8 +225,17 @@ assert.ok(lit.includes('class="respips"'), 'themed end-of-round card renders the
 assert.ok(lit.includes(`.rp.ok{background:${RESULT_TIERS.correct}}`), 'correct tier: filled soccer-green disc');
 assert.ok(lit.includes(`.rp.part{background:${RESULT_TIERS.partial}}`), 'partial tier: filled T20-gold disc');
 assert.ok(
-  lit.includes(`.rp.no{background:transparent;border:2px solid ${RESULT_TIERS.wrong}}`),
-  'wrong tier: 2px F1-red RING, no fill'
+  lit.includes(`.rp.no{background:transparent;border:2.5px solid ${RESULT_TIERS.wrong}}`),
+  'wrong tier: 2.5px F1-red RING, no fill'
+);
+// SHARE V2 pip tuning: 12px pips, 8px gap; the two FILLED tiers must stay
+// separable in grayscale — luminance-contrast floor between the fills (the
+// resolved amber sits as light as the >= 3 gate allows for exactly this).
+assert.ok(lit.includes('.rp{width:12px;height:12px'), '12px end-of-round pips');
+assert.ok(lit.includes('.respips{display:flex;gap:8px'), '8px pip gap');
+assert.ok(
+  contrastRatio(RESULT_TIERS.correct, RESULT_TIERS.partial) >= 1.15,
+  'green and amber fills must not merge in grayscale (luminance floor)'
 );
 // The pip row keeps a text channel (role="img" label in the reveal voice).
 assert.ok(lit.includes(`role="img" aria-label=`), 'pip row carries an accessible label');
