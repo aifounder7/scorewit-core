@@ -93,7 +93,11 @@ const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 // (origin/main eae60bb = v0.16.1 + entity links). A deliberate shell change
 // updates these hashes IN ITS OWN PR; this test failing means the almanac
 // work leaked into the incumbent bytes.
-const BASELINE_APP = '087271e823968c578830febe747bc528c751608bd31783037e3bbf0cb001dde6';
+// BASELINE_APP updated in v0.18.0 (its own PR): the source-link
+// double-navigation fix removes the three broken citation binders from the
+// INCUMBENT shell too — that bug predates the theme and had to die for
+// every pack, themed or not. 404 + SEO baselines unchanged.
+const BASELINE_APP = '2d526700aac294d4c0f20a0fe5ad54c0fcf3e0bd4f2a3f6da58decf5db553e46';
 const BASELINE_404 = 'e2ae1142fe0d04afb412ee521959aac1d5e522c2fec58d3ad6433f51ae4fb888';
 const BASELINE_SEO = 'bf88b71fbabf4233fc4d63447a4da3b9dabd4d40d25b108bbe02f3c5833f1a98';
 

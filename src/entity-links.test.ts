@@ -222,12 +222,16 @@ check('unanswered question renders ZERO anchors even with linking on', () => {
   assert.equal((stage.innerHTML.match(/<a /g) ?? []).length, 0, 'question surface must be link-free');
 });
 
-check('wiring: reveal facts go through linkFact; citation binders skip elinks', () => {
+check('wiring: reveal facts go through linkFact; no citation binders exist (native anchors)', () => {
   const html = renderAppHtml(cfg(LINKS));
   assert.equal(html.split("linkFact(q.revealFact)").length - 1, 4, 'all four reveal sites');
-  assert.ok(html.includes("querySelector('#reveal a:not(.elink)')"));
-  assert.ok(html.includes("querySelector('#preveal a:not(.elink)')"));
-  assert.ok(html.includes("a.dataset.bound||a.classList.contains('elink')"));
+  // v0.18.0 source-link fix: the citation binders (which the :not(.elink)
+  // selectors existed to scope) are GONE — source anchors navigate natively
+  // and elinks need no exemption because nothing binds anymore. Pinned in
+  // source-link.test.ts; asserted here so a binder can't quietly return.
+  assert.ok(!html.includes("querySelector('#reveal a"), 'no daily citation binder');
+  assert.ok(!html.includes("querySelector('#preveal a"), 'no practice citation binder');
+  assert.ok(html.includes('function bindSrcLinks(root){}'), 'bindSrcLinks is a no-op');
   // Question/option builders must never call linkFact.
   assert.ok(!fnSrc(html, 'render').includes('linkFact('));
   assert.ok(!fnSrc(html, 'pillsHtml').includes('linkFact('));
