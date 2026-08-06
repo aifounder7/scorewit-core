@@ -7,7 +7,11 @@
  * Cases:
  *   - family unset → FAMILY renders as null, the container ships empty
  *     (display:none via .continue:empty), no unresolved token;
- *   - family set → validated JSON lands in the shell exactly once;
+ *   - family set → validated JSON lands in the shell exactly once, with each
+ *     game's DISPLAY name replaced by the canonical sport-first label
+ *     (core's FAMILY_LABELS, which quotes the extra-time copy deck) — the
+ *     seven strings are pinned below, and an unmapped path is a build error
+ *     (no silent fallback to a pack codename);
  *   - config validation: self-in-games, non-https/unsafe URLs, empty fields
  *     all throw at render time;
  *   - behavior (vm over the SHIPPED inline code): played state read from the
@@ -63,8 +67,18 @@ const FAMILY: FamilyConfig = {
   games: [
     { name: 'Box-Box', url: 'https://www.scorewit.com/f1', storagePrefix: 'scorewitf1' },
     { name: 'World Cup', url: 'https://www.scorewit.com/worldcup', storagePrefix: 'extratime' },
-    { name: 'Elsewhere', url: 'https://other.example/game', storagePrefix: 'elsewhere' },
+    // A cross-origin sibling (different host) on a mapped portfolio path — the
+    // origin gate must still refuse to read its played state.
+    { name: 'Cover Drive', url: 'https://sibling.test/cricket', storagePrefix: 'coverdrive' },
   ],
+};
+
+// The canonical sport-first label the strip must show for each fixture path —
+// mirrors core's FAMILY_LABELS (the extra-time deck is the naming authority).
+const LABEL: Record<string, string> = {
+  'https://www.scorewit.com/f1': 'Formula 1',
+  'https://www.scorewit.com/worldcup': 'Soccer · World Cup',
+  'https://sibling.test/cricket': 'Cricket · World Cup',
 };
 
 let failures = 0;
@@ -100,14 +114,63 @@ check('unset: FAMILY is null, container ships, no unresolved token', () => {
   assert.ok(!html.includes('__FAMILY__'));
 });
 
-check('set: validated JSON lands exactly once, prefix key renamed', () => {
+check('set: validated JSON lands exactly once, name is the canonical label', () => {
   const html = renderAppHtml(cfg(FAMILY));
   const expected = `const FAMILY = ${JSON.stringify({
     heading: FAMILY.heading,
     hub: FAMILY.hub,
-    games: FAMILY.games.map((g) => ({ name: g.name, url: g.url, prefix: g.storagePrefix })),
+    games: FAMILY.games.map((g) => ({ name: LABEL[g.url], url: g.url, prefix: g.storagePrefix })),
   })};`;
   assert.equal(html.split(expected).length - 1, 1);
+  // The pack-supplied codenames never reach the shipped shell.
+  for (const codename of ['Box-Box', 'Cover Drive']) {
+    assert.ok(!html.includes(`"name":"${codename}"`), `codename "${codename}" must not surface`);
+  }
+});
+
+check('canonical labels: all seven sport-first strings pinned (quotes the deck)', () => {
+  // Every portfolio path → its EXACT display string. These quote the founder's
+  // copy deck (content/hub-copy.json on extra-time main); any drift here is a
+  // drift from the naming authority and must fail this test.
+  const ALL: FamilyConfig = {
+    heading: 'More Scorewit',
+    hub: { url: 'https://www.scorewit.com/', label: 'All games →' },
+    games: [
+      { name: 'World Cup', url: 'https://www.scorewit.com/worldcup', storagePrefix: 'extratime' },
+      { name: 'Box-Box', url: 'https://www.scorewit.com/f1', storagePrefix: 'scorewitf1' },
+      { name: 'Top Flight', url: 'https://www.scorewit.com/topflight', storagePrefix: 'topflight' },
+      { name: 'Cover Drive', url: 'https://www.scorewit.com/cricket', storagePrefix: 'coverdrive' },
+      { name: 'Hail Mary', url: 'https://www.scorewit.com/gridiron', storagePrefix: 'gridiron' },
+      { name: 'Fall Classic', url: 'https://www.scorewit.com/baseball', storagePrefix: 'fallclassic' },
+      { name: 'Super Over', url: 'https://www.scorewit.com/superover', storagePrefix: 'ipl' },
+    ],
+  };
+  const html = renderAppHtml(cfg(ALL));
+  const family = JSON.parse(/const FAMILY = (\{.*?\});\n/.exec(html)![1]);
+  const byPath = Object.fromEntries(
+    family.games.map((g: { url: string; name: string }) => [new URL(g.url).pathname, g.name])
+  );
+  assert.deepEqual(byPath, {
+    '/worldcup': 'Soccer · World Cup',
+    '/f1': 'Formula 1',
+    '/topflight': 'English Football',
+    '/cricket': 'Cricket · World Cup',
+    '/gridiron': 'American Football',
+    '/baseball': 'Baseball',
+    '/superover': 'T20 Cricket · India',
+  });
+  // No pack codename survives to the display layer.
+  for (const codename of ['Box-Box', 'Cover Drive', 'Fall Classic', 'Hail Mary', 'Super Over', 'Top Flight']) {
+    assert.ok(
+      !family.games.some((g: { name: string }) => g.name === codename),
+      `codename "${codename}" must not surface`
+    );
+  }
+});
+
+check('canonical labels: an unmapped path is a build error (no codename fallback)', () => {
+  const bad = { ...FAMILY, games: [{ name: 'Mystery', url: 'https://www.scorewit.com/mystery', storagePrefix: 'mystery' }] };
+  assert.throws(() => renderAppHtml(cfg(bad)), /no canonical label/);
 });
 
 check('validation: self in games throws', () => {
@@ -131,11 +194,12 @@ check('behavior: same-origin played state, unplayed first, hub link last', () =>
   const html = renderAppHtml(cfg(FAMILY));
   const now = new Date();
   const tk = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  // Box-Box played today; the cross-origin sibling ALSO has history in this
-  // store, but must never be read (origin gate) — it stays "play".
+  // Box-Box played today; the cross-origin sibling (Cover Drive) ALSO has
+  // history in this store, but must never be read (origin gate) — it stays
+  // "play".
   const store: Record<string, string> = {
     'scorewitf1.history': JSON.stringify({ [tk]: { score: 300 } }),
-    'elsewhere.history': JSON.stringify({ [tk]: { score: 300 } }),
+    'coverdrive.history': JSON.stringify({ [tk]: { score: 300 } }),
   };
   const el = { innerHTML: '' };
   const ctx = {
@@ -153,9 +217,9 @@ check('behavior: same-origin played state, unplayed first, hub link last', () =>
     (m) => [m[2], m[1] ? 'done' : 'todo']
   );
   assert.deepEqual(order, [
-    ['World Cup', 'todo'],
-    ['Elsewhere', 'todo'],
-    ['Box-Box', 'done'],
+    ['Soccer · World Cup', 'todo'],
+    ['Cricket · World Cup', 'todo'],
+    ['Formula 1', 'done'],
   ]);
   assert.equal((el.innerHTML.match(/✓ played/g) ?? []).length, 1);
   assert.ok(el.innerHTML.endsWith('<a class="chub" href="https://www.scorewit.com/">All games →</a>'));

@@ -4,6 +4,7 @@ import type { PipelinePaths, SeoPage } from '../types';
 import type { AppCopy, Brand } from './app';
 import { assertNoRootRelativeLeaks, assertValidBasePath } from './base-path';
 import {
+  ALMANAC_TOKENS,
   almanacAccent,
   almanacBrandHtml,
   almanacSeoCss,
@@ -223,6 +224,12 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
   const base = cfg.basePath ?? '';
   // Almanac theme wins the accent (RESOLVED value — the a11y-passed tone).
   const accent = cfg.theme ? almanacAccent(cfg.theme.accent) : accentOf(cfg);
+  // Browser-chrome tint follows the active theme: under almanac the archive
+  // page is paper, so its <meta theme-color> must be paper too — a dark tint
+  // framing a cream page was the 2026-08-05 sentinel finding. Theme unset =
+  // the pack's own color, byte-identical to before (the theme-unset fixture
+  // pins this).
+  const themeColor = cfg.theme ? ALMANAC_TOKENS.paper : brand.themeColor;
   const onAccent = brand.onAccent?.accent ?? '#06121f';
   const cta = cfg.cta ?? 'Play today&rsquo;s round &rarr;';
 
@@ -283,7 +290,7 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
 <meta name="description" content="${esc(page.description)}" />
 <link rel="canonical" href="${esc(url)}" />
 <link rel="icon" href="${base}/icon.svg" type="image/svg+xml" />
-<meta name="theme-color" content="${esc(brand.themeColor)}" />
+<meta name="theme-color" content="${esc(themeColor)}" />
 <meta property="og:title" content="${esc(page.ogTitle ?? page.title)}" />
 <meta property="og:description" content="${esc(page.ogDescription ?? page.description)}" />
 <meta property="og:type" content="article" />
