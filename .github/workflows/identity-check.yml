@@ -1,0 +1,55 @@
+name: identity-check
+
+# Fails a PR if any commit in it is not authored by the pseudonymous alias
+# identity. Author is the gate; committer may additionally be GitHub's noreply
+# for web/squash operations, so committer is intentionally not checked.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  authors:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out full PR history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Every PR commit must be authored by the alias identity
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          allowed() {
+            case "$1" in
+              "Jay <292566361+aifounder7@users.noreply.github.com>") return 0 ;;
+              "aifounder7 <292566361+aifounder7@users.noreply.github.com>") return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          fail=0
+          count=0
+          while IFS=$'\t' read -r sha aname aemail; do
+            [ -z "$sha" ] && continue
+            count=$((count + 1))
+            author="$aname <$aemail>"
+            if allowed "$author"; then
+              echo "ok    $sha  $author"
+            else
+              echo "::error::commit $sha has a disallowed author: $author"
+              fail=1
+            fi
+          done < <(git log --format='%H%x09%an%x09%ae' "$BASE_SHA..$HEAD_SHA")
+
+          echo "checked $count commit(s) in $BASE_SHA..$HEAD_SHA"
+          if [ "$fail" -ne 0 ]; then
+            echo "Identity check FAILED — one or more commits are not authored by the alias identity."
+            exit 1
+          fi
+          echo "Identity check passed — every PR commit is authored by the alias identity."
