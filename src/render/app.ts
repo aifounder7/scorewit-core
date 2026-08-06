@@ -1310,6 +1310,42 @@ const DEFAULT_TERMS_URL = 'https://www.scorewit.com/terms';
 // shape that cannot break out of the attribute or downgrade the scheme.
 const FAMILY_URL_RE = /^https:\/\/[a-z0-9.-]+(\/[A-Za-z0-9/_-]*)?$/;
 
+// Canonical continue-strip display labels, keyed by the sibling's URL path.
+// The strip names the SPORT, not the pack codename — "Box-Box", "Cover Drive",
+// "Fall Classic" are internal chips, not explanations. These strings QUOTE the
+// founder's copy deck (content/hub-copy.json on extra-time main, the naming
+// AUTHORITY): each is a card's `sport` line, verified against the deck on
+// 2026-08-05. This table only mirrors the deck; the deck decides, not this
+// table — if the two ever disagree, that is a halt-and-report condition, never
+// a silent pick here. A pack supplies its own FamilyGame.name (kept for its
+// validation contract), but the display label the user sees comes from HERE.
+const FAMILY_LABELS: Record<string, string> = {
+  '/worldcup': 'Soccer · World Cup',
+  '/f1': 'Formula 1',
+  '/topflight': 'English Football',
+  '/cricket': 'Cricket · World Cup',
+  '/gridiron': 'American Football',
+  '/baseball': 'Baseball',
+  '/superover': 'T20 Cricket · India',
+};
+
+/** The sport-first display label for a sibling, derived from its URL path.
+ *  Fail-closed: the continue strip names only the seven portfolio games, so an
+ *  unmapped path is a build-time error — never a silent fallback to a codename
+ *  (a codename leaking to users is exactly the bug this table closes). Adding
+ *  an eighth game means adding it to FAMILY_LABELS in the same change. */
+function familyLabel(url: string): string {
+  const path = new URL(url).pathname.replace(/\/+$/, '') || '/';
+  const label = FAMILY_LABELS[path];
+  if (!label) {
+    throw new Error(
+      `family: no canonical label for path "${path}" (from "${url}") — the continue ` +
+        `strip names only the seven portfolio games; add it to FAMILY_LABELS`
+    );
+  }
+  return label;
+}
+
 /** The `const FAMILY = …` client value: validated JSON, or "null" when unset. */
 function familyConsts(family: FamilyConfig | undefined, storagePrefix: string): string {
   if (!family) return 'null';
@@ -1333,7 +1369,9 @@ function familyConsts(family: FamilyConfig | undefined, storagePrefix: string): 
   return JSON.stringify({
     heading: family.heading,
     hub: family.hub,
-    games: family.games.map((g) => ({ name: g.name, url: g.url, prefix: g.storagePrefix })),
+    // Display name is the canonical sport-first label (see FAMILY_LABELS), not
+    // the pack-supplied codename — the strip explains, it does not tag.
+    games: family.games.map((g) => ({ name: familyLabel(g.url), url: g.url, prefix: g.storagePrefix })),
   });
 }
 

@@ -132,6 +132,10 @@ for (const tok of ['--accent', '--practice', '--team', '--today']) {
 // The 404 follows the theme.
 const nf = renderNotFoundHtml(almanacCfg('soccer'));
 assert.ok(nf.includes(`--bg:${ALMANAC_TOKENS.paper}`), '404 paper palette');
+assert.ok(
+  nf.includes(`<meta name="theme-color" content="${ALMANAC_TOKENS.paper}" />`),
+  '404 theme-color follows the paper'
+);
 
 // Unknown theme name / accent throw loudly.
 assert.throws(
@@ -165,6 +169,16 @@ assert.throws(
 const darkSeo = renderSeoPage(seoPage, seoCfg());
 const litSeo = renderSeoPage(seoPage, seoCfg({ name: 'almanac', accent: 'cricket' }));
 assert.ok(litSeo.includes(ALMANAC_TOKENS.paper), 'SEO page paper chrome');
+// Browser-chrome tint conforms to the paper page (2026-08-05 sentinel: the
+// archive theme-color was stuck dark while the page rendered cream).
+assert.ok(
+  litSeo.includes(`<meta name="theme-color" content="${ALMANAC_TOKENS.paper}" />`),
+  'SEO archive theme-color follows the paper under almanac'
+);
+assert.ok(
+  darkSeo.includes('<meta name="theme-color" content="#0C0C0E" />'),
+  'theme-unset SEO keeps the pack dark theme-color (byte-identity unchanged)'
+);
 assert.ok(litSeo.includes('Score<span class="wit">wit</span>') === false, 'non-Scorewit fixture name renders plain');
 // JSON-LD and the body are byte-identical across the two chromes.
 const jsonLdOf = (h: string) => /<script type="application\/ld\+json">(.*?)<\/script>/s.exec(h)?.[1];
