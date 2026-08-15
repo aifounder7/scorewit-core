@@ -97,7 +97,11 @@ const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 // double-navigation fix removes the three broken citation binders from the
 // INCUMBENT shell too — that bug predates the theme and had to die for
 // every pack, themed or not. 404 + SEO baselines unchanged.
-const BASELINE_APP = '2d526700aac294d4c0f20a0fe5ad54c0fcf3e0bd4f2a3f6da58decf5db553e46';
+// BASELINE_APP updated again for brief 0005 (its own PR): the narrow-viewport
+// header-wrap media query lands in the base (unthemed) stylesheet too, since
+// the bug reproduces with or without the almanac theme. 404 + SEO untouched
+// (the 404 page's brand block is a centered stack, not the flex header row).
+const BASELINE_APP = 'c87d84ea9cde47ad0aaabb8583b8dadaeebcb546fd87566f4b3716b56587812f';
 const BASELINE_404 = 'e2ae1142fe0d04afb412ee521959aac1d5e522c2fec58d3ad6433f51ae4fb888';
 const BASELINE_SEO = 'bf88b71fbabf4233fc4d63447a4da3b9dabd4d40d25b108bbe02f3c5833f1a98';
 

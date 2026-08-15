@@ -319,6 +319,10 @@ __PALETTE__
   .brand small{color:var(--text2);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-left:2px}
   .brandmark{display:inline-flex}
   .brandmark svg{width:27px;height:27px;display:block}
+  /* brief 0005: long app names (e.g. "Scorewit Super Over") plus the tagline
+     and score counter wrap into 3 independent lines under ~480px; drop the
+     tagline and let the header itself wrap so it never exceeds 2 lines. */
+  @media (max-width:480px){header{flex-wrap:wrap;row-gap:6px}.brand small{display:none}}
   .sub{color:var(--text3);font-size:12px;margin-bottom:20px}
   .progress{display:flex;gap:4px;margin:18px 0 10px}
   .dot{height:4px;flex:1;border-radius:2px;background:var(--surface)}
