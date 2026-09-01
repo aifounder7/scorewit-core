@@ -1,11 +1,28 @@
 # Metrics — what the cookieless events can (and cannot) tell you
 
-The opt-in `analytics` config (see SPORTPACK-AUTHORING.md) emits three
-anonymous, aggregate events per app: `round_completed` (props: `sport`,
-`streak_length` bucket `1`/`2-6`/`7-29`/`30+`, `num_correct` 0–6),
-`result_shared` (`sport`, `streak_length` bucket) and `practice_played`
-(`sport`). No cookies, no persistent tracking ID, no PII — ever. These events
+The opt-in `analytics` config (see SPORTPACK-AUTHORING.md) emits anonymous,
+aggregate events per app: `round_started` (`sport`), `round_completed`
+(`sport`, `streak_length` bucket `1`/`2-6`/`7-29`/`30+`, `num_correct` 0–6),
+`returning_round_completed` (`sport`, `gap_bucket` `1`/`2-6`/`7+`),
+`result_shared` (`sport`, `streak_length` bucket), `practice_played`
+(`sport`) and `share-visit` (`sport`). The opt-in SEO renderer config adds
+`seo_play_clicked` (`sport`, `page_template`, `destination`) on crawlable
+pages. No cookies, no persistent tracking ID, no PII — ever. These events
 cannot be backfilled: nothing is known about days before the config is set.
+
+## The growth funnel (brief 0015)
+
+`round_started` → `round_completed` is the activation rate (how many of the
+players who start a round finish it). `returning_round_completed`'s
+`gap_bucket` distribution is a same-week/same-month return signal that does
+NOT require the streak_length distribution's unbroken-chain discipline: a
+player who returns after a 5-day gap shows up in `2-6` even though their
+streak already reset to 1. `seo_play_clicked` divided by the SEO page's own
+Search Console impressions/clicks is the crawl-to-play conversion rate for a
+specific discovery surface (a page_template/destination pair); dividing
+`round_started` (or `seo_play_clicked` with `destination:"app"`) into
+`round_completed` isolates activation from discovery, so a weak week can be
+diagnosed as "not enough visitors" vs. "visitors who don't finish."
 
 ## Derivable today (zero tracking ID)
 

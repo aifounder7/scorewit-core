@@ -63,6 +63,42 @@ const esc = (s: string) =>
 const jsonLdText = (o: object) =>
   JSON.stringify(o).replace(/&/g, '\\u0026').replace(/</g, '\\u003c');
 
+/**
+ * OPT-IN cookieless analytics for SEO pages (brief 0015; unset = the page
+ * ships with zero JavaScript, byte-identical to before). Loads the same
+ * Plausible site the app shell uses and honors the SAME analytics-off flag
+ * (`${storagePrefix}.analyticsOff`) the app's Settings toggle writes — a
+ * visitor who opts out in the app gets zero analytics requests on SEO pages
+ * too, and vice versa, because both read the identical localStorage key on
+ * the same origin.
+ *
+ * Emits exactly one additional event, `seo_play_clicked`, when a click lands
+ * on one of the page's own configured entry-point links (`destinations`
+ * below) — never on ordinary internal archive navigation (an SEO page
+ * linking another SEO page is not in `destinations`, so it never matches).
+ * Properties are a closed, build-time-derived set — sport, a small
+ * page_template enum (the page's own top-level path segment, e.g. "h2h",
+ * "season", "quiz", "next-race" — never the full path, slug, or query), and
+ * the destination the click matched. No raw URL, entity, or PII ever leaves
+ * the page.
+ */
+export interface SeoAnalyticsConfig {
+  /** Plausible site domain — the same value as the app shell's
+   *  `analytics.domain` (see AnalyticsConfig in ../types). */
+  domain: string;
+  /** This pack's sport id — the same value as the app shell's `cfg.sport`. */
+  sport: string;
+  /** The pack's localStorage prefix — the same value as the app shell's
+   *  `config.storagePrefix`. */
+  storagePrefix: string;
+  /** Root-relative hrefs, EXACTLY as they appear in emitted markup (already
+   *  carrying `basePath` where set), that count as "entering the app, quiz
+   *  hub, or Practice". A click on any other link — including one SEO page
+   *  linking another — never fires the event. `app` is required; the other
+   *  two are opt-in per pack. */
+  destinations: { app: string; practice?: string; quizHub?: string };
+}
+
 export interface SeoRenderConfig {
   brand: Brand;
   copy: AppCopy;
@@ -86,6 +122,52 @@ export interface SeoRenderConfig {
    *  end with it (it keeps driving canonical/og/sitemap URLs). Unset = pages
    *  render byte-identically. */
   basePath?: string;
+  /** Opt-in cookieless analytics + seo_play_clicked (see SeoAnalyticsConfig).
+   *  Unset = the page renders with zero JavaScript, byte-identical. */
+  analytics?: SeoAnalyticsConfig;
+}
+
+// ---------- opt-in analytics (see SeoAnalyticsConfig) ----------
+
+/** The page's own small, build-time-derived template enum: its top-level
+ *  path segment ("h2h", "season", "quiz", "next-race", ...) — documented
+ *  per-pack, never the full path/slug/query. */
+function pageTemplateOf(pagePath: string): string {
+  return pagePath.split('/')[0];
+}
+
+/** ANOFF-gated Plausible loader for SEO pages — same pattern as the app
+ *  shell's PLAUSIBLE_HEAD (render/app.ts), keyed to the SAME storagePrefix
+ *  so the one opt-out flag covers both surfaces. */
+function seoAnalyticsHeadHtml(a: SeoAnalyticsConfig): string {
+  return `<!-- Plausible Analytics (cookieless, no PII; anonymous aggregate events only).
+     Honors the same ${esc(a.storagePrefix)}.analyticsOff flag as the app. -->
+<script>window.plausible = window.plausible || function () { (window.plausible.q = window.plausible.q || []).push(arguments); };
+(function(){var off=false;try{off=localStorage.getItem(${JSON.stringify(`${a.storagePrefix}.analyticsOff`)})==='1';}catch(e){}
+if(!off){var s=document.createElement('script');s.defer=true;s.setAttribute('data-domain',${JSON.stringify(a.domain)});s.src='https://plausible.io/js/script.js';document.head.appendChild(s);}})();</script>`;
+}
+
+/** Delegated click listener firing seo_play_clicked ONLY when the clicked
+ *  anchor's href exactly matches one of the page's configured destinations.
+ *  Ordinary internal archive links (not in `destinations`) never match. */
+function seoAnalyticsClickScript(a: SeoAnalyticsConfig, pagePath: string): string {
+  const dests: Record<string, string> = { [a.destinations.app]: 'app' };
+  if (a.destinations.practice) dests[a.destinations.practice] = 'practice';
+  if (a.destinations.quizHub) dests[a.destinations.quizHub] = 'quiz_hub';
+  return `<script>(function(){
+var DESTS=${JSON.stringify(dests)};
+var SPORT=${JSON.stringify(a.sport)};
+var PT=${JSON.stringify(pageTemplateOf(pagePath))};
+function off(){try{return localStorage.getItem(${JSON.stringify(`${a.storagePrefix}.analyticsOff`)})==='1';}catch(e){return false;}}
+document.addEventListener('click',function(e){
+  if(off())return;
+  var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;
+  if(!a)return;
+  var dest=DESTS[a.getAttribute('href')];
+  if(!dest)return;
+  if(typeof window.plausible==='function')window.plausible('seo_play_clicked',{props:{sport:SPORT,page_template:PT,destination:dest}});
+},true);
+})();</script>`;
 }
 
 // ---------- accent theming (derived, deterministic) ----------
@@ -232,6 +314,8 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
   const themeColor = cfg.theme ? ALMANAC_TOKENS.paper : brand.themeColor;
   const onAccent = brand.onAccent?.accent ?? '#06121f';
   const cta = cfg.cta ?? 'Play today&rsquo;s round &rarr;';
+  const analyticsHead = cfg.analytics ? seoAnalyticsHeadHtml(cfg.analytics) : '';
+  const analyticsScript = cfg.analytics ? seoAnalyticsClickScript(cfg.analytics, page.path) : '';
 
   // "Scorewit Cricket" -> "Scorewit <span>Cricket</span>" (single-word names
   // render plain). Almanac: the Score|wit masthead treatment instead.
@@ -368,14 +452,14 @@ ${cfg.theme ? almanacSeoCss(cfg.theme.accent) : `  :root{--bg:${brand.themeColor
   footer{max-width:760px;margin:24px auto 0;padding:22px 22px 48px;border-top:1px solid var(--line);
     color:var(--faint);font-size:12.5px;line-height:1.7}
   footer a{color:var(--muted)}`}
-</style>
+</style>${analyticsHead ? `\n${analyticsHead}` : ''}
 </head>
 <body>
 <header class="topbar"><span class="accentbar"></span><a class="mark" href="${base}/" aria-label="${esc(brand.appName)}">${brand.markSvg}</a><a class="brand" href="${base}/">${brandHtml}</a></header>
 <main>
 ${blocks.join('\n')}
 </main>
-${copy.footerHtml}
+${copy.footerHtml}${analyticsScript ? `\n${analyticsScript}` : ''}
 </body>
 </html>
 `;

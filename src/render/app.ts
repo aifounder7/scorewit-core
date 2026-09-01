@@ -721,7 +721,7 @@ function render(){
   renderProgress();
 }
 
-function answer(resp){
+function answer(resp){__TRACKSTART__
   const q=questions[idx];
   const sc=scoreAnswer(q,resp);
   total+=sc.points; results.push(sc.points);
@@ -1508,6 +1508,8 @@ const DEFAULT_TRACK_SHARE = `track('shared');`;
 
 const DEFAULT_TRACK_PRACTICE = '';
 
+const DEFAULT_TRACK_START = '';
+
 // The analytics-off switch (CNIL/UK "objection mechanism" — see legal.ts):
 // one localStorage flag, checked before ANY event on every provider. The
 // provider script is only injected when the flag is unset, so an opted-out
@@ -1636,6 +1638,7 @@ function analyticsChunks(a: AnalyticsConfig | undefined, sport: string) {
     return {
       head: DEFAULT_ANALYTICS_HEAD,
       js: DEFAULT_ANALYTICS_JS,
+      trackStart: DEFAULT_TRACK_START,
       trackRound: DEFAULT_TRACK_ROUND,
       trackShare: DEFAULT_TRACK_SHARE,
       trackPractice: DEFAULT_TRACK_PRACTICE,
@@ -1678,16 +1681,29 @@ const ANOFF_KEY='__STOREPREFIX__.analyticsOff';
 function analyticsOff(){try{return localStorage.getItem(ANOFF_KEY)==='1';}catch(e){return false;}}
 function setAnalyticsOff(v){try{v?localStorage.setItem(ANOFF_KEY,'1'):localStorage.removeItem(ANOFF_KEY);}catch(e){}${mirror}}
 function streakBucket(s){return s>=30?'30+':s>=7?'7-29':s>=2?'2-6':'1';}
+// gap_bucket for returning_round_completed: local calendar days since the
+// most recent EARLIER completed round (1 day / 2-6 days / 7+ days).
+function gapBucket(g){return g<=1?'1':g<=6?'2-6':'7+';}
 function track(name,data){if(analyticsOff())return;try{${impl}}catch(e){}}
 // Share-visit (SHARE V2): a bare #s fragment marks an inbound shared link —
-// count it once (no props, nothing personal), then clean the address bar.
-if(location.hash==='#s'){track('share-visit');try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}`;
+// count it once (sport only, nothing personal), then clean the address bar.
+if(location.hash==='#s'){track('share-visit',{sport:SPORT});try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}`;
   return {
     head,
     js,
+    // idx===0 at the moment of THIS answer means it is the round's first —
+    // fires once per sport+daily-round-key by construction (idx only equals
+    // 0 for the very first answer; Practice/matchweek quizzes call neither
+    // this function nor this token at all).
+    trackStart: `if(idx===0)track('round_started',{sport:SPORT});`,
     trackRound:
       `    // anonymous aggregates only — streak bucket, correct count, sport; no id\n` +
-      `    track('round_completed',{sport:SPORT,streak_length:streakBucket(currentStreak(h,key)),num_correct:results.filter(p=>p>=100).length});`,
+      `    track('round_completed',{sport:SPORT,streak_length:streakBucket(currentStreak(h,key)),num_correct:results.filter(p=>p>=100).length});\n` +
+      // h[key] was just set above, so filtering it out of h's own keys
+      // recovers exactly the completed-round days that came before today —
+      // no separate ledger, nothing that could desync from history itself.
+      `    var priorDays=Object.keys(h).filter(function(d){return d!==key;}).map(dayNumber);\n` +
+      `    if(priorDays.length){track('returning_round_completed',{sport:SPORT,gap_bucket:gapBucket(dayNumber(key)-Math.max.apply(null,priorDays))});}`,
     trackShare: `track('result_shared',{sport:SPORT,streak_length:streakBucket(streak)});`,
     trackPractice: `track('practice_played',{sport:SPORT});`,
     settings: SETTINGS_CARD_JS,
@@ -1915,6 +1931,7 @@ function buildShareText(streak){
     // split/join = replace-all (tsconfig lib predates String.replaceAll)
     .split('__ANALYTICSHEAD__').join(analytics.head)
     .split('__ANALYTICSJS__').join(analytics.js)
+    .split('__TRACKSTART__').join(analytics.trackStart)
     .split('__TRACKROUND__').join(analytics.trackRound)
     .split('__TRACKSHARE__').join(analytics.trackShare)
     .split('__TRACKPRACTICE__').join(analytics.trackPractice)

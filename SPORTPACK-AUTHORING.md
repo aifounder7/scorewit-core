@@ -144,14 +144,29 @@ as first-party JSON beacons, no third-party script at all).
 
 **Events** (client-side, in the shell; `sport` = `pack.id`):
 
-| event             | props                                                        | fired when                       |
-| ----------------- | ------------------------------------------------------------ | -------------------------------- |
-| `round_completed` | `sport`, `streak_length` (`1`/`2-6`/`7-29`/`30+`), `num_correct` (0–6) | the daily round is finished (once per day) |
-| `result_shared`   | `sport`, `streak_length` bucket                               | the Share button is used         |
-| `practice_played` | `sport`                                                       | a practice question is answered  |
+| event                       | props                                                        | fired when                       |
+| --------------------------- | ------------------------------------------------------------ | -------------------------------- |
+| `round_started`             | `sport`                                                       | the FIRST answer of a daily round is submitted (once per sport+daily-round-key; never on a page view, tab change, restored-completed round, Practice answer, or a matchweek mini-quiz) |
+| `round_completed`           | `sport`, `streak_length` (`1`/`2-6`/`7-29`/`30+`), `num_correct` (0–6) | the daily round is finished (once per day) |
+| `returning_round_completed` | `sport`, `gap_bucket` (`1`/`2-6`/`7+`)                        | alongside `round_completed`, ONLY when local history already has a completed round from an earlier calendar day; `gap_bucket` counts calendar days since that most recent earlier completion. Never fires on a player's first-ever completion. |
+| `result_shared`             | `sport`, `streak_length` bucket                               | the Share button is used         |
+| `practice_played`           | `sport`                                                       | a practice question is answered  |
+| `share-visit`                | `sport`                                                       | an inbound shared link is opened (the existing SHARE V2 `#s` marker) |
 
 The two pre-existing shell events (`team_picked {team}`, `pick_made {pick}`)
 keep flowing through the same `track()` — equally anonymous.
+
+**SEO-page analytics (opt-in: `SeoRenderConfig.analytics`, brief 0015):**
+crawlable pages ship with zero JavaScript by default. Setting
+`analytics: { domain, sport, storagePrefix, destinations }` on the SEO render
+config (see `render/seo.ts`) loads the same Plausible site as the app shell,
+honors the identical `<storagePrefix>.analyticsOff` flag, and fires
+`seo_play_clicked` when a click matches one of `destinations` (`app`,
+optionally `practice` and `quizHub` — exact root-relative hrefs, already
+carrying `basePath` where set). Properties are `sport`, `page_template` (the
+page's own top-level path segment, e.g. `"h2h"`, `"quiz"`) and `destination`
+(`app`/`practice`/`quiz_hub`) — never the full path, slug, or query. Ordinary
+internal archive links (not listed in `destinations`) never fire it.
 
 The **streak_length distribution is the cookieless retention proxy**: a rising
 share of `7-29`/`30+` streaks = retention, derivable with zero tracking ID.

@@ -154,11 +154,11 @@ check('no legacy glyphs or squares remain in a v2+theme render', () => {
   assert.ok(!html.includes('class="squares"'), 'squares markup gone');
 });
 
-check('share-visit: #s hook rides the analytics module (and only it)', () => {
+check('share-visit: #s hook rides the analytics module (and only it), sport prop included', () => {
   const withA = renderAppHtml(cfg(undefined, true));
   assert.ok(
-    withA.includes(`if(location.hash==='#s'){track('share-visit');try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}`),
-    'share-visit hook present with analytics configured'
+    withA.includes(`if(location.hash==='#s'){track('share-visit',{sport:SPORT});try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}`),
+    'share-visit hook present with analytics configured, carrying sport'
   );
   assert.ok(!html.includes(`track('share-visit')`), 'no hook without analytics');
 });

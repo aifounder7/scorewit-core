@@ -166,9 +166,22 @@ export interface BankTarget {
  * recommended default).
  *
  * Events emitted when set (see SPORTPACK-AUTHORING.md + METRICS.md):
- *   round_completed  { sport, streak_length: '1'|'2-6'|'7-29'|'30+', num_correct: 0..6 }
- *   result_shared    { sport, streak_length: bucket as above }
- *   practice_played  { sport }
+ *   round_started            { sport } — once per sport+daily-round-key, on
+ *                              the FIRST answer submitted (never on a page
+ *                              view, tab change, restored-completed round,
+ *                              Practice answer, or a matchweek mini-quiz).
+ *   round_completed          { sport, streak_length: '1'|'2-6'|'7-29'|'30+', num_correct: 0..6 }
+ *   returning_round_completed { sport, gap_bucket: '1'|'2-6'|'7+' } — fires
+ *                              alongside round_completed ONLY when local
+ *                              history already holds a completed round from
+ *                              an earlier calendar day; gap_bucket counts the
+ *                              local calendar days since that most recent
+ *                              earlier completion. Never fires on a player's
+ *                              first-ever completion.
+ *   result_shared            { sport, streak_length: bucket as above }
+ *   practice_played          { sport }
+ *   share-visit              { sport } — the existing SHARE V2 #s inbound-
+ *                              link marker, now carrying sport too.
  * The streak-length bucket distribution is the cookieless RETENTION PROXY —
  * a rising share of 7+/30+ streaks means retention, with zero tracking ID.
  */
