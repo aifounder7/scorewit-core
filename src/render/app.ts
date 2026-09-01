@@ -2106,7 +2106,10 @@ export function writeSite(
     short_name: brand.appName,
     description: cfg.copy.manifestDescription ?? cfg.copy.metaDescription,
     // Under a basePath the app installs from (and scopes to) its prefix; the
-    // icon srcs stay relative — they resolve against the manifest's own URL.
+    // explicit id preserves the pre-migration installed-app identity, whose
+    // former trailing-slash start_url supplied the default identity. Icon
+    // srcs stay relative — they resolve against the manifest's own URL.
+    ...(basePath ? { id: `${basePath}/` } : {}),
     start_url: basePath || '/',
     ...(basePath ? { scope: basePath } : {}),
     display: 'standalone',

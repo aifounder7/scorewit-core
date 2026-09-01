@@ -201,6 +201,7 @@ check('set: manifest start_url is the non-redirecting "/f1" root', () => {
   const paths = tmpPaths();
   writeSite(cfg({ ...F1, notFoundActionsHtml: '<a href="/f1">home</a>' }), NO_ASSETS, paths);
   const manifest = JSON.parse(fs.readFileSync(path.join(paths.siteDir, 'manifest.webmanifest'), 'utf8'));
+  assert.equal(manifest.id, '/f1/', 'explicit id preserves the previously installed PWA identity');
   assert.equal(manifest.start_url, '/f1');
   assert.equal(manifest.scope, '/f1', 'explicit scope keeps the no-slash start URL inside the pack');
 });
