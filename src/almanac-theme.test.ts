@@ -101,7 +101,9 @@ const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 // header-wrap media query lands in the base (unthemed) stylesheet too, since
 // the bug reproduces with or without the almanac theme. 404 + SEO untouched
 // (the 404 page's brand block is a centered stack, not the flex header row).
-const BASELINE_APP = 'c87d84ea9cde47ad0aaabb8583b8dadaeebcb546fd87566f4b3716b56587812f';
+// BASELINE_APP updated for brief 0010: day-scoped in-progress round state is
+// base-shell behavior for every pack, themed or not. 404 + SEO stay untouched.
+const BASELINE_APP = 'a2ecd1be0449d381f1d12c00b28d4ee27676612ec8f2884bae4dee6297242e58';
 const BASELINE_404 = 'e2ae1142fe0d04afb412ee521959aac1d5e522c2fec58d3ad6433f51ae4fb888';
 const BASELINE_SEO = 'bf88b71fbabf4233fc4d63447a4da3b9dabd4d40d25b108bbe02f3c5833f1a98';
 

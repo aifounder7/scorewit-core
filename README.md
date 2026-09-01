@@ -21,9 +21,10 @@ render    → emit the deployable single-file app (HTML shell with the bank,
             artifacts, brand, and copy inlined) plus 404 page and manifest
 ```
 
-Also included: the streak/stats model (tested), a scoped-quiz giveaway guard,
-multiple-choice option plumbing, and a CI refresh wrapper (re-run pipeline,
-commit + push only when tracked outputs changed, with an identity preflight).
+Also included: the streak/stats model and day-scoped in-progress round
+persistence (tested), a scoped-quiz giveaway guard, multiple-choice option
+plumbing, and a CI refresh wrapper (re-run pipeline, commit + push only when
+tracked outputs changed, with an identity preflight).
 
 ## The SportPack interface
 

@@ -580,6 +580,31 @@ let dayNum=dayNumber(todayKey());
 let questions=[], idx=0, total=0, results=[];
 let statsOpen=false;
 function currentDailyKey(){return dateKeyFromDayNum(dayNum);}
+const PROGRESS_KEY='__STOREPREFIX__.progress';
+function clearDailyProgress(){try{localStorage.removeItem(PROGRESS_KEY);}catch(e){}}
+function saveDailyProgress(revealed,response){
+  const p={date:currentDailyKey(),questionIds:questions.map(q=>q.id),idx:idx,total:total,results:results.slice(),revealed:!!revealed};
+  if(revealed)p.response=response;
+  try{localStorage.setItem(PROGRESS_KEY,JSON.stringify(p));}catch(e){}
+}
+function validDailyProgress(p){
+  if(!p||typeof p!=='object')return false;
+  const ids=questions.map(q=>q.id);
+  const sameIds=Array.isArray(p.questionIds)&&p.questionIds.length===ids.length&&p.questionIds.every((id,i)=>id===ids[i]);
+  const validIdx=Number.isInteger(p.idx)&&p.idx>=0&&p.idx<=questions.length&&(!p.revealed||p.idx<questions.length);
+  const validResults=Array.isArray(p.results)&&p.results.length===p.idx+(p.revealed?1:0)&&p.results.every(n=>Number.isInteger(n)&&n>=0&&n<=MAX_POINTS);
+  const validTotal=Number.isInteger(p.total)&&validResults&&p.total===p.results.reduce((sum,n)=>sum+n,0);
+  const validResponse=!p.revealed||typeof p.response==='string'||(typeof p.response==='number'&&isFinite(p.response));
+  const validReveal=!p.revealed||(validIdx&&validResults&&validResponse&&scoreAnswer(questions[p.idx],p.response).points===p.results[p.idx]);
+  return p.date===currentDailyKey()&&typeof p.revealed==='boolean'&&sameIds&&validIdx&&validResults&&validTotal&&validReveal;
+}
+function loadDailyProgress(){
+  try{
+    const raw=localStorage.getItem(PROGRESS_KEY);if(!raw)return null;
+    const p=JSON.parse(raw);if(!validDailyProgress(p))throw new Error('invalid progress');
+    return p;
+  }catch(e){clearDailyProgress();return null;}
+}
 const stage=document.getElementById('stage');
 const scoreEl=document.getElementById('score');
 const progEl=document.getElementById('progress');
@@ -587,7 +612,7 @@ const subEl=document.getElementById('sub');
 
 function start(){
   const key=currentDailyKey();
-  questions=selectDaily(BANK,key); idx=0; total=0; results=[];
+  questions=selectDaily(BANK,key);
   subEl.textContent='Round for '+key+' — same six for everyone';
   enterDaily();__SPOTLIGHTHOOK__
 }
@@ -597,8 +622,16 @@ function enterDaily(){
   statsOpen=false;
   const key=currentDailyKey();
   const h=loadHistory();
-  if(h[key]){ total=h[key].score; results=h[key].grid.slice(); idx=questions.length; renderProgress(); renderResult(); }
-  else { renderProgress(); render(); }
+  if(h[key]){
+    clearDailyProgress(); total=h[key].score; results=h[key].grid.slice(); idx=questions.length;
+    renderProgress(); renderResult();
+  }else{
+    const p=loadDailyProgress();
+    if(p){idx=p.idx;total=p.total;results=p.results.slice();}
+    else{idx=0;total=0;results=[];}
+    renderProgress(); render();
+    if(p&&p.revealed)renderDailyReveal(questions[idx],p.response,scoreAnswer(questions[idx],p.response));
+  }
   updateStreakBar();
 }
 function updateStreakBar(){
@@ -692,12 +725,18 @@ function answer(resp){
   const q=questions[idx];
   const sc=scoreAnswer(q,resp);
   total+=sc.points; results.push(sc.points);
+  saveDailyProgress(true,resp);
+  renderDailyReveal(q,resp,sc);
+  renderProgress();
+}
+
+function renderDailyReveal(q,resp,sc){
   const cls=sc.points>=100?'ok':sc.points>0?'partial':'no';
   // lock options
   if(hasPills(q)){
     lockPills(q,resp);
   }else{
-    stage.querySelector('#cg').disabled=true;stage.querySelector('#cgsubmit').disabled=true;
+    const inp=stage.querySelector('#cg');inp.value=resp;inp.disabled=true;stage.querySelector('#cgsubmit').disabled=true;
   }
   const ansLine=q.type==='closest_guess'?('You guessed '+resp+' · answer '+q.answer+' '+(q.unit||'')):'';
   const last=idx+1>=questions.length;
@@ -707,7 +746,7 @@ function answer(resp){
     '<div class="fact">'+linkFact(q.revealFact)+'</div>'+
     '<a href="'+q.citation.urls[0]+'" target="_blank" rel="noopener noreferrer">↗ '+esc(q.citation.label)+'</a>'+
     '<div class="row"><span></span><button class="btn" id="next">'+(last?'See results':'Next question')+'</button></div></div>';
-  document.getElementById('next').onclick=()=>{idx++;renderProgress();render();};
+  document.getElementById('next').onclick=()=>{idx++;saveDailyProgress(false);renderProgress();render();};
   // Source link: NATIVE anchor navigation only (target="_blank" +
   // rel="noopener noreferrer" on the markup above). The old "robust" JS
   // handler double-navigated: a scripted open with the 'noopener' feature
@@ -715,7 +754,6 @@ function answer(resp){
   // (assigning the current tab's href) fired on every click and destroyed
   // the in-progress round. Native behavior handles click, Enter, and
   // middle-click with exactly one navigation intent — source-link.test.ts.
-  renderProgress();
 }
 
 function buildShareText(streak){
@@ -776,6 +814,7 @@ function finishDaily(){
     h[key]={date:key,score:total,grid:results.slice()}; saveHistory(h);
 __TRACKROUND__
   }
+  clearDailyProgress();
   renderResult();
 }
 function renderResult(){
