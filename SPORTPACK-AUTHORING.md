@@ -242,6 +242,13 @@ A pack served under a sub-path of a larger origin (e.g. `/f1` on
   og:url/og:image, sitemap `<loc>`s, robots' Sitemap line, share text). The
   build fails unless `appUrl` ends with `basePath`.
 
+Path-hosted app roots use the non-trailing-slash `basePath` form everywhere
+that identifies or links the app itself: canonical, sitemap root, app/SEO
+home links, play CTA, and PWA `start_url`; the manifest explicitly scopes the
+installed app to that same prefix. Child routes and assets keep their normal
+slash separator. This matches the shared-origin router's effective URL and
+prevents every SEO page from linking through a root redirect.
+
 The build then GATES every emitted page (app shell, 404, every SEO page)
 against root-relative leaks: any `href="/…"`/`src="/…"` that escapes the
 prefix fails the build — on a shared origin that link lands on a different

@@ -1814,6 +1814,11 @@ export function renderAppHtml(cfg: AppShellConfig): string {
   if (basePath) {
     const edits: [string, string, string][] = [
       [
+        `<link rel="canonical" href="__APPURL__/"`,
+        `<link rel="canonical" href="__APPURL__"`,
+        'app canonical root',
+      ],
+      [
         `<link rel="icon" href="icon.svg"`,
         `<link rel="icon" href="${basePath}/icon.svg"`,
         'head icon link',
@@ -2102,7 +2107,8 @@ export function writeSite(
     description: cfg.copy.manifestDescription ?? cfg.copy.metaDescription,
     // Under a basePath the app installs from (and scopes to) its prefix; the
     // icon srcs stay relative — they resolve against the manifest's own URL.
-    start_url: basePath ? `${basePath}/` : '/',
+    start_url: basePath || '/',
+    ...(basePath ? { scope: basePath } : {}),
     display: 'standalone',
     background_color: brand.themeColor,
     theme_color: brand.themeColor,
