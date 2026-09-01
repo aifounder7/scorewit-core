@@ -721,7 +721,7 @@ function render(){
   renderProgress();
 }
 
-function answer(resp){
+function answer(resp){__TRACKSTART__
   const q=questions[idx];
   const sc=scoreAnswer(q,resp);
   total+=sc.points; results.push(sc.points);
@@ -1487,7 +1487,7 @@ function entityLinksConsts(
 // byte-for-byte: with cfg.analytics unset the shell renders exactly as before
 // (the pre-existing Vercel snippet + daily_completed/shared events). Setting
 // analytics swaps the provider script and emits the anonymous engagement
-// events (round_completed / result_shared / practice_played) instead — still
+// events (start / completion / return / share / practice) instead — still
 // NO cookie, NO tracking id, NO PII, ever.
 
 const DEFAULT_ANALYTICS_HEAD = String.raw`<!-- Vercel Web Analytics (cookieless; official static-HTML snippet). The queue
@@ -1540,7 +1540,7 @@ const SETTINGS_CARD_JS = `  // Settings — the analytics-off switch the privacy
   document.getElementById('anoff').onchange=e=>setAnalyticsOff(e.target.checked);
 `;
 
-/** The six shell substitutions for a given analytics config (or its absence). */
+/** The shell substitutions for a given analytics config (or its absence). */
 /** Calendar-spotlight chunks (opt-in; every piece '' when unset so the shell
  *  renders byte-identically). The runtime logic ships ONLY for adopters:
  *  spotlightState/spotlightHtml/renderSpotlight (banner) and, when cfg.quiz
@@ -1636,6 +1636,7 @@ function analyticsChunks(a: AnalyticsConfig | undefined, sport: string) {
     return {
       head: DEFAULT_ANALYTICS_HEAD,
       js: DEFAULT_ANALYTICS_JS,
+      trackStart: '',
       trackRound: DEFAULT_TRACK_ROUND,
       trackShare: DEFAULT_TRACK_SHARE,
       trackPractice: DEFAULT_TRACK_PRACTICE,
@@ -1675,19 +1676,43 @@ function analyticsChunks(a: AnalyticsConfig | undefined, sport: string) {
 // EVERY event; the head loader also skips the provider script entirely.
 const SPORT=${JSON.stringify(sport)};
 const ANOFF_KEY='__STOREPREFIX__.analyticsOff';
+// These two local-only values contain day keys and nothing else. They make
+// the once-per-round start and most-recent-return semantics survive reloads
+// without a cookie, account or analytics identifier.
+const AN_STARTED_KEY='__STOREPREFIX__.analyticsStartedDay';
+const AN_LAST_COMPLETED_KEY='__STOREPREFIX__.analyticsLastCompletedDay';
 function analyticsOff(){try{return localStorage.getItem(ANOFF_KEY)==='1';}catch(e){return false;}}
 function setAnalyticsOff(v){try{v?localStorage.setItem(ANOFF_KEY,'1'):localStorage.removeItem(ANOFF_KEY);}catch(e){}${mirror}}
 function streakBucket(s){return s>=30?'30+':s>=7?'7-29':s>=2?'2-6':'1';}
 function track(name,data){if(analyticsOff())return;try{${impl}}catch(e){}}
+function analyticsDayKey(k){return typeof k==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(k)&&dateKeyFromDayNum(dayNumber(k))===k;}
+function trackDailyStart(key){
+  try{if(localStorage.getItem(AN_STARTED_KEY)===key)return;localStorage.setItem(AN_STARTED_KEY,key);}catch(e){}
+  track('round_started',{sport:SPORT});
+}
+function previousDailyCompletion(history,key){
+  let best='';
+  try{const k=localStorage.getItem(AN_LAST_COMPLETED_KEY);if(analyticsDayKey(k)&&k<key)best=k;}catch(e){}
+  for(const k of Object.keys(history||{}))if(analyticsDayKey(k)&&k<key&&(!best||k>best))best=k;
+  return best||null;
+}
+function returnGapBucket(previous,key){const n=dayNumber(key)-dayNumber(previous);return n>=7?'7+':n>=2?'2-6':'1';}
+function trackDailyCompletion(history,key,numCorrect,streak){
+  const previous=previousDailyCompletion(history,key);
+  track('round_completed',{sport:SPORT,streak_length:streakBucket(streak),num_correct:numCorrect});
+  if(previous)track('returning_round_completed',{sport:SPORT,gap_bucket:returnGapBucket(previous,key)});
+  try{localStorage.setItem(AN_LAST_COMPLETED_KEY,key);}catch(e){}
+}
 // Share-visit (SHARE V2): a bare #s fragment marks an inbound shared link —
-// count it once (no props, nothing personal), then clean the address bar.
-if(location.hash==='#s'){track('share-visit');try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}`;
+// count it once with the low-cardinality sport only, then clean the address bar.
+if(location.hash==='#s'){track('share-visit',{sport:SPORT});try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}`;
   return {
     head,
     js,
+    trackStart: `\n  if(results.length===0)trackDailyStart(currentDailyKey());`,
     trackRound:
-      `    // anonymous aggregates only — streak bucket, correct count, sport; no id\n` +
-      `    track('round_completed',{sport:SPORT,streak_length:streakBucket(currentStreak(h,key)),num_correct:results.filter(p=>p>=100).length});`,
+      `    // anonymous aggregates only — buckets, correct count, sport; no id\n` +
+      `    trackDailyCompletion(h,key,results.filter(p=>p>=100).length,currentStreak(h,key));`,
     trackShare: `track('result_shared',{sport:SPORT,streak_length:streakBucket(streak)});`,
     trackPractice: `track('practice_played',{sport:SPORT});`,
     settings: SETTINGS_CARD_JS,
@@ -1915,6 +1940,7 @@ function buildShareText(streak){
     // split/join = replace-all (tsconfig lib predates String.replaceAll)
     .split('__ANALYTICSHEAD__').join(analytics.head)
     .split('__ANALYTICSJS__').join(analytics.js)
+    .split('__TRACKSTART__').join(analytics.trackStart)
     .split('__TRACKROUND__').join(analytics.trackRound)
     .split('__TRACKSHARE__').join(analytics.trackShare)
     .split('__TRACKPRACTICE__').join(analytics.trackPractice)

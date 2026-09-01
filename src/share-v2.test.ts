@@ -157,10 +157,10 @@ check('no legacy glyphs or squares remain in a v2+theme render', () => {
 check('share-visit: #s hook rides the analytics module (and only it)', () => {
   const withA = renderAppHtml(cfg(undefined, true));
   assert.ok(
-    withA.includes(`if(location.hash==='#s'){track('share-visit');try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}`),
+    withA.includes(`if(location.hash==='#s'){track('share-visit',{sport:SPORT});try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}`),
     'share-visit hook present with analytics configured'
   );
-  assert.ok(!html.includes(`track('share-visit')`), 'no hook without analytics');
+  assert.ok(!html.includes(`track('share-visit'`), 'no hook without analytics');
 });
 
 // ---- validation + the unset path ----

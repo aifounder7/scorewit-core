@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { LEGAL_CONTACT, LEGAL_EFFECTIVE_DATE, legalSeoPages } from './legal';
-import { renderRobots, renderSitemap, writeSeoSite, type SeoRenderConfig } from './render/seo';
+import { renderRobots, renderSeoPage, renderSitemap, writeSeoSite, type SeoRenderConfig } from './render/seo';
 import type { PipelinePaths, SeoPage } from './types';
 
 const CFG: SeoRenderConfig = {
@@ -325,7 +325,127 @@ check('chipIcons decorate chips without touching the FACT strings', () => {
   );
 });
 
-console.log(`\n${failures === 0 ? 'ALL' : ''} ${11 - failures}/11 SEO cases passed.`);
+check('SEO analytics: normal Plausible pageviews + exact low-cardinality play events', () => {
+  const p = tmpPaths();
+  const acfg: SeoRenderConfig = {
+    ...CFG,
+    analytics: {
+      provider: 'plausible',
+      domain: 'scorewit.com',
+      sport: 'testball',
+      storagePrefix: 'testwit',
+      quizHubPaths: ['/quiz'],
+    },
+  };
+  writeSeoSite([page(0, { pageTemplate: 'season' })], acfg, p);
+  const html = fs.readFileSync(path.join(p.siteDir, 'cup', '2020.html'), 'utf8');
+  assert.ok(html.includes("s.src='https://plausible.io/js/script.js'"), 'normal auto-pageview script loads');
+  assert.ok(html.includes("analyticsOff=localStorage.getItem(\"testwit.analyticsOff\")==='1'"), 'existing opt-out gates loader');
+  assert.ok(html.includes('catch(e){}if(!analyticsOff){'), 'localStorage denial defaults to loading pageviews');
+  assert.ok(html.includes('PAGE_TEMPLATE="season"'), 'template is a build-time enum');
+  assert.ok(html.includes('DESTINATIONS={"/":"app","/practice":"practice","/quiz":"quiz_hub"}'));
+  assert.ok(
+    html.includes("window.plausible('seo_play_clicked',{props:{sport:SPORT,page_template:PAGE_TEMPLATE,destination:destination}})"),
+    'payload contains only the three approved properties'
+  );
+  const eventCall = html.match(/window\.plausible\('seo_play_clicked',[^;]+/)?.[0] ?? '';
+  assert.ok(eventCall && !/href|path|entity|slug|query|link_text|date/.test(eventCall), 'no raw URL/entity/query/date property can leave the page');
+
+  const headCode = (html.match(/<script>window\.plausible=[\s\S]*?<\/script>/) ?? [])[0]
+    ?.replace(/^<script>/, '').replace(/<\/script>$/, '');
+  assert.ok(headCode, 'Plausible loader found');
+  const loaderRun = (getItem: () => string | null) => {
+    let appended = 0;
+    const document = {
+      createElement: () => ({ defer: false, setAttribute: () => {}, src: '' }),
+      head: { appendChild: () => { appended++; } },
+    };
+    new Function('window', 'localStorage', 'document', headCode!)(
+      {}, { getItem }, document
+    );
+    return appended;
+  };
+  assert.equal(loaderRun(() => '1'), 0, 'opted-out page does not load Plausible');
+  assert.equal(loaderRun(() => { throw new Error('denied'); }), 1, 'storage denial defaults to normal pageview loading');
+
+  const code = (html.match(/<script>\(function\(\)\{[\s\S]*?seo_play_clicked[\s\S]*?<\/script>/) ?? [])[0]
+    ?.replace(/^<script>/, '').replace(/<\/script>$/, '');
+  assert.ok(code, 'click instrumentation script found');
+  let listener: ((event: unknown) => void) | undefined;
+  const events: { name: string; options: unknown }[] = [];
+  const store = new Map<string, string>();
+  const win = { plausible: (name: string, options: unknown) => events.push({ name, options }) };
+  const doc = { addEventListener: (_name: string, fn: (event: unknown) => void) => { listener = fn; } };
+  new Function('window', 'localStorage', 'document', 'location', 'URL', code!)(
+    win,
+    { getItem: (k: string) => store.get(k) ?? null },
+    doc,
+    { href: 'https://example.test/cup/2020', origin: 'https://example.test' },
+    URL
+  );
+  const click = (href: string) => listener!({
+    target: { closest: () => ({ getAttribute: () => href }) },
+  });
+  click('/');
+  click('/practice');
+  click('/quiz');
+  click('/cup/2021');
+  click('https://outside.test/');
+  assert.deepEqual(events.map((e) => e.options), [
+    { props: { sport: 'testball', page_template: 'season', destination: 'app' } },
+    { props: { sport: 'testball', page_template: 'season', destination: 'practice' } },
+    { props: { sport: 'testball', page_template: 'season', destination: 'quiz_hub' } },
+  ], 'ordinary archive and external navigation do not emit');
+  store.set('testwit.analyticsOff', '1');
+  click('/');
+  assert.equal(events.length, 3, 'analytics-off suppresses click events');
+  fs.rmSync(p.root, { recursive: true, force: true });
+});
+
+check('SEO analytics gates template enums, domains and destination paths', () => {
+  const configured = (over: Partial<NonNullable<SeoRenderConfig['analytics']>> = {}): SeoRenderConfig => ({
+    ...CFG,
+    analytics: {
+      provider: 'plausible', domain: 'scorewit.com', sport: 'testball', storagePrefix: 'testwit', ...over,
+    },
+  });
+  assert.throws(() => writeSeoSite([page(0)], configured(), tmpPaths()), /pageTemplate is required/);
+  assert.throws(
+    () => writeSeoSite([page(0, { pageTemplate: 'entity_slug' as never })], configured(), tmpPaths()),
+    /approved enum/
+  );
+  assert.throws(
+    () => writeSeoSite([page(0, { pageTemplate: 'season' })], configured({ domain: 'x\"><script>' }), tmpPaths()),
+    /hostname/
+  );
+  assert.throws(
+    () => writeSeoSite([page(0, { pageTemplate: 'season' })], configured({ quizHubPaths: ['quiz'] }), tmpPaths()),
+    /normalized root-absolute/
+  );
+  const prefixed: SeoRenderConfig = {
+    ...configured({ quizHubPaths: ['/f1/quiz'] }),
+    brand: { ...CFG.brand, appUrl: 'https://example.test/f1' },
+    basePath: '/f1',
+  };
+  const prefixedHtml = renderSeoPage(page(0, { pageTemplate: 'race' }), prefixed);
+  assert.ok(prefixedHtml.includes('DESTINATIONS={"/f1":"app","/f1/practice":"practice","/f1/quiz":"quiz_hub"}'));
+  assert.throws(
+    () => renderSeoPage(
+      page(0, { pageTemplate: 'race' }),
+      { ...prefixed, analytics: { ...prefixed.analytics!, quizHubPaths: ['/quiz'] } }
+    ),
+    /escapes basePath/
+  );
+});
+
+check('SEO analytics unset: pageTemplate metadata is byte-inert', () => {
+  const withoutLabel = renderSeoPage(page(0), CFG);
+  const withLabel = renderSeoPage(page(0, { pageTemplate: 'season' }), CFG);
+  assert.equal(withLabel, withoutLabel, 'non-opting packs keep exact page bytes');
+  assert.ok(!withoutLabel.includes('seo_play_clicked') && !withoutLabel.includes('plausible.io'));
+});
+
+console.log(`\n${failures === 0 ? 'ALL' : ''} ${14 - failures}/14 SEO cases passed.`);
 if (failures) {
   console.error(`SEO TEST FAILED — ${failures} case(s) wrong.`);
   process.exit(1);
