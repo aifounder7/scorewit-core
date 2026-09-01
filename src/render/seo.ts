@@ -109,6 +109,13 @@ function normalizedRootPath(p: string): string {
   return noQuery || '/';
 }
 
+/** Root href for the app itself. Root-hosted packs keep `/`; path-hosted
+ * packs use their effective, non-redirecting basePath without a trailing
+ * slash. Child and asset URLs continue to use `${base}/...`. */
+function appRootHref(base: string): string {
+  return base === '' || base === '/' ? '/' : base;
+}
+
 function validateSeoAnalytics(cfg: SeoRenderConfig, page?: SeoPage): void {
   const a = cfg.analytics;
   if (!a) return;
@@ -271,7 +278,7 @@ function seoAnalyticsParts(page: SeoPage, cfg: SeoRenderConfig): { head: string;
     }
     destinations[p] = destination;
   };
-  add(`${base}/`, 'app');
+  add(appRootHref(normalizedRootPath(base || '/')), 'app');
   add(`${base}${cfg.routes.practice}`, 'practice');
   for (const p of a.quizHubPaths ?? []) add(p, 'quiz_hub');
 
@@ -357,7 +364,8 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
   if (page.trustNote) {
     blocks.push(`<div class="verify"><span class="ck">✓</span> <span>${page.trustNote}</span></div>`);
   }
-  blocks.push(`<p class="ctarow"><a class="cta" href="${base}/">${cta}</a></p>`);
+  const rootHref = appRootHref(base);
+  blocks.push(`<p class="ctarow"><a class="cta" href="${rootHref}">${cta}</a></p>`);
 
   return `<!doctype html>
 <html lang="en">
@@ -449,7 +457,7 @@ ${cfg.theme ? almanacSeoCss(cfg.theme.accent) : `  :root{--bg:${brand.themeColor
 </style>
 </head>
 <body>
-<header class="topbar"><span class="accentbar"></span><a class="mark" href="${base}/" aria-label="${esc(brand.appName)}">${brand.markSvg}</a><a class="brand" href="${base}/">${brandHtml}</a></header>
+<header class="topbar"><span class="accentbar"></span><a class="mark" href="${rootHref}" aria-label="${esc(brand.appName)}">${brand.markSvg}</a><a class="brand" href="${rootHref}">${brandHtml}</a></header>
 <main>
 ${blocks.join('\n')}
 </main>
@@ -459,9 +467,10 @@ ${copy.footerHtml}${analytics.body}
 `;
 }
 
-export function renderSitemap(pages: SeoPage[], appUrl: string): string {
+export function renderSitemap(pages: SeoPage[], appUrl: string, basePath?: string): string {
+  const appRoot = basePath ? appUrl : `${appUrl}/`;
   const urls = [
-    `  <url><loc>${esc(appUrl)}/</loc></url>`,
+    `  <url><loc>${esc(appRoot)}</loc></url>`,
     ...pages.map(
       (p) =>
         `  <url><loc>${esc(`${appUrl}/${p.path}`)}</loc>${p.lastmod ? `<lastmod>${esc(p.lastmod)}</lastmod>` : ''}</url>`
@@ -502,7 +511,7 @@ export function writeSeoSite(
     if (cfg.basePath) assertNoRootRelativeLeaks(html, cfg.basePath, `seoPages["${p.path}"]`);
     fs.writeFileSync(dest, html);
   }
-  fs.writeFileSync(path.join(paths.siteDir, 'sitemap.xml'), renderSitemap(all, cfg.brand.appUrl));
+  fs.writeFileSync(path.join(paths.siteDir, 'sitemap.xml'), renderSitemap(all, cfg.brand.appUrl, cfg.basePath));
   fs.writeFileSync(path.join(paths.siteDir, 'robots.txt'), renderRobots(cfg.brand.appUrl));
   return { count: all.length };
 }

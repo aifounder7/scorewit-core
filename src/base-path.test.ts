@@ -156,6 +156,7 @@ check('unset: 404 keeps root-absolute links; manifest start_url stays "/"', () =
   writeSite(cfg(), NO_ASSETS, paths);
   const manifest = JSON.parse(fs.readFileSync(path.join(paths.siteDir, 'manifest.webmanifest'), 'utf8'));
   assert.equal(manifest.start_url, '/');
+  assert.ok(!('scope' in manifest), 'unset manifest stays byte-compatible without a new scope field');
 });
 
 check('unset: SEO template keeps href="/" links', () => {
@@ -181,7 +182,7 @@ check('set: head assets, both route maps, tab routes carry the prefix', () => {
 
 check('set: absolute emissions follow appUrl (canonical, og:url, og:image)', () => {
   const html = renderAppHtml(cfg(F1));
-  assert.ok(html.includes('<link rel="canonical" href="https://example.test/f1/" />'));
+  assert.ok(html.includes('<link rel="canonical" href="https://example.test/f1" />'));
   assert.ok(html.includes('<meta property="og:url" content="https://example.test/f1" />'));
   assert.ok(html.includes('<meta property="og:image" content="https://example.test/f1/og.png" />'));
   assert.ok(html.includes('const APP_URL = "https://example.test/f1";'));
@@ -196,24 +197,26 @@ check('set: the emitted shell and 404 have zero root-relative leaks', () => {
   assert.deepEqual(findRootRelativeLeaks(nf, '/f1'), []);
 });
 
-check('set: manifest start_url is "/f1/"', () => {
+check('set: manifest start_url is the non-redirecting "/f1" root', () => {
   const paths = tmpPaths();
   writeSite(cfg({ ...F1, notFoundActionsHtml: '<a href="/f1">home</a>' }), NO_ASSETS, paths);
   const manifest = JSON.parse(fs.readFileSync(path.join(paths.siteDir, 'manifest.webmanifest'), 'utf8'));
-  assert.equal(manifest.start_url, '/f1/');
+  assert.equal(manifest.id, '/f1/', 'explicit id preserves the previously installed PWA identity');
+  assert.equal(manifest.start_url, '/f1');
+  assert.equal(manifest.scope, '/f1', 'explicit scope keeps the no-slash start URL inside the pack');
 });
 
 check('set: SEO template links, canonical, sitemap and robots carry the prefix', () => {
   const scfg = seoCfg({ basePath: '/f1', appUrl: 'https://example.test/f1' });
   const html = renderSeoPage(seoPage(), scfg);
   assert.ok(html.includes('<link rel="icon" href="/f1/icon.svg"'));
-  assert.ok(html.includes('<a class="mark" href="/f1/"'));
-  assert.ok(html.includes('<a class="brand" href="/f1/"'));
-  assert.ok(html.includes('<a class="cta" href="/f1/">'));
+  assert.ok(html.includes('<a class="mark" href="/f1"'));
+  assert.ok(html.includes('<a class="brand" href="/f1"'));
+  assert.ok(html.includes('<a class="cta" href="/f1">'));
   assert.ok(html.includes('<link rel="canonical" href="https://example.test/f1/cup/2020" />'));
   assert.deepEqual(findRootRelativeLeaks(html, '/f1'), []);
-  const sm = renderSitemap([seoPage()], 'https://example.test/f1');
-  assert.ok(sm.includes('<loc>https://example.test/f1/</loc>'));
+  const sm = renderSitemap([seoPage()], 'https://example.test/f1', '/f1');
+  assert.ok(sm.includes('<loc>https://example.test/f1</loc>'));
   assert.ok(sm.includes('<loc>https://example.test/f1/cup/2020</loc>'));
   assert.ok(renderRobots('https://example.test/f1').includes('Sitemap: https://example.test/f1/sitemap.xml'));
 });
