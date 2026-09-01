@@ -166,9 +166,12 @@ export interface BankTarget {
  * recommended default).
  *
  * Events emitted when set (see SPORTPACK-AUTHORING.md + METRICS.md):
+ *   round_started    { sport }
  *   round_completed  { sport, streak_length: '1'|'2-6'|'7-29'|'30+', num_correct: 0..6 }
+ *   returning_round_completed { sport, gap_bucket: '1'|'2-6'|'7+' }
  *   result_shared    { sport, streak_length: bucket as above }
  *   practice_played  { sport }
+ *   share-visit      { sport }
  * The streak-length bucket distribution is the cookieless RETENTION PROXY —
  * a rising share of 7+/30+ streaks means retention, with zero tracking ID.
  */
@@ -178,6 +181,40 @@ export interface AnalyticsConfig {
   domain?: string;
   /** custom: the collection URL events are POSTed to as JSON beacons. Required. */
   endpoint?: string;
+}
+
+/** Stable, low-cardinality labels for crawlable SEO page families. A pack
+ * opting into SEO analytics must label every emitted page with one of these;
+ * entity names and URL slugs are deliberately not valid property values. */
+export const SEO_PAGE_TEMPLATES = [
+  'season',
+  'club',
+  'head_to_head',
+  'records',
+  'driver',
+  'constructor',
+  'circuit',
+  'calendar',
+  'race',
+  'quiz',
+  'next_race',
+  'legal',
+] as const;
+export type SeoPageTemplate = (typeof SEO_PAGE_TEMPLATES)[number];
+
+/** The only destinations an SEO-to-play event may report. */
+export const SEO_PLAY_DESTINATIONS = ['app', 'practice', 'quiz_hub'] as const;
+export type SeoPlayDestination = (typeof SEO_PLAY_DESTINATIONS)[number];
+
+/** Pack-side opt-in for crawlable-page analytics. The renderer derives the
+ * sport id and namespaced analytics-off key from the pack; authors supply
+ * only the Plausible site and any deliberately play-oriented quiz hubs. */
+export interface SeoAnalyticsConfig {
+  provider: 'plausible';
+  /** Must exactly match the Plausible domain used by pack.analytics. */
+  domain: string;
+  /** Root-absolute play-hub paths. Ordinary archive paths do not belong here. */
+  quizHubPaths?: string[];
 }
 
 /**
@@ -254,6 +291,8 @@ export interface SeoPage {
    *  "team/india", "records/most-titles"). Must not collide with the app's
    *  client routes or reserved files — the emitter throws if it does. */
   path: string;
+  /** Required on every page when seoConfig.analytics is enabled. */
+  pageTemplate?: SeoPageTemplate;
   /** Unique across all pages, <= 60 chars. */
   title: string;
   /** <= 160 chars. */
@@ -481,7 +520,7 @@ export interface SportPack<
   /** Optional SEO page theming: accent (default: parsed from the brand
    *  palette's --accent) and the CTA label (e.g. "Play today&rsquo;s F1
    *  round &rarr;"). */
-  seoConfig?: { accent?: string; cta?: string };
+  seoConfig?: { accent?: string; cta?: string; analytics?: SeoAnalyticsConfig };
 }
 
 /** Loosest pack binding the pipeline functions accept. */

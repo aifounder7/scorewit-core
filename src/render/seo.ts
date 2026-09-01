@@ -1,6 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { PipelinePaths, SeoPage } from '../types';
+import {
+  SEO_PAGE_TEMPLATES,
+  SEO_PLAY_DESTINATIONS,
+  type PipelinePaths,
+  type SeoAnalyticsConfig,
+  type SeoPage,
+  type SeoPlayDestination,
+} from '../types';
 import type { AppCopy, Brand } from './app';
 import { assertNoRootRelativeLeaks, assertValidBasePath } from './base-path';
 import {
@@ -63,6 +70,8 @@ const esc = (s: string) =>
 const jsonLdText = (o: object) =>
   JSON.stringify(o).replace(/&/g, '\\u0026').replace(/</g, '\\u003c');
 
+const inlineJson = (o: unknown) => JSON.stringify(o).replace(/</g, '\\u003c');
+
 export interface SeoRenderConfig {
   brand: Brand;
   copy: AppCopy;
@@ -86,6 +95,39 @@ export interface SeoRenderConfig {
    *  end with it (it keeps driving canonical/og/sitemap URLs). Unset = pages
    *  render byte-identically. */
   basePath?: string;
+  /** Opt-in crawlable-page analytics. `sport` and `storagePrefix` are derived
+   * by the pipeline, never supplied as arbitrary per-page properties. */
+  analytics?: SeoAnalyticsConfig & { sport: string; storagePrefix: string };
+}
+
+const SEO_TEMPLATE_SET = new Set<string>(SEO_PAGE_TEMPLATES);
+const SEO_DESTINATION_SET = new Set<string>(SEO_PLAY_DESTINATIONS);
+const PLAUSIBLE_DOMAIN_RE = /^[a-z0-9.-]+$/i;
+
+function normalizedRootPath(p: string): string {
+  const noQuery = p.split(/[?#]/, 1)[0].replace(/\/+$/, '');
+  return noQuery || '/';
+}
+
+function validateSeoAnalytics(cfg: SeoRenderConfig, page?: SeoPage): void {
+  const a = cfg.analytics;
+  if (!a) return;
+  if (a.provider !== 'plausible') throw new Error('seo analytics supports only cookieless Plausible');
+  if (!PLAUSIBLE_DOMAIN_RE.test(a.domain)) throw new Error('seo analytics.domain must be a hostname');
+  if (!a.sport.trim()) throw new Error('seo analytics.sport must be non-empty');
+  if (!a.storagePrefix.trim()) throw new Error('seo analytics.storagePrefix must be non-empty');
+  if (page && (!page.pageTemplate || !SEO_TEMPLATE_SET.has(page.pageTemplate))) {
+    throw new Error(`seoPages["${page.path}"]: pageTemplate is required and must be an approved enum when SEO analytics is enabled`);
+  }
+  const base = normalizedRootPath(cfg.basePath ?? '/');
+  for (const p of a.quizHubPaths ?? []) {
+    if (!/^\/[A-Za-z0-9/_-]*$/.test(p) || p !== normalizedRootPath(p)) {
+      throw new Error(`seo analytics quizHubPaths must be normalized root-absolute paths (got "${p}")`);
+    }
+    if (base !== '/' && p !== base && !p.startsWith(`${base}/`)) {
+      throw new Error(`seo analytics quizHubPath "${p}" escapes basePath "${base}"`);
+    }
+  }
 }
 
 // ---------- accent theming (derived, deterministic) ----------
@@ -144,6 +186,7 @@ function validatePages(
     Object.values(cfg.routes).map((r) => r.replace(/^\//, '').split('/')[0])
   );
   for (const p of pages) {
+    validateSeoAnalytics(cfg, p);
     const tag = `seoPages["${p.path}"]`;
     if (!/^[a-z0-9][a-z0-9/_-]*$/.test(p.path) || p.path.endsWith('/')) {
       throw new Error(`${tag}: path must be relative kebab/slash segments with no leading slash`);
@@ -213,6 +256,40 @@ function validatePages(
   }
 }
 
+function seoAnalyticsParts(page: SeoPage, cfg: SeoRenderConfig): { head: string; body: string } {
+  const a = cfg.analytics;
+  if (!a) return { head: '', body: '' };
+  validateSeoAnalytics(cfg, page);
+
+  const base = cfg.basePath ?? '';
+  const destinations: Record<string, SeoPlayDestination> = {};
+  const add = (rawPath: string, destination: SeoPlayDestination) => {
+    if (!SEO_DESTINATION_SET.has(destination)) throw new Error(`unapproved SEO destination "${destination}"`);
+    const p = normalizedRootPath(rawPath);
+    if (destinations[p] && destinations[p] !== destination) {
+      throw new Error(`seo analytics path "${p}" maps to two destinations`);
+    }
+    destinations[p] = destination;
+  };
+  add(`${base}/`, 'app');
+  add(`${base}${cfg.routes.practice}`, 'practice');
+  for (const p of a.quizHubPaths ?? []) add(p, 'quiz_hub');
+
+  const offKey = `${a.storagePrefix}.analyticsOff`;
+  const head = `
+<!-- Plausible Analytics (cookieless, no PII; pageviews + low-cardinality SEO play events). -->
+<script>window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments);};
+var analyticsOff=false;try{analyticsOff=localStorage.getItem(${inlineJson(offKey)})==='1';}catch(e){}if(!analyticsOff){var s=document.createElement('script');s.defer=true;s.setAttribute('data-domain',${inlineJson(a.domain)});s.src='https://plausible.io/js/script.js';document.head.appendChild(s);}</script>`;
+  const body = `
+<script>(function(){
+var OFF_KEY=${inlineJson(offKey)},SPORT=${inlineJson(a.sport)},PAGE_TEMPLATE=${inlineJson(page.pageTemplate)},DESTINATIONS=${inlineJson(destinations)};
+function analyticsOff(){try{return localStorage.getItem(OFF_KEY)==='1';}catch(e){return false;}}
+function destinationFor(href){try{var u=new URL(href,location.href);if(u.origin!==location.origin)return null;var p=u.pathname.replace(/\\/+$/,'')||'/';return DESTINATIONS[p]||null;}catch(e){return null;}}
+document.addEventListener('click',function(e){var t=e.target,a=t&&t.closest?t.closest('a'):null;if(!a)return;var destination=destinationFor(a.getAttribute('href')||'');if(!destination||analyticsOff())return;try{window.plausible('seo_play_clicked',{props:{sport:SPORT,page_template:PAGE_TEMPLATE,destination:destination}});}catch(err){}},false);
+})();</script>`;
+  return { head, body };
+}
+
 // ---------- the page template ----------
 
 /** The shared crawlable page template (self-contained, brand-consistent,
@@ -232,6 +309,7 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
   const themeColor = cfg.theme ? ALMANAC_TOKENS.paper : brand.themeColor;
   const onAccent = brand.onAccent?.accent ?? '#06121f';
   const cta = cfg.cta ?? 'Play today&rsquo;s round &rarr;';
+  const analytics = seoAnalyticsParts(page, cfg);
 
   // "Scorewit Cricket" -> "Scorewit <span>Cricket</span>" (single-word names
   // render plain). Almanac: the Score|wit masthead treatment instead.
@@ -295,7 +373,7 @@ export function renderSeoPage(page: SeoPage, cfg: SeoRenderConfig): string {
 <meta property="og:description" content="${esc(page.ogDescription ?? page.description)}" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="${esc(url)}" />
-<script type="application/ld+json">${jsonLdText(page.jsonLd)}</script>
+<script type="application/ld+json">${jsonLdText(page.jsonLd)}</script>${analytics.head}
 <style>
 ${cfg.theme ? almanacSeoCss(cfg.theme.accent) : `  :root{--bg:${brand.themeColor};--surface:#161619;--surface2:#1C1C21;--line:#2A2A30;
     --text:#F4F4F6;--muted:#9A9AA3;--faint:#84848D;
@@ -375,7 +453,7 @@ ${cfg.theme ? almanacSeoCss(cfg.theme.accent) : `  :root{--bg:${brand.themeColor
 <main>
 ${blocks.join('\n')}
 </main>
-${copy.footerHtml}
+${copy.footerHtml}${analytics.body}
 </body>
 </html>
 `;

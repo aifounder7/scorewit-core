@@ -82,7 +82,8 @@ footer. Theming is per sport: the accent is parsed from the brand palette's
 `--accent` token (override via `pack.seoConfig.accent`); set the CTA label via
 `pack.seoConfig.cta` (e.g. `"Play today&rsquo;s F1 round &rarr;"`). Pages stay
 fast by construction — system font stack, inline CSS, no JS, no images beyond
-inline/flag SVGs — keep them that way.
+inline/flag SVGs. The only exception is the explicit analytics opt-in below;
+non-opting pages remain byte-identical and JavaScript-free.
 
 A page that supplies only `bodyHtml` renders as before (restyled). The
 structured fields (see `SeoPage`) fill in the rest of the language:
@@ -92,6 +93,45 @@ structured fields (see `SeoPage`) fill in the rest of the language:
 `chips` (plain-text pills), `callout` (left-accent key facts), `trustNote`
 (the dashed fact-checked badge, with the source link). Emit gates enforce:
 plain-text fields carry no markup; raw inline fields carry no `<h1>`/`<script>`.
+
+### Crawlable-page analytics (opt-in: `seoConfig.analytics`)
+
+SEO analytics is separate and opt-in because the static pages otherwise carry
+no JavaScript. It loads the same cookieless Plausible site as the app, retains
+normal pageview measurement, honors `<storagePrefix>.analyticsOff`, and emits
+one `seo_play_clicked` event when a same-origin link enters the app, Practice
+or an explicitly configured quiz hub. Ordinary archive-to-archive and
+external navigation do not emit.
+
+```ts
+seoConfig: {
+  analytics: {
+    provider: 'plausible',
+    domain: 'scorewit.com', // must exactly match pack.analytics.domain
+    quizHubPaths: ['/f1/quiz'], // optional; normalized root-absolute paths
+  },
+}
+```
+
+Every emitted page in an opted-in pack must set `pageTemplate` to one approved
+low-cardinality value. Current family mapping:
+
+| page family | `pageTemplate` |
+| --- | --- |
+| Footyphoria season / club / H2H / record | `season` / `club` / `head_to_head` / `records` |
+| F1 season / driver / constructor / circuit | `season` / `driver` / `constructor` / `circuit` |
+| F1 calendar / record / quiz hub | `calendar` / `records` / `quiz` |
+| F1 match or Grand Prix detail / next race | `race` / `next_race` |
+| umbrella legal page | `legal` |
+
+The complete enum is exported as `SEO_PAGE_TEMPLATES`. Destinations are fixed
+to `app`, `practice`, and `quiz_hub` (`SEO_PLAY_DESTINATIONS`). Core derives
+the app root and Practice route; `quizHubPaths` is the only author-supplied
+destination list. The event payload is exactly
+`{ sport, page_template, destination }`: never a raw path, URL, entity slug,
+search query, link text or date. A bad enum, path, domain or missing template
+fails the build. Without `seoConfig.analytics`, even a `pageTemplate` field is
+byte-inert.
 
 ### The insight engine (human framing, firewall-clean)
 
@@ -144,11 +184,24 @@ as first-party JSON beacons, no third-party script at all).
 
 **Events** (client-side, in the shell; `sport` = `pack.id`):
 
-| event             | props                                                        | fired when                       |
-| ----------------- | ------------------------------------------------------------ | -------------------------------- |
+| event | props | fired when |
+| --- | --- | --- |
+| `round_started` | `sport` | the first answer of a daily round is submitted, once per sport/day |
 | `round_completed` | `sport`, `streak_length` (`1`/`2-6`/`7-29`/`30+`), `num_correct` (0–6) | the daily round is finished (once per day) |
-| `result_shared`   | `sport`, `streak_length` bucket                               | the Share button is used         |
-| `practice_played` | `sport`                                                       | a practice question is answered  |
+| `returning_round_completed` | `sport`, `gap_bucket` (`1`/`2-6`/`7+`) | completion follows an earlier local-day completion |
+| `result_shared` | `sport`, `streak_length` bucket | the Share button is used |
+| `share-visit` | `sport` | an inbound `#s` share marker is consumed |
+| `practice_played` | `sport` | a Practice question is answered |
+
+`round_started` never fires for a pageview, restored completed round,
+Practice answer, team-feed quiz or matchup mini-quiz. Two local-only values —
+`<storagePrefix>.analyticsStartedDay` and
+`<storagePrefix>.analyticsLastCompletedDay` — contain only day keys, enforcing
+reload-safe start and return semantics without an identifier. No raw day key
+is sent; returns expose only the three-value gap bucket. Existing namespaced
+game history is also considered when locating the most recent earlier local
+completion, so a returning player is not treated as new just because the
+event contract was added later.
 
 The two pre-existing shell events (`team_picked {team}`, `pick_made {pick}`)
 keep flowing through the same `track()` — equally anonymous.

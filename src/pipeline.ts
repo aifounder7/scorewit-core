@@ -275,6 +275,14 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
   // Opt-in SEO pre-render (ADDITIVE ONLY — new files under site/, the app
   // shell above is untouched; packs without the hook emit nothing).
   if (seoPageList) {
+    const { analytics: seoAnalytics, ...seoPresentation } = pack.seoConfig ?? {};
+    if (seoAnalytics) {
+      if (pack.analytics?.provider !== 'plausible' || pack.analytics.domain !== seoAnalytics.domain) {
+        throw new Error(
+          'seoConfig.analytics must use the same Plausible domain as pack.analytics'
+        );
+      }
+    }
     const { count } = writeSeoSite(
       seoPageList,
       {
@@ -284,7 +292,16 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
         basePath: pack.config.basePath,
         // One pack-level opt-in themes BOTH render surfaces (shell above).
         theme: pack.theme,
-        ...(pack.seoConfig ?? {}),
+        ...seoPresentation,
+        ...(seoAnalytics
+          ? {
+              analytics: {
+                ...seoAnalytics,
+                sport: pack.id,
+                storagePrefix: pack.config.storagePrefix,
+              },
+            }
+          : {}),
       },
       paths,
       // Umbrella-only opt-in: the scorewit.com root emits /privacy + /terms

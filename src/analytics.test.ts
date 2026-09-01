@@ -10,7 +10,8 @@
  *     (default-safe: no new script, no new events, sport ignored) — plus the
  *     terms-assent line, the ONLY addition an analytics-unset app gains;
  *   - plausible/vercel/custom → the provider script + the anonymous
- *     round_completed / result_shared / practice_played events, with NO
+ *     round_started / round_completed / returning_round_completed /
+ *     result_shared / practice_played / share-visit events, with NO
  *     cookie, NO tracking id, NO PII anywhere in the emitted shell;
  *   - the analytics-off switch: flag set ⇒ ZERO events on every provider
  *     (the generated track() is executed against stubs, not just grepped),
@@ -78,7 +79,9 @@ function check(name: string, fn: () => void) {
 console.log('Opt-in cookieless analytics — synthetic pack\n');
 
 const NEW_MARKERS = [
+  'round_started',
   'round_completed',
+  'returning_round_completed',
   'result_shared',
   'practice_played',
   'streakBucket',
@@ -107,12 +110,23 @@ function evalAnalytics(
   const src = html.slice(start, end);
   const fn = new Function(
     'window', 'localStorage', 'navigator', 'fetch', 'location', 'history',
-    src + '\nreturn {track:track,analyticsOff:analyticsOff,setAnalyticsOff:setAnalyticsOff};'
+    'dayNumber', 'dateKeyFromDayNum',
+    src + '\nreturn {track:track,analyticsOff:analyticsOff,setAnalyticsOff:setAnalyticsOff,trackDailyStart:trackDailyStart,trackDailyCompletion:trackDailyCompletion};'
   );
-  return fn(win, storage, nav, () => {}, loc, hist) as {
+  const epoch = Date.UTC(2026, 0, 1);
+  const dayNumber = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number);
+    return Math.max(0, Math.round((Date.UTC(y, m - 1, d) - epoch) / 86400000));
+  };
+  const dateKeyFromDayNum = (n: number) => new Date(epoch + n * 86400000).toISOString().slice(0, 10);
+  return fn(win, storage, nav, () => {}, loc, hist, dayNumber, dateKeyFromDayNum) as {
     track: (name: string, data?: unknown) => void;
     analyticsOff: () => boolean;
     setAnalyticsOff: (v: boolean) => void;
+    trackDailyStart: (key: string) => void;
+    trackDailyCompletion: (
+      history: Record<string, unknown>, key: string, numCorrect: number, streak: number
+    ) => void;
   };
 }
 
@@ -160,7 +174,10 @@ check('plausible: gated provider loader + anonymous events, Vercel wiring gone',
   assert.ok(!html.includes('/_vercel/insights/script.js'), 'vercel script replaced');
   assert.ok(!html.includes('daily_completed') && !html.includes("track('shared')"), 'old events replaced');
   assert.ok(html.includes('const SPORT="testball";'));
-  assert.ok(html.includes("track('round_completed',{sport:SPORT,streak_length:streakBucket(currentStreak(h,key)),num_correct:results.filter(p=>p>=100).length});"));
+  assert.ok(html.includes("if(results.length===0)trackDailyStart(currentDailyKey());"));
+  assert.ok(html.includes("trackDailyCompletion(h,key,results.filter(p=>p>=100).length,currentStreak(h,key));"));
+  assert.ok(html.includes("track('round_started',{sport:SPORT});"));
+  assert.ok(html.includes("track('returning_round_completed',{sport:SPORT,gap_bucket:returnGapBucket(previous,key)});"));
   assert.ok(html.includes("track('result_shared',{sport:SPORT,streak_length:streakBucket(streak)});"));
   assert.ok(html.includes("function answerPractice(resp){track('practice_played',{sport:SPORT});"));
   assert.ok(html.includes("function streakBucket(s){return s>=30?'30+':s>=7?'7-29':s>=2?'2-6':'1';}"));
@@ -180,8 +197,8 @@ check('privacy: no cookie, no tracking id, no fingerprint in any variant', () =>
       assert.ok(!html.includes(idish), `no "${idish}"`);
     }
   }
-  // event payloads carry only sport / streak bucket / correct count
-  const track = variants[1].match(/track\('(round_completed|result_shared|practice_played)',\{([^}]*)\}/g)!;
+  // event payloads carry only approved enums/counts; day keys stay local.
+  const track = variants[1].match(/track\('(round_started|round_completed|returning_round_completed|result_shared|practice_played|share-visit)',\{([^}]*)\}/g)!;
   for (const t of track) {
     assert.ok(!/localStorage|navigator|history|team|pick/.test(t), `payload is aggregate-only: ${t}`);
   }
@@ -250,13 +267,13 @@ check('analytics-off switch: plausible toggle mirrors plausible_ignore; others d
 
 check('share-visit (SHARE V2): #s fires once + cleans the fragment; other hashes no-op; opt-out wins', () => {
   const html = renderAppHtml(cfg({ provider: 'plausible', domain: 'quiz.example' }, 'testball'));
-  let fired: string[] = [];
+  let fired: { name: string; props?: unknown }[] = [];
   let replaced = 0;
   const run = (hash: string, store = fakeStorage()) =>
-    evalAnalytics(html, store, { plausible: (n: string) => { fired.push(n); } }, {},
+    evalAnalytics(html, store, { plausible: (name: string, props?: unknown) => { fired.push({ name, props }); } }, {},
       { hash, pathname: '/p', search: '?q' }, { replaceState: () => { replaced++; } });
   run('#s');
-  assert.deepEqual(fired, ['share-visit'], 'exactly one share-visit event');
+  assert.deepEqual(fired, [{ name: 'share-visit', props: { props: { sport: 'testball' } } }], 'exactly one sport-scoped share-visit event');
   assert.equal(replaced, 1, 'fragment cleaned via replaceState');
   fired = []; replaced = 0;
   run('#stats'); run('');
@@ -267,6 +284,73 @@ check('share-visit (SHARE V2): #s fires once + cleans the fragment; other hashes
   assert.equal(replaced, 1, 'fragment still cleaned for opted-out visitors');
   // unset analytics = no hook at all (byte-identity path)
   assert.ok(!renderAppHtml(cfg()).includes('share-visit'), 'no hook without analytics');
+});
+
+check('round_started: first daily answer once per day; reload-safe; non-daily answer paths excluded', () => {
+  const html = renderAppHtml(cfg({ provider: 'plausible', domain: 'quiz.example' }, 'testball'));
+  const store = fakeStorage();
+  const fired: { name: string; options?: unknown }[] = [];
+  const api = evalAnalytics(html, store, {
+    plausible: (name: string, options?: unknown) => fired.push({ name, options }),
+  }, {});
+  api.trackDailyStart('2026-08-31');
+  api.trackDailyStart('2026-08-31');
+  assert.deepEqual(fired, [{ name: 'round_started', options: { props: { sport: 'testball' } } }]);
+  assert.equal(store.get('testwit.analyticsStartedDay'), '2026-08-31', 'namespaced state is one day key');
+  // A fresh runtime (reload) reads the marker and still does not duplicate.
+  let reloadFired = 0;
+  evalAnalytics(html, store, { plausible: () => { reloadFired++; } }, {}).trackDailyStart('2026-08-31');
+  assert.equal(reloadFired, 0);
+  api.trackDailyStart('2026-09-01');
+  assert.equal(fired.length, 2, 'new daily key starts a new measurable round');
+  assert.equal((html.match(/trackDailyStart\(currentDailyKey\(\)\)/g) ?? []).length, 1, 'wired only to daily answer');
+  assert.ok(!/function answerPractice\([^]*?trackDailyStart/.test(html), 'Practice does not start a daily round');
+  assert.ok(!/function answerMatchup\([^]*?trackDailyStart/.test(html), 'matchup mini-quiz does not start a daily round');
+});
+
+check('returning completion: first-ever excluded; exact 1 / 2-6 / 7+ local-day buckets', () => {
+  const html = renderAppHtml(cfg({ provider: 'plausible', domain: 'quiz.example' }, 'testball'));
+  const run = (history: Record<string, unknown>, key: string, initial?: Record<string, string>) => {
+    const store = fakeStorage(initial);
+    const fired: { name: string; options?: { props?: Record<string, unknown> } }[] = [];
+    const api = evalAnalytics(html, store, {
+      plausible: (name: string, options?: { props?: Record<string, unknown> }) => fired.push({ name, options }),
+    }, {});
+    api.trackDailyCompletion(history, key, 4, 2);
+    return { fired, store };
+  };
+  const first = run({ '2026-08-31': {} }, '2026-08-31');
+  assert.deepEqual(first.fired.map((e) => e.name), ['round_completed'], 'first-ever completion is not returning');
+  assert.equal(first.store.get('testwit.analyticsLastCompletedDay'), '2026-08-31');
+
+  for (const [previous, key, bucket] of [
+    ['2026-08-30', '2026-08-31', '1'],
+    ['2026-08-27', '2026-08-31', '2-6'],
+    ['2026-08-24', '2026-08-31', '7+'],
+  ] as const) {
+    const { fired } = run({ [previous]: {}, [key]: {} }, key);
+    assert.deepEqual(fired.map((e) => e.name), ['round_completed', 'returning_round_completed']);
+    assert.deepEqual(fired[1].options?.props, { sport: 'testball', gap_bucket: bucket });
+  }
+  const mostRecent = run(
+    { '2026-08-30': {}, '2026-08-31': {} },
+    '2026-08-31',
+    { 'testwit.analyticsLastCompletedDay': '2026-08-01' }
+  );
+  assert.equal(mostRecent.fired[1].options?.props?.gap_bucket, '1', 'latest earlier local completion wins');
+  assert.ok(html.includes("if(!h[key]){\n    h[key]="), 'completion wiring remains inside the once-per-day history guard');
+});
+
+check('new event helpers obey analytics-off and persist only namespaced day keys', () => {
+  const html = renderAppHtml(cfg({ provider: 'plausible', domain: 'quiz.example' }, 'testball'));
+  const store = fakeStorage({ 'testwit.analyticsOff': '1' });
+  let fired = 0;
+  const api = evalAnalytics(html, store, { plausible: () => { fired++; } }, {});
+  api.trackDailyStart('2026-08-31');
+  api.trackDailyCompletion({ '2026-08-30': {}, '2026-08-31': {} }, '2026-08-31', 3, 2);
+  assert.equal(fired, 0, 'analytics-off suppresses every new event');
+  assert.equal(store.get('testwit.analyticsStartedDay'), '2026-08-31');
+  assert.equal(store.get('testwit.analyticsLastCompletedDay'), '2026-08-31');
 });
 
 check('settings card: exactly once when analytics is set, absent when unset', () => {
@@ -309,7 +393,7 @@ check('misconfiguration throws before emitting anything', () => {
   assert.throws(() => renderAppHtml(cfg({ provider: 'custom' })), /requires analytics\.endpoint/);
 });
 
-console.log(`\n${failures === 0 ? 'ALL' : ''} ${11 - failures}/11 analytics cases passed.`);
+console.log(`\n${failures === 0 ? 'ALL' : ''} ${16 - failures}/16 analytics cases passed.`);
 if (failures) {
   console.error(`ANALYTICS TEST FAILED — ${failures} case(s) wrong.`);
   process.exit(1);
