@@ -1365,6 +1365,9 @@ const FAMILY_URL_RE = /^https:\/\/[a-z0-9.-]+(\/[A-Za-z0-9/_-]*)?$/;
 const FAMILY_LABELS: Record<string, string> = {
   '/worldcup': 'Soccer · World Cup',
   '/f1': 'Formula 1',
+  '/footyphoria': 'English Football',
+  // Backwards-compatible for packs pinned before brief 0014. Public links
+  // should use /footyphoria; the origin owns the permanent /topflight move.
   '/topflight': 'English Football',
   '/cricket': 'Cricket · World Cup',
   '/gridiron': 'American Football',

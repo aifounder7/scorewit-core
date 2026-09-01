@@ -138,7 +138,7 @@ check('canonical labels: all seven sport-first strings pinned (quotes the deck)'
     games: [
       { name: 'World Cup', url: 'https://www.scorewit.com/worldcup', storagePrefix: 'extratime' },
       { name: 'Box-Box', url: 'https://www.scorewit.com/f1', storagePrefix: 'scorewitf1' },
-      { name: 'Top Flight', url: 'https://www.scorewit.com/topflight', storagePrefix: 'topflight' },
+      { name: 'Footyphoria', url: 'https://www.scorewit.com/footyphoria', storagePrefix: 'topflight' },
       { name: 'Cover Drive', url: 'https://www.scorewit.com/cricket', storagePrefix: 'coverdrive' },
       { name: 'Hail Mary', url: 'https://www.scorewit.com/gridiron', storagePrefix: 'gridiron' },
       { name: 'Fall Classic', url: 'https://www.scorewit.com/baseball', storagePrefix: 'fallclassic' },
@@ -153,19 +153,33 @@ check('canonical labels: all seven sport-first strings pinned (quotes the deck)'
   assert.deepEqual(byPath, {
     '/worldcup': 'Soccer · World Cup',
     '/f1': 'Formula 1',
-    '/topflight': 'English Football',
+    '/footyphoria': 'English Football',
     '/cricket': 'Cricket · World Cup',
     '/gridiron': 'American Football',
     '/baseball': 'Baseball',
     '/superover': 'T20 Cricket · India',
   });
   // No pack codename survives to the display layer.
-  for (const codename of ['Box-Box', 'Cover Drive', 'Fall Classic', 'Hail Mary', 'Super Over', 'Top Flight']) {
+  for (const codename of ['Box-Box', 'Cover Drive', 'Fall Classic', 'Hail Mary', 'Super Over', 'Footyphoria']) {
     assert.ok(
       !family.games.some((g: { name: string }) => g.name === codename),
       `codename "${codename}" must not surface`
     );
   }
+});
+
+check('canonical labels: legacy /topflight configs remain renderable during migration', () => {
+  const legacy: FamilyConfig = {
+    heading: 'More Scorewit',
+    hub: { url: 'https://www.scorewit.com/', label: 'All games →' },
+    games: [
+      { name: 'Footyphoria', url: 'https://www.scorewit.com/topflight', storagePrefix: 'topflight' },
+    ],
+  };
+  const html = renderAppHtml(cfg(legacy));
+  const family = JSON.parse(/const FAMILY = (\{.*?\});\n/.exec(html)![1]);
+  assert.equal(family.games[0].url, 'https://www.scorewit.com/topflight');
+  assert.equal(family.games[0].name, 'English Football');
 });
 
 check('canonical labels: an unmapped path is a build error (no codename fallback)', () => {
