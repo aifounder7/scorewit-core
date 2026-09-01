@@ -249,6 +249,10 @@ export interface CalendarSpotlightConfig {
   /** Banner text before the window; placeholders {event}, {days}
    *  ({days} renders "1 day" / "N days"). */
   upcomingText: string;
+  /** Optional root-absolute destination for the upcoming banner. When set,
+   *  the whole banner is an anchor; when unset it remains the incumbent
+   *  non-interactive div byte-for-byte. */
+  upcomingHref?: string;
   /** Optional guaranteed venue question: during the window the daily round
    *  carries exactly ONE venue-tied question. If none lands naturally, the
    *  round's LAST slot (lowest salience — the opening flow is preserved) is
