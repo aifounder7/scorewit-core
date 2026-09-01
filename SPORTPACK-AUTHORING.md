@@ -361,14 +361,15 @@ distinctness and non-negativity as independent constraints), and scale with
 credit. Unset = bank byte-identical, typed input renders as before.
 
 **Opt-in: `calendarSpotlight`** (event-week banner + guaranteed venue
-question): set `calendarSpotlight: { activeHtml, upcomingText, quiz? }` on
+question): set `calendarSpotlight: { activeHtml, upcomingText, upcomingHref?, quiz? }` on
 the pack AND supply a `clientJs.spotlight` chunk defining
 `spotlightInfo(fixture)` over your matchday fixture shape (return `null` or
 `{ event, venue, hubPath, start, end, quizIds }` — see
 `CalendarSpotlightConfig` in types.ts). The daily tab then carries a
 deterministic banner: inside the `[start, end]` window it links the venue's
 SEO hub (`activeHtml`, placeholders `{event}`/`{venue}`); before it, a
-countdown (`upcomingText`, `{event}`/`{days}`); after `end` it hides until
+countdown (`upcomingText`, `{event}`/`{days}`) that becomes a full-banner link
+when `upcomingHref` supplies a plain root-absolute destination; after `end` it hides until
 the refresh rolls the artifact to the next fixture. With `quiz: { min,
 badge }` set, a daily round inside the window carries EXACTLY ONE
 venue-tied question (from the fixture's `quizIds` pool): none landing

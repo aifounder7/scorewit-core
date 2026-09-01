@@ -1554,6 +1554,17 @@ const SPOTLIGHT_CSS =
 
 function spotlightChunks(cfg: CalendarSpotlightConfig | undefined, client: PackClientJs) {
   if (!cfg) return { js: '', hook: '', dailySwap: '', qBadge: '', css: '' };
+  if (cfg.upcomingHref !== undefined && !/^\/(?!\/)[a-z0-9][a-z0-9/_-]*$/.test(cfg.upcomingHref)) {
+    throw new Error(
+      `calendarSpotlight.upcomingHref must be a plain root-absolute path (got "${cfg.upcomingHref}")`
+    );
+  }
+  // Generate the incumbent div verbatim for adopters that do not opt into a
+  // destination. This keeps the new capability genuinely additive.
+  const upcomingBanner = cfg.upcomingHref
+    ? `const t=${JSON.stringify(cfg.upcomingText)}.split('{event}').join(esc(st.info.event)).split('{days}').join(days);\n  ` +
+      `return '<a class="spot" href="'+${JSON.stringify(cfg.upcomingHref)}+'">'+t+'</a>';`
+    : `return '<div class="spot">'+${JSON.stringify(cfg.upcomingText)}.split('{event}').join(esc(st.info.event)).split('{days}').join(days)+'</div>';`;
   const bannerJs = `
 
 // ---- calendar spotlight (opt-in): deterministic event-week banner ----
@@ -1574,7 +1585,7 @@ function spotlightHtml(key){
     return st.info.hubPath?'<a class="spot" href="'+st.info.hubPath+'">'+t+'</a>':'<div class="spot">'+t+'</div>';
   }
   const days=st.days===1?'1 day':st.days+' days';
-  return '<div class="spot">'+${JSON.stringify(cfg.upcomingText)}.split('{event}').join(esc(st.info.event)).split('{days}').join(days)+'</div>';
+  ${upcomingBanner}
 }
 function renderSpotlight(){
   const sub=document.getElementById('sub');if(!sub)return;

@@ -97,6 +97,8 @@ const SPOT = {
   quiz: { min: 3, badge: '🏁 race week' },
 };
 
+const LINKED_SPOT = { ...SPOT, upcomingHref: '/next-race' };
+
 /** Evaluate the injected spotlight runtime in isolation (no DOM). */
 function runtime(spotlightCfg: AppShellConfig['calendarSpotlight'], quizIds: string[]) {
   const html = renderAppHtml(cfg(spotlightCfg));
@@ -155,6 +157,12 @@ check('banner-only: banner runtime + hooks land, no swap code', () => {
   assert.ok(html.includes('updateStreakBar();renderSpotlight();'), 'hook after setMode’s updateStreakBar');
   assert.ok(!html.includes('raceWeekAdjust'), 'no swap code without quiz config');
   assert.ok(html.includes('}}return out;}'), 'selectDaily untouched without quiz config');
+  assert.ok(
+    html.includes(
+      `return '<div class="spot">'+"Next race: {event} in {days}".split('{event}').join(esc(st.info.event)).split('{days}').join(days)+'</div>';`
+    ),
+    'upcomingHref unset keeps the incumbent emitted statement byte-for-byte'
+  );
 });
 
 check('quiz set: swap wired into selectDaily, badge wired into render()', () => {
@@ -181,6 +189,33 @@ check('window logic: upcoming N days / 1 day, active, past hidden', () => {
   assert.ok(rt.spotlightHtml('2026-07-19').includes('Race week'), 'race day is active');
   assert.equal(rt.spotlightState('2026-07-20'), null, 'window over → hidden');
   assert.ok(rt.spotlightHtml('2026-07-18').includes('Spa-Francorchamps&rsquo;s full history'), 'venue templated');
+});
+
+check('upcomingHref: the whole upcoming banner links the approved route', () => {
+  const rt = runtime(LINKED_SPOT, ['q000', 'q001', 'q010']);
+  assert.equal(
+    rt.spotlightHtml('2026-07-14'),
+    '<a class="spot" href="/next-race">Next race: Belgian Grand Prix in 5 days</a>'
+  );
+  assert.equal(
+    rt.spotlightHtml('2026-07-18').includes('href="/circuit/spa-francorchamps"'),
+    true,
+    'active phase keeps using the venue hub'
+  );
+});
+
+check('upcomingHref: unset stays a plain div; unsafe destinations fail closed', () => {
+  const rt = runtime(SPOT, ['q000', 'q001', 'q010']);
+  assert.equal(
+    rt.spotlightHtml('2026-07-14'),
+    '<div class="spot">Next race: Belgian Grand Prix in 5 days</div>'
+  );
+  for (const upcomingHref of ['next-race', '//example.test/x', 'https://example.test/x', '/next?race=1']) {
+    assert.throws(
+      () => renderAppHtml(cfg({ ...SPOT, upcomingHref })),
+      /calendarSpotlight\.upcomingHref must be a plain root-absolute path/
+    );
+  }
 });
 
 check('active with no venue hub → plain (non-link) banner, no-hub copy', () => {
