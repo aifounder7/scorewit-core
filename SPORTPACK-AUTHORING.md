@@ -410,6 +410,29 @@ selection untouched.
 - `assets`: `files`, `copies`, `dirs` (e.g. flag SVGs), `siteFiles?`
   (e.g. a generated vercel.json).
 
+## Optional consumer copy
+
+`copy.topicLabels` maps internal topic keys to plain-text display labels. It
+does not rename topics in the bank. When configured, every topic present in
+`data.bank.questions` must have its own non-empty label or the build fails
+with the missing topic names. Extra labels are allowed for topics absent
+from a rotating bank. Unknown runtime keys retain the legacy fallback;
+leaving the option unset preserves all previous behavior.
+`copy.dailyReturnCue` adds a note only to completed daily rounds:
+
+```ts
+dailyReturnCue: {
+  upcoming: 'Next daily round: {date} at midnight (your local time).',
+  available: 'A newer daily round is ready. Reload this page to play.',
+}
+```
+
+The date is the local calendar day after the completed round, matching
+`todayKey()` (not UTC midnight). Local calendar construction handles DST;
+the available note applies once that midnight has passed. There is no timer,
+notification, new event, or automatic round rollover. Both options unset
+keep the rendered shell byte-identical. Keep labels and cue copy pack-owned.
+
 ## Checklist for a new pack
 
 1. Dataset first: ingest + normalize + coverage; commit `pipeline/dataset/`.
