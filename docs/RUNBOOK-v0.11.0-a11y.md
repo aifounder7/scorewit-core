@@ -30,7 +30,7 @@ the theming commit touches `pipeline/src/{app,pack,theme}.ts` + package.json
 that rebuilds site/.
 
 Every step below is mechanical; the ONLY escalation path is a non-empty
-conflict check (step 0) or a rebase conflict (step 1) — stop and ask Jay.
+conflict check (step 0) or a rebase conflict (step 1) — stop and ask the founder.
 
 ---
 
@@ -54,7 +54,7 @@ cd ~/side-projects/scorewit-core
 git checkout a11y-theming && git rebase main   # main now carries v0.10.1
 # expected: clean (v0.10.1 touches src/legal.ts copy + LEGAL_EFFECTIVE_DATE
 # only; this branch touches render/app.ts, render/seo.ts, contrast, tests,
-# mocks/, docs/ — no file overlap). Any conflict ⇒ STOP, ask Jay.
+# mocks/, docs/ — no file overlap). Any conflict ⇒ STOP, ask the founder.
 npm test && npx tsc -p tsconfig.json --noEmit
 # bump "version" in package.json to 0.11.0, commit as:
 #   chore: v0.11.0 — WCAG-AA shell, computed palette gate, landmarks
@@ -71,7 +71,7 @@ one verified commit. On each:
 a. Clean-tree preflight (site/data churn from the SEO merge is fine —
    committed state only).
 b. `git merge team-theming` (after the SEO branch, per the merge order
-   above). A conflict in any file ⇒ STOP, ask Jay.
+   above). A conflict in any file ⇒ STOP, ask the founder.
 c. `npm install` (not `ci`) — resolves `#v0.11.0`, updates package-lock;
    include the lock update in the deploy commit.
 d. Continue at step 2c-verify below (build, diff-scope, push). Expected

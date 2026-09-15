@@ -27,7 +27,6 @@ jobs:
 
           allowed() {
             case "$1" in
-              "Jay <292566361+aifounder7@users.noreply.github.com>") return 0 ;;
               "aifounder7 <292566361+aifounder7@users.noreply.github.com>") return 0 ;;
               *) return 1 ;;
             esac
