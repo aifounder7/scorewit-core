@@ -101,6 +101,13 @@ export interface AppCopy {
   footerHtml: string;
   /** Note under the final score. */
   resultNote: string;
+  /** Optional consumer-facing names for internal question topic keys. Plain
+   *  text only; unknown keys keep the legacy underscore-to-space label. */
+  topicLabels?: Record<string, string>;
+  /** Daily result only. `upcoming` contains exactly one {date}, replaced by
+   *  the next local YYYY-MM-DD date. No countdown, tracking or reset changes.
+   *  `available` is shown if that local midnight has already passed. */
+  dailyReturnCue?: { upcoming: string; available: string };
   /** Banner above the entity picker. */
   teamPickerBanner: string;
   /** First-visit banner on the Today tab (used by the standard renderToday;
@@ -1807,6 +1814,41 @@ export function renderAppHtml(cfg: AppShellConfig): string {
   const spotlight = spotlightChunks(cfg.calendarSpotlight, client);
   const yesterday = yesterdayParts(cfg.yesterdayLink);
   let tpl = HTML;
+  // Optional presentation only. Absent settings leave the incumbent shell
+  // byte-identical; question objects, scoring and day selection stay intact.
+  const plainCopy = (s: string, field: string) => {
+    if (typeof s !== 'string' || !s.trim() || /[<>]/.test(s)) {
+      throw new Error(`${field}: expected non-empty plain text`);
+    }
+  };
+  if (copy.topicLabels) {
+    for (const [key, label] of Object.entries(copy.topicLabels)) {
+      plainCopy(key, 'topicLabels key');
+      plainCopy(label, 'topicLabels label');
+    }
+    const labels = JSON.stringify(copy.topicLabels).replace(/</g, '\\u003c');
+    tpl = replaceExactlyOnce(tpl, "function chip(q){", `const TOPIC_LABELS=${labels};\nfunction topicLabel(q){return Object.prototype.hasOwnProperty.call(TOPIC_LABELS,q.topic)?TOPIC_LABELS[q.topic]:q.topic.replace(/_/g,' ');}\nfunction chip(q){`, 'consumer topic labels');
+    tpl = replaceExactlyOnce(tpl, "+q.topic.replace(/_/g,' ')+", '+esc(topicLabel(q))+', 'escaped topic label');
+  }
+  if (copy.dailyReturnCue) {
+    const cue = copy.dailyReturnCue;
+    plainCopy(cue.upcoming, 'dailyReturnCue.upcoming');
+    plainCopy(cue.available, 'dailyReturnCue.available');
+    if (cue.upcoming.split('{date}').length !== 2) {
+      throw new Error('dailyReturnCue.upcoming: expected exactly one {date}');
+    }
+    const js = `const DAILY_RETURN_CUE=${JSON.stringify(cue).replace(/</g, '\\u003c')};
+function nextDailyDate(key){const p=key.split('-').map(Number);return new Date(p[0],p[1]-1,p[2]+1);}
+function dailyReturnHtml(now=new Date()){
+  if(mode!=='daily')return '';
+  const next=nextDailyDate(currentDailyKey());
+  const message=now>=next?DAILY_RETURN_CUE.available:DAILY_RETURN_CUE.upcoming.replace('{date}',todayKey(next));
+  return '<div class="note daily-return">'+esc(message)+'</div>';
+}
+`;
+    tpl = replaceExactlyOnce(tpl, 'function renderResult(){', js + 'function renderResult(){', 'daily return cue helpers');
+    tpl = replaceExactlyOnce(tpl, "'<div class=\"note\">__RESULTNOTE__</div>'+", "'<div class=\"note\">__RESULTNOTE__</div>'+dailyReturnHtml()+", 'daily result cue');
+  }
   // OPT-IN basePath: rewrite the template's root-anchored emissions with the
   // exact-once discipline — BEFORE pack shellPatches, so a patch that anchors
   // on the pre-rewrite text fails loudly instead of double-editing. Unset =
