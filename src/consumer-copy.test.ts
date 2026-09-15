@@ -29,6 +29,19 @@ const cue = { upcoming: 'Next daily round: {date} at midnight (your local time).
   available: 'A newer daily round is ready. Reload this page to play.' };
 const labels = { basics_race_winner: 'Race winners', rivalry: 'Drivers & teams' };
 const base = renderAppHtml(cfg);
+const labelledBank = { seed: 1, questions: [{ topic: 'basics_race_winner' }, { topic: 'rivalry' }] };
+const withBank = (bank: unknown, topicLabels?: Record<string, string>) =>
+  renderAppHtml({ ...cfg, data: { ...cfg.data, bank }, copy: { ...cfg.copy, topicLabels } });
+assert.doesNotThrow(() => withBank(labelledBank, labels));
+assert.doesNotThrow(() => withBank(labelledBank));
+assert.doesNotThrow(() => withBank({ questions: [] }, labels));
+assert.throws(() => withBank(labelledBank, { basics_race_winner: 'Race winners' }), /missing labels.*rivalry/);
+assert.throws(() => withBank(labelledBank, {}), /missing labels.*basics_race_winner, rivalry/);
+assert.throws(() => withBank({ questions: [{ topic: 'new_topic' }] }, labels), /missing labels.*new_topic/);
+assert.throws(() => withBank(labelledBank, Object.create(labels)), /missing labels/);
+for (const malformed of [null, {}, { questions: null }, { questions: [null] }, { questions: [{}] }, { questions: [{ topic: '' }] }]) {
+  assert.throws(() => withBank(malformed, labels), /topicLabels/);
+}
 const enabled = renderAppHtml({ ...cfg, copy: { ...cfg.copy, topicLabels: labels, dailyReturnCue: cue } });
 assert.ok(!base.includes('DAILY_RETURN_CUE') && !base.includes('TOPIC_LABELS'));
 assert.equal(base, renderAppHtml({ ...cfg, copy: { ...cfg.copy, topicLabels: undefined, dailyReturnCue: undefined } }));

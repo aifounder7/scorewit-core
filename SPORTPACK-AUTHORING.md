@@ -413,7 +413,11 @@ selection untouched.
 ## Optional consumer copy
 
 `copy.topicLabels` maps internal topic keys to plain-text display labels. It
-does not rename topics in the bank; unknown keys retain the legacy label.
+does not rename topics in the bank. When configured, every topic present in
+`data.bank.questions` must have its own non-empty label or the build fails
+with the missing topic names. Extra labels are allowed for topics absent
+from a rotating bank. Unknown runtime keys retain the legacy fallback;
+leaving the option unset preserves all previous behavior.
 `copy.dailyReturnCue` adds a note only to completed daily rounds:
 
 ```ts

@@ -102,7 +102,8 @@ export interface AppCopy {
   /** Note under the final score. */
   resultNote: string;
   /** Optional consumer-facing names for internal question topic keys. Plain
-   *  text only; unknown keys keep the legacy underscore-to-space label. */
+   *  text only; when set, every topic in the emitted bank must be labelled.
+   *  Unknown runtime keys keep the legacy underscore-to-space fallback. */
   topicLabels?: Record<string, string>;
   /** Daily result only. `upcoming` contains exactly one {date}, replaced by
    *  the next local YYYY-MM-DD date. No countdown, tracking or reset changes.
@@ -1825,6 +1826,25 @@ export function renderAppHtml(cfg: AppShellConfig): string {
     for (const [key, label] of Object.entries(copy.topicLabels)) {
       plainCopy(key, 'topicLabels key');
       plainCopy(label, 'topicLabels label');
+    }
+    // Opted-in packs must not silently ship an unlabelled new bank topic.
+    // Keep the client fallback for unexpected runtime values and leave
+    // unconfigured packs entirely untouched (including opaque bank inputs).
+    const bank = data.bank as { questions?: unknown } | null;
+    if (!bank || !Array.isArray(bank.questions)) {
+      throw new Error('topicLabels: expected a bank.questions array');
+    }
+    const topics = bank.questions.map((q: unknown, i: number) => {
+      const topic = (q as { topic?: unknown } | null)?.topic;
+      if (typeof topic !== 'string' || !topic.trim()) {
+        throw new Error(`topicLabels: question ${i} has no valid topic`);
+      }
+      return topic;
+    });
+    const missing = [...new Set(topics)].filter(topic =>
+      !Object.prototype.hasOwnProperty.call(copy.topicLabels, topic)).sort();
+    if (missing.length) {
+      throw new Error(`topicLabels: missing labels for bank topics: ${missing.join(', ')}`);
     }
     const labels = JSON.stringify(copy.topicLabels).replace(/</g, '\\u003c');
     tpl = replaceExactlyOnce(tpl, "function chip(q){", `const TOPIC_LABELS=${labels};\nfunction topicLabel(q){return Object.prototype.hasOwnProperty.call(TOPIC_LABELS,q.topic)?TOPIC_LABELS[q.topic]:q.topic.replace(/_/g,' ');}\nfunction chip(q){`, 'consumer topic labels');
