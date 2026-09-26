@@ -255,6 +255,7 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       termsUrl: pack.termsUrl,
       // Family default: the post-round continue strip (every pack sets it).
       family: pack.family,
+      footer: pack.footer,
       // Opt-in post-answer entity links (existence-guarded above; unset =
       // ENTITYLINKS null and the shell renders facts exactly as before).
       entityLinks,
@@ -288,6 +289,8 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       {
         brand: pack.brand,
         copy: pack.copy,
+        footer: pack.footer,
+        family: pack.family,
         routes: pack.config.routes ?? { today: '/today', practice: '/practice', team: '/my-team' },
         basePath: pack.config.basePath,
         // One pack-level opt-in themes BOTH render surfaces (shell above).

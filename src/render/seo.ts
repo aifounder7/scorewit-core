@@ -1,3 +1,5 @@
+import { FOOTER_CSS, renderFooter, type FooterConfig } from './footer';
+import type { FamilyConfig } from './app';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -73,6 +75,8 @@ const jsonLdText = (o: object) =>
 const inlineJson = (o: unknown) => JSON.stringify(o).replace(/</g, '\\u003c');
 
 export interface SeoRenderConfig {
+  footer?: FooterConfig;
+  family?: FamilyConfig;
   brand: Brand;
   copy: AppCopy;
   /** Client-route paths that page paths must not shadow. */
@@ -454,14 +458,14 @@ ${cfg.theme ? almanacSeoCss(cfg.theme.accent) : `  :root{--bg:${brand.themeColor
   footer{max-width:760px;margin:24px auto 0;padding:22px 22px 48px;border-top:1px solid var(--line);
     color:var(--faint);font-size:12.5px;line-height:1.7}
   footer a{color:var(--muted)}`}
-</style>
+${cfg.footer ? FOOTER_CSS : ''}</style>
 </head>
 <body>
 <header class="topbar"><span class="accentbar"></span><a class="mark" href="${rootHref}" aria-label="${esc(brand.appName)}">${brand.markSvg}</a><a class="brand" href="${rootHref}">${brandHtml}</a></header>
 <main>
 ${blocks.join('\n')}
 </main>
-${copy.footerHtml}${analytics.body}
+${cfg.footer ? renderFooter(cfg.footer, cfg.family) : (copy.footerHtml ?? '')}${analytics.body}
 </body>
 </html>
 `;
