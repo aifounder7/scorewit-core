@@ -103,3 +103,6 @@ export {
 
 export { FOOTER_CSS, renderFooter } from './render/footer';
 export type { FooterConfig, FooterLine, FooterLink } from './render/footer';
+
+export { INSTALL_CSS, installHead, renderInstallCard, installedHubHead, type InstallPromoConfig, type InstalledHubGame } from './render/install';
+export { PUBLISHED_MANIFEST_IDS, assertPublishedManifestIdentity, type PwaConfig } from './manifest';

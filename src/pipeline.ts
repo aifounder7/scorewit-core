@@ -256,6 +256,8 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       // Family default: the post-round continue strip (every pack sets it).
       family: pack.family,
       footer: pack.footer,
+      installPromo: pack.installPromo,
+      pwa: pack.pwa,
       // Opt-in post-answer entity links (existence-guarded above; unset =
       // ENTITYLINKS null and the shell renders facts exactly as before).
       entityLinks,

@@ -83,3 +83,29 @@ npm install
 npm run typecheck
 npm test          # streak/stats model cases
 ```
+
+## Optional installation surfaces
+
+`SportPack.installPromo` enables a quiet arrival action and a post-round card.
+Consumers supply the app name, embedded original mark, eyebrow, title, body and
+canonical `gamePath`. The head captures native install eligibility early; a
+user click invokes the one-shot prompt. No native event means no install UI.
+The card is hidden during questions, after installation and in standalone mode.
+`Not now` and native cancellation suppress cards across the origin for 30 days;
+the quiet arrival action still supports an intentional retry. No install
+analytics or network requests are added. Storage failure is nonfatal.
+
+Hub consumers reuse `installHead`, `renderInstallCard` and `INSTALL_CSS`.
+`installedHubHead` accepts an allowlist of local game paths and storage prefixes.
+Answers write `scorewit.lastPlayed` locally. Cold installed hub launches resume
+that game; legacy saves fall back to a unique latest played day. Ties stay on
+the chooser. `?games=1`, anchor links and same-origin arrivals bypass resume;
+use `FooterConfig.allGamesUrl` for an explicit chooser link.
+
+`SportPack.pwa` opts into shared-origin scope `/` and an optional manifest name.
+It never changes an existing ID or start URL. `assertPublishedManifestIdentity`
+locks all eight published IDs, including their exact trailing slashes. Custom
+manifest writers must call the guard on the final manifest, after retargeting.
+Unsupported browsers retain ordinary gameplay and browser-menu installation.
+Actual native installation and installed cross-game navigation need Android
+verification after deployment; synthetic event tests do not prove OS behavior.

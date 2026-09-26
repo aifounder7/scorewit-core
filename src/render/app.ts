@@ -1,3 +1,5 @@
+import { INSTALL_CSS, INSTALL_ARRIVAL, installHead, renderInstallCard, type InstallPromoConfig } from './install';
+import { assertPublishedManifestIdentity, type PwaConfig } from '../manifest';
 import { FOOTER_CSS, renderFooter, type FooterConfig } from './footer';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -241,6 +243,8 @@ export interface AppShellConfig {
   family?: FamilyConfig;
   /** Shared visible footer; unset keeps the legacy footerHtml output. */
   footer?: FooterConfig;
+  installPromo?: InstallPromoConfig;
+  pwa?: PwaConfig;
   /** Opt-in post-answer entity links (see EntityLinkMap below): matched
    *  entity mentions in post-answer fact/insight surfaces gain subtle
    *  same-tab links to the pack's SEO pages. The map arriving here must
@@ -318,7 +322,7 @@ const HTML = String.raw`<!doctype html>
 <meta name="twitter:title" content="__TWTITLE__" />
 <meta name="twitter:description" content="__TWDESC__" />
 <meta name="twitter:image" content="__APPURL__/og.png" />
-__ANALYTICSHEAD__
+__INSTALLHEAD____ANALYTICSHEAD__
 <style>
   :root{
 __PALETTE__
@@ -521,7 +525,7 @@ __RESLINECSS__
   <div class="sub" id="sub">__SUBINITIAL__</div>
   <div class="streakbar" id="streakbar" style="display:none"></div>
   <div class="progress" id="progress" aria-hidden="true"></div>
-  <div id="stage"></div>
+  <div id="stage"></div>__INSTALLRESULT__
   <div class="assent">By playing you agree to the <a href="__TERMSURL__">Terms</a></div>__YESTERDAY__
 </main>
   __FOOTERHTML__
@@ -648,7 +652,7 @@ function enterDaily(){
   }
   updateStreakBar();
 }
-function updateStreakBar(){
+function updateStreakBar(){__INSTALLUPDATE__
   const bar=document.getElementById('streakbar');
   if(!bar)return;
   if(mode!=='daily'||statsOpen){bar.style.display='none';return;}
@@ -656,7 +660,7 @@ function updateStreakBar(){
   bar.style.display='flex';
   bar.innerHTML=(streak>0?'<span class="streakchip">🔥 '+streak+'-day streak</span>':'<span></span>')+
     '<button class="linkbtn" id="openstats">Stats ↗</button>';
-  document.getElementById('openstats').onclick=renderStats;
+  document.getElementById('openstats').onclick=renderStats;__INSTALLARRIVAL__
 }
 function renderProgress(){
   progEl.innerHTML='';
@@ -735,7 +739,7 @@ function render(){
   renderProgress();
 }
 
-function answer(resp){__TRACKSTART__
+function answer(resp){__INSTALLPLAYED____TRACKSTART__
   const q=questions[idx];
   const sc=scoreAnswer(q,resp);
   total+=sc.points; results.push(sc.points);
@@ -936,7 +940,7 @@ function renderPractice(){
     else{const inp=stage.querySelector('#pcg');const go=()=>{if(inp.value!=='')answerPractice(Number(inp.value));};document.getElementById('pcgsubmit').onclick=go;inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();});inp.focus();}
   }
 }
-function answerPractice(resp){__TRACKPRACTICE__
+function answerPractice(resp){__INSTALLPLAYED____TRACKPRACTICE__
   const q=pq;const sc=scoreAnswer(q,resp);const cls=sc.points>=100?'ok':sc.points>0?'partial':'no';
   if(hasPills(q)){lockPills(q,resp);}
   else{stage.querySelector('#pcg').disabled=true;stage.querySelector('#pcgsubmit').disabled=true;}
@@ -1015,7 +1019,7 @@ function wireTeamQuiz(t){
   if(hasPills(tq)){stage.querySelectorAll('button.opt').forEach(b=>{b.onclick=()=>answerTeam(t,pillValue(tq,tq.options[+b.dataset.i]));});}
   else{const inp=stage.querySelector('#tcg');const go=()=>{if(inp.value!=='')answerTeam(t,Number(inp.value));};document.getElementById('tcgsubmit').onclick=go;inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();});inp.focus();}
 }
-function answerTeam(t,resp){
+function answerTeam(t,resp){__INSTALLPLAYED__
   const q=tq;const sc=scoreAnswer(q,resp);const cls=sc.points>=100?'ok':sc.points>0?'partial':'no';
   if(hasPills(q)){lockPills(q,resp);}
   else{stage.querySelector('#tcg').disabled=true;stage.querySelector('#tcgsubmit').disabled=true;}
@@ -1080,7 +1084,7 @@ function renderMatchupQuiz(){
     else{const inp=stage.querySelector('#mdcg');const go=()=>{if(inp.value!=='')answerMatchup(f,Number(inp.value));};document.getElementById('mdcgs').onclick=go;inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();});inp.focus();}
   }
 }
-function answerMatchup(f,resp){
+function answerMatchup(f,resp){__INSTALLPLAYED__
   const q=mdq;const sc=scoreAnswer(q,resp);const cls=sc.points>=100?'ok':sc.points>0?'partial':'no';
   if(hasPills(q))lockPills(q,resp);
   else{stage.querySelector('#mdcg').disabled=true;stage.querySelector('#mdcgs').disabled=true;}
@@ -2022,6 +2026,11 @@ function buildShareText(streak){
     .replace('__TEAMS__', JSON.stringify(data.teams))
     .replace('__MATCHDAY__', JSON.stringify(data.matchday))
     // split/join = replace-all (tsconfig lib predates String.replaceAll)
+    .split('__INSTALLHEAD__').join(cfg.installPromo ? installHead(cfg.installPromo) : '')
+    .split('__INSTALLRESULT__').join(cfg.installPromo ? renderInstallCard(cfg.installPromo, 'result') : '')
+    .split('__INSTALLUPDATE__').join(cfg.installPromo ? "window.scorewitInstall.update({arrival:mode==='daily'&&!statsOpen&&idx===0&&results.length===0,result:mode==='daily'&&!statsOpen&&questions.length>0&&idx>=questions.length});" : '')
+    .split('__INSTALLARRIVAL__').join(cfg.installPromo ? `const left=bar.firstElementChild;const group=document.createElement('span');group.className='sw-install-streak';left.replaceWith(group);if(left.textContent)group.appendChild(left);group.insertAdjacentHTML('beforeend',${JSON.stringify(INSTALL_ARRIVAL)});window.scorewitInstall.update({arrival:idx===0&&results.length===0,result:questions.length>0&&idx>=questions.length});` : '')
+    .split('__INSTALLPLAYED__').join(cfg.installPromo ? 'window.scorewitInstall.played();' : '')
     .split('__ANALYTICSHEAD__').join(analytics.head)
     .split('__ANALYTICSJS__').join(analytics.js)
     .split('__TRACKSTART__').join(analytics.trackStart)
@@ -2074,7 +2083,7 @@ function buildShareText(streak){
         // SHARE V2: the earned rank title on the end-of-round card (accent is
         // AA-gated on every rendered pair like all palette colors).
         (v2 ? '\n  .ranktitle{font-size:15px;font-weight:800;color:var(--accent);margin:2px 0 8px}\n' : '') +
-        theme.css + spotlight.css + yesterday.css + (brand.extraCss ?? '') + (cfg.footer ? FOOTER_CSS : '')
+        theme.css + spotlight.css + yesterday.css + (brand.extraCss ?? '') + (cfg.footer ? FOOTER_CSS : '') + (cfg.installPromo ? INSTALL_CSS : '')
     )
     .split('__APPNAME__').join(brand.appName)
     .split('__BRANDMARK__').join(brand.markSvg)
@@ -2173,7 +2182,7 @@ export function writeSite(
   // PWA manifest — generated so the name/colors stay in lockstep with the
   // brand constants (add-to-home-screen installability).
   const manifest = {
-    name: brand.appName,
+    name: cfg.pwa?.name ?? brand.appName,
     short_name: brand.appName,
     description: cfg.copy.manifestDescription ?? cfg.copy.metaDescription,
     // Under a basePath the app installs from (and scopes to) its prefix; the
@@ -2182,7 +2191,7 @@ export function writeSite(
     // srcs stay relative — they resolve against the manifest's own URL.
     ...(basePath ? { id: `${basePath}/` } : {}),
     start_url: basePath || '/',
-    ...(basePath ? { scope: basePath } : {}),
+    ...(cfg.pwa ? { scope: cfg.pwa.scope } : basePath ? { scope: basePath } : {}),
     display: 'standalone',
     background_color: brand.themeColor,
     theme_color: brand.themeColor,
@@ -2192,6 +2201,7 @@ export function writeSite(
       { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml' },
     ],
   };
+  if (cfg.pwa && basePath) assertPublishedManifestIdentity(`${basePath}/manifest.webmanifest`, manifest);
   fs.writeFileSync(
     path.join(paths.siteDir, 'manifest.webmanifest'),
     JSON.stringify(manifest, null, 2)
