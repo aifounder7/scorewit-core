@@ -433,6 +433,8 @@ export interface SportPack<
    *  same-origin played-today state, under the share module. */
   family?: import('./render/app').FamilyConfig;
   footer?: import('./render/footer').FooterConfig;
+  installPromo?: import('./render/install').InstallPromoConfig;
+  pwa?: import('./manifest').PwaConfig;
   /** Opt-in My-Team nation theming (see AppShellConfig.teamTheming). Unset
    *  keeps the shell byte-for-byte. The nation table is editorial data;
    *  every rendered pair is AA-gated at build time and the build fails

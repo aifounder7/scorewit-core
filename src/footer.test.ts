@@ -87,3 +87,18 @@ const seoNew = renderSeoPage(page, { ...seoCfg, footer, family });
 assert.equal(stripFooter(seo), stripFooter(seoNew));
 assert.ok(seoNew.includes('sw-footer-shelf'));
 console.log('footer: escaping, visible notices, variants, legacy parity and persistent post-round tiles pass');
+
+// Optional install wiring leaves the legacy shell byte-identical when unset.
+assert.equal(legacy, renderAppHtml({ ...cfg, installPromo: undefined }));
+const installShell = renderAppHtml({ ...cfg, installPromo: {
+  appName: 'TestWit', markUrl: 'data:image/svg+xml;base64,PHN2Zy8+',
+  eyebrow: 'DAILY', title: 'One tap', body: 'Home screen', gamePath: '/example',
+} });
+assert.ok(!/__INSTALL[A-Z]+__/.test(installShell));
+assert.ok(installShell.indexOf("window.addEventListener('beforeinstallprompt'") < installShell.indexOf('<body'));
+assert.ok(installShell.includes('<div id="stage"></div><aside class="sw-install"'));
+assert.ok(installShell.includes('function answer(resp){window.scorewitInstall.played();'));
+assert.ok(installShell.includes('function answerPractice(resp){window.scorewitInstall.played();'));
+assert.ok(installShell.includes('function answerTeam(t,resp){window.scorewitInstall.played();'));
+assert.ok(installShell.includes('function answerMatchup(f,resp){window.scorewitInstall.played();'));
+assert.ok(renderFooter({...footer,allGamesUrl:'https://example.test/?games=1'},family).includes('href="https://example.test/?games=1"'));

@@ -5,6 +5,8 @@ export interface FooterLink { text: string; url: string }
 export type FooterLine = Array<string | FooterLink>;
 export interface FooterConfig {
   homeUrl: string;
+  /** Explicit hub chooser, including in installed launch mode. */
+  allGamesUrl?: string;
   /** Present for pack pages; prevents a self-link in the sibling shelf. */
   gameUrl?: string;
   wordmark: string;
@@ -48,7 +50,7 @@ export function renderFooter(config: FooterConfig, family?: FamilyConfig): strin
       seen.add(g.url);
       return `<li><a href="${url(g.url)}" aria-label="${esc(g.name)}"><img src="${imageUrl(g.markUrl)}" alt="" width="30" height="30" loading="lazy" decoding="async"><span><strong>${esc(g.name)}</strong><small>${esc(g.description)}</small></span></a></li>`;
     }).join('');
-    shelf = `<nav class="sw-footer-shelf" aria-label="${esc(config.heading)}"><div class="sw-footer-head"><h2>${esc(config.heading)}</h2>${link({ text: config.allGamesLabel, url: config.homeUrl })}</div><ul>${tiles}</ul></nav>`;
+    shelf = `<nav class="sw-footer-shelf" aria-label="${esc(config.heading)}"><div class="sw-footer-head"><h2>${esc(config.heading)}</h2>${link({ text: config.allGamesLabel, url: config.allGamesUrl ?? config.homeUrl })}</div><ul>${tiles}</ul></nav>`;
   }
   return `<footer class="sw-footer">${shelf}<div class="sw-footer-band"><div class="sw-footer-row"><a class="sw-footer-brand" href="${url(config.homeUrl)}">${esc(config.wordmark)}<span aria-hidden="true">.</span></a><nav class="sw-footer-links" aria-label="Site information">${config.links.map(link).join('')}</nav></div><p class="sw-footer-trust">${esc(config.trust)}</p><div class="sw-footer-columns"><section><h2>Independent by design</h2>${config.disclaimer.map(s => `<p>${esc(s)}</p>`).join('')}<p>${esc(config.privacy)}</p></section><section><h2>Data and credits</h2>${config.credits.map(line => `<p>${line.map(part => typeof part === 'string' ? esc(part) : link(part)).join('')}</p>`).join('')}</section></div><p class="sw-footer-copyright">${esc(config.copyright)}</p></div></footer>`;
 }
