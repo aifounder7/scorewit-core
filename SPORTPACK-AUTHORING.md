@@ -269,8 +269,8 @@ hard gate, covered by src/base-path.test.ts.
 
 ## Post-round continue strip (family standard: `family`, v0.16.0)
 
-The result screen renders a compact strip under the share module: the OTHER
-family games as chips (played-today ✓ where same-origin storage allows,
+Without the shared `footer` option, the result screen renders a compact strip
+under the share module: the OTHER family games as chips (played-today ✓ where same-origin storage allows,
 unplayed first) plus a link to the portfolio hub. Configure it on the shell:
 
 ```ts
@@ -453,15 +453,17 @@ line is an array of text or `{ text, url }` links; the renderer escapes all
 text and validates HTTPS destinations. No raw HTML, scripts or collapsed text.
 
 Add `markUrl` and `description` to each existing `family.games` entry. These
-are footer-only presentation data and do not change result-strip labels or
-played-state behavior. Keep the current game excluded as before. Use existing
-pack marks and current public names. `markUrl` accepts an HTTPS image URL or
+are footer-only presentation data. Keep the current game excluded as before.
+Use existing pack marks and current public names. `markUrl` accepts an HTTPS image URL or
 a base64 SVG image URL for marks embedded at build time. `renderFooter(config)` without a family
 renders the homepage's band-only variant. Include `FOOTER_CSS` once in custom
 page templates using that variant. The shell and SEO templates do this for you.
 
-The footer shelf hides while the existing `#continue` results strip is
-nonempty, through scoped CSS. The result strip and Terms assent remain
-unchanged. Every other footer element stays visible, including credits and
-non-affiliation notices. Copyright and refresh wording are supplied by the
+With both `footer` and `family` configured, the approved tile shelf remains
+visible before and after a round, including restored results. The shell omits
+the legacy `#continue` pill container so sibling navigation appears only once.
+The shelf keeps its configured order and descriptions, without played badges.
+Consumers without a shared shelf retain the legacy strip and played-state
+behavior. Terms assent stays in place. Every footer element stays visible,
+including credits and non-affiliation notices. Copyright and refresh wording are supplied by the
 pack, not derived from the render clock. Preserve each source's full notice.
