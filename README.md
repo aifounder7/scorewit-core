@@ -89,7 +89,8 @@ npm test          # streak/stats model cases
 `SportPack.installPromo` enables a quiet arrival action and a post-round card.
 Consumers supply the app name, embedded original mark, eyebrow, title, body and
 canonical `gamePath`. The head captures native install eligibility early; a
-user click invokes the one-shot prompt. No native event means no install UI.
+user click invokes the one-shot prompt. Native destinations stay hidden until
+the browser supplies an event.
 The card is hidden during questions, after installation and in standalone mode.
 `Not now` and native cancellation suppress cards across the origin for 30 days;
 the quiet arrival action still supports an intentional retry. No install
@@ -108,4 +109,35 @@ locks all eight published IDs, including their exact trailing slashes. Custom
 manifest writers must call the guard on the final manifest, after retargeting.
 Unsupported browsers retain ordinary gameplay and browser-menu installation.
 Actual native installation and installed cross-game navigation need Android
-verification after deployment; synthetic event tests do not prove OS behavior.
+and iOS device verification after deployment; browser tests do not prove OS behavior.
+
+`installPromo.destinations` holds platform data for one component. Android and
+desktop currently use `{ kind: 'native', label: 'Install' }`; iOS uses
+`{ kind: 'manual', label: 'Add to Home Screen' }`. An optional action `body`
+overrides the shared card copy (desktop describes installation, not a phone's
+home screen). Omitting destinations retains native-only behavior. iPad desktop
+user agents are recognized through their Mac platform and touch capability.
+
+The manual action opens a native dialog with Safari steps and an expandable
+copy-link aid, expanded by default outside recognizable Safari. Copy uses the
+current origin and canonical game root, never query strings or share tokens.
+Clipboard failure selects a readable link for manual copying. Close/Escape
+returns focus; Done applies the shared cooldown without marking installation.
+Observed standalone use suppresses future manual cards in that same available
+local storage. iOS cannot reliably report every existing install to an ordinary
+browser tab; no universal installation-detection claim is made.
+
+Future Android/iOS listings can select `{ kind: 'store', label, body, url }`.
+Build-time validation requires a matching HTTPS Play/App Store listing URL,
+explicit action copy and a store-specific body. The URL format guard does not
+verify that a listing is published: verify the real destination before enabling.
+Store navigation happens only on click and is not counted as installation.
+Desktop remains native web installation. No production store destination or
+badge is configured. When a Play listing exists, update related applications
+and preference metadata in the same reviewed rollout; preserve all manifest IDs.
+Do not add a service worker as part of this promotion.
+
+Safari steps follow [Apple's iPhone instructions](https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios)
+and [iPad instructions](https://support.apple.com/guide/ipad/bookmark-a-website-ipadc602b75b/ipados).
+Browser store preference is a hint, as described by
+[MDN](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/prefer_related_applications).

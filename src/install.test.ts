@@ -1,30 +1,47 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { installHead, installedHubHead, renderInstallCard, type InstallPromoConfig } from './render/install';
+import { installHead, installedHubHead, renderInstallCard, type InstallDestinations, type InstallPromoConfig } from './render/install';
 import { assertPublishedManifestIdentity, PUBLISHED_MANIFEST_IDS } from './manifest';
 
 const config: InstallPromoConfig = { appName: 'Example', markUrl: 'data:image/svg+xml;base64,PHN2Zy8+', eyebrow: 'TRY IT', title: 'One tap', body: 'All games', gamePath: '/example' };
 const unwrap = (s: string) => s.replace(/^<script>\n|\n<\/script>$/g, '');
-function harness(storage = new Map<string,string>(), standalone = false, blocked = false) {
+const destinations: InstallDestinations = {
+  android: {kind:'native',label:'Install'},
+  ios: {kind:'manual',label:'Add to Home Screen'},
+  desktop: {kind:'native',label:'Install',body:'Install for quick access.'},
+};
+const safariUA='Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1';
+function harness(storage = new Map<string,string>(), standalone = false, blocked = false,
+  options: { config?: InstallPromoConfig; navigator?: Record<string,unknown>; copyFails?: boolean } = {}) {
   const handlers: Record<string, Array<(e?: any) => void>> = {};
   const on = (name: string, fn: (e?: any) => void) => (handlers[name] ??= []).push(fn);
   const fire = (name: string, event?: any) => handlers[name]?.forEach(fn => fn(event));
   const elements = ['arrival', 'result', 'hub'].map(placement => ({ dataset: { installPlacement: placement }, hidden: true }));
   const add = { dataset: { installAction: 'add' }, disabled: false };
   const mode = { matches: standalone, addEventListener: on };
+  let navigated: string|null=null, copied: string|null=null,focused=false,selected=false;
+  const nodes: Record<string,any> = {};
+  for(const id of ['sw-install-browser-help','sw-install-page-link','sw-install-copy-status']) nodes[id]={open:false,value:'',textContent:'',focus:()=>focused=true,select:()=>selected=true};
+  const dialog={open:false,showModal:()=>{dialog.open=true;},close:()=>{dialog.open=false;fire('guide-close');},addEventListener:(_name:string,fn:()=>void)=>on('guide-close',fn)};
+  nodes['sw-install-guide']=dialog;
+  const label={textContent:''},copy={textContent:''};
   const window: any = { addEventListener: on, matchMedia: () => mode };
-  const sandbox: any = { window, navigator: {}, document: { addEventListener: on,
-    querySelectorAll: (s: string) => s === '[data-install-placement]' ? elements : [add] },
+  const sandbox: any = { window, navigator: {clipboard:{writeText:async(s:string)=>{if(options.copyFails)throw Error('denied');copied=s;}},...options.navigator},
+    location:{origin:'https://example.test',assign:(s:string)=>navigated=s},
+    document: { addEventListener: on, getElementById:(id:string)=>nodes[id]??null,querySelector:()=>null,
+    querySelectorAll: (s: string) => s === '[data-install-placement]' ? elements : s==='[data-install-label]'?[label]:s==='[data-install-copy]'?[copy]:[add] },
     localStorage: { getItem: (k: string) => { if(blocked)throw Error('blocked');return storage.get(k) ?? null; },
       setItem: (k: string,v: string) => { if(blocked)throw Error('blocked');storage.set(k,v); } } };
-  vm.runInNewContext(unwrap(installHead(config)), sandbox);
+  vm.runInNewContext(unwrap(installHead(options.config??config)), sandbox);
   const click = (action: string) => fire('click', { target: { closest: () => ({ dataset: { installAction: action } }) } });
   function offer(outcome = 'dismissed', fail = false) {
     let prompts = 0, prevented = 0;
     fire('beforeinstallprompt', { preventDefault: () => prevented++, prompt: () => { prompts++;if(fail)throw Error('expired');return Promise.resolve(); }, userChoice: Promise.resolve({ outcome }) });
     return { prompts: () => prompts, prevented: () => prevented };
   }
-  return { fire, elements, click, offer, mode, storage, api: window.scorewitInstall };
+  fire('DOMContentLoaded');
+  return { fire, elements, click, offer, mode, storage, dialog, nodes, label, copy,
+    navigated:()=>navigated,copied:()=>copied,selected:()=>selected&&focused,api: window.scorewitInstall };
 }
 async function main() {
   const h = harness();
@@ -61,6 +78,52 @@ async function main() {
   assert.throws(()=>renderInstallCard({...config,markUrl:'javascript:alert(1)'},'hub'));
   assert.throws(()=>installHead({...config,gamePath:'//evil.test'}));
 
+  const platformConfig={...config,destinations};
+  const iphone=harness(new Map(),false,false,{config:platformConfig,navigator:{userAgent:safariUA}});
+  iphone.api.update({arrival:true,result:false});assert.equal(iphone.elements[0].hidden,false,'iOS requires no fake native event');
+  assert.equal(iphone.label.textContent,'Add to Home Screen');
+  iphone.click('add');assert.equal(iphone.dialog.open,true);assert.equal(iphone.nodes['sw-install-browser-help'].open,false);
+  assert.equal(iphone.nodes['sw-install-page-link'].value,'https://example.test/example','copies game root, no query or tracking data');
+  iphone.click('close-guide');assert.equal(iphone.dialog.open,false);assert.ok(!iphone.storage.has('scorewit.installDismissedUntil'));
+  iphone.click('add');iphone.click('done-guide');assert.equal(iphone.dialog.open,false);assert.equal(iphone.elements[2].hidden,true);
+  assert.ok(!iphone.storage.has('scorewit.installAccepted'),'reading instructions never claims installation');
+  const otherGame=harness(iphone.storage,false,false,{config:platformConfig,navigator:{userAgent:safariUA}});
+  assert.equal(otherGame.elements[2].hidden,true,'manual dismissal also applies to the next game');
+  const iosChrome=harness(new Map(),false,false,{config:platformConfig,navigator:{userAgent:safariUA.replace('Version/26.0','CriOS/140.0')}});
+  iosChrome.click('add');assert.equal(iosChrome.nodes['sw-install-browser-help'].open,true);
+  iosChrome.click('copy-link');await new Promise(resolve=>setImmediate(resolve));assert.equal(iosChrome.copied(),'https://example.test/example');
+  const clipboardDenied=harness(new Map(),false,false,{config:platformConfig,navigator:{userAgent:safariUA.replace('Version/26.0','Instagram')},copyFails:true});
+  clipboardDenied.click('add');clipboardDenied.click('copy-link');await new Promise(resolve=>setImmediate(resolve));
+  assert.ok(clipboardDenied.selected());assert.match(clipboardDenied.nodes['sw-install-copy-status'].textContent,/Touch and hold/);
+  const ipad=harness(new Map(),false,false,{config:platformConfig,navigator:{userAgent:'Mozilla/5.0 (Macintosh) Version/26.0 Safari/605.1.15',platform:'MacIntel',maxTouchPoints:5}});
+  assert.equal(ipad.elements[2].hidden,false);assert.equal(ipad.label.textContent,'Add to Home Screen');
+  ipad.mode.matches=true;ipad.fire('change');assert.ok(ipad.elements.every(el=>el.hidden));
+  ipad.mode.matches=false;ipad.fire('change');assert.equal(ipad.elements[2].hidden,true,'observed standalone use suppresses manual cards later');
+  ipad.api.update({arrival:true,result:false});assert.equal(ipad.elements[0].hidden,false,'voluntary retry remains available');
+  const manualDenied=harness(new Map(),false,true,{config:platformConfig,navigator:{userAgent:safariUA}});
+  manualDenied.click('add');manualDenied.click('done-guide');assert.equal(manualDenied.elements[2].hidden,true);
+  const android=harness(new Map(),false,false,{config:platformConfig,navigator:{userAgent:'Mozilla/5.0 (Linux; Android 16) Chrome/140'}});
+  assert.equal(android.elements[2].hidden,true);android.offer();assert.equal(android.elements[2].hidden,false);assert.equal(android.label.textContent,'Install');
+  const desktop=harness(new Map(),false,false,{config:platformConfig,navigator:{userAgent:'Mozilla/5.0 Macintosh Version/26.0 Safari/605.1.15',platform:'MacIntel',maxTouchPoints:0}});
+  assert.equal(desktop.elements[2].hidden,true);desktop.offer();assert.equal(desktop.copy.textContent,'Install for quick access.');
+  const play={kind:'store' as const,label:'View on Google Play',body:'Find Example on Google Play.',url:'https://play.google.com/store/apps/details?id=test.example'};
+  const apple={kind:'store' as const,label:'View in App Store',body:'Find Example in the App Store.',url:'https://apps.apple.com/us/app/example/id123456789'};
+  for(const [ua,platform,listing] of [['Android','android',play],[safariUA,'ios',apple]] as const){
+    const store=harness(new Map(),false,false,{config:{...platformConfig,destinations:{...destinations,[platform]:listing}},navigator:{userAgent:ua}});
+    assert.equal(store.elements[2].hidden,false);assert.equal(store.label.textContent,listing.label);assert.equal(store.copy.textContent,listing.body);
+    const ignored=store.offer();assert.equal(ignored.prevented(),0,'future store route does not hijack native store banner');
+    assert.equal(store.navigated(),null,'no automatic store navigation');store.click('add');assert.equal(store.navigated(),listing.url);
+    assert.ok(!store.storage.has('scorewit.installAccepted'),'store click is not an installation');
+  }
+  for(const url of ['http://play.google.com/store/apps/details?id=x','https://evil.test/store/apps/details?id=x','https://play.google.com/store/apps/details','https://user:pw@play.google.com/store/apps/details?id=x']) {
+    assert.throws(()=>installHead({...platformConfig,destinations:{...destinations,android:{...play,url}}}));
+  }
+  assert.throws(()=>installHead({...platformConfig,destinations:{...destinations,ios:play}}));
+  assert.throws(()=>installHead({...platformConfig,destinations:{...destinations,android:{...play,body:''}}}));
+  assert.ok(renderInstallCard(platformConfig,'hub').includes('<dialog'));
+  assert.ok(!renderInstallCard(config,'hub').includes('<dialog'),'native-only consumers do not get the manual sheet');
+  assert.ok(!installHead(platformConfig).includes('test.example'),'test listings never enter real config');
+
   const hubCode=unwrap(installedHubHead([{path:'/one',prefix:'one'},{path:'/two',prefix:'two'}]));
   function launch(values: Record<string,unknown>, opts: { standalone?: boolean;search?: string;hash?:string;referrer?:string;blocked?:boolean }={}) {
     let destination: string|null=null;
@@ -85,6 +148,6 @@ async function main() {
     assert.throws(()=>assertPublishedManifestIdentity(path,{id:id==='/'?'/new':id.endsWith('/')?id.slice(0,-1):id+'/'}),/locked/);
   }
   assert.throws(()=>assertPublishedManifestIdentity('/unknown/manifest.webmanifest',{id:'/'}),/Unregistered/);
-  console.log('install: native eligibility, cooldown, lifecycle, local state, installed navigation and all eight identity locks pass');
+  console.log('install: platform routing, Safari guidance, store URL validation, native eligibility, cooldown, lifecycle, local state, installed navigation and all eight identity locks pass');
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});
