@@ -78,6 +78,7 @@ async function main() {
   assert.throws(()=>renderInstallCard({...config,markUrl:'javascript:alert(1)'},'hub'));
   assert.throws(()=>installHead({...config,gamePath:'//evil.test'}));
 
+  const literalCopy=harness(new Map(),false,false,{config:{...config,body:'Keep $& literal </script>'}});literalCopy.offer();assert.equal(literalCopy.copy.textContent,'Keep $& literal </script>');
   const platformConfig={...config,destinations};
   const iphone=harness(new Map(),false,false,{config:platformConfig,navigator:{userAgent:safariUA}});
   iphone.api.update({arrival:true,result:false});assert.equal(iphone.elements[0].hidden,false,'iOS requires no fake native event');

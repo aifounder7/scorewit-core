@@ -80,7 +80,7 @@ export const INSTALL_CSS = `
 export function installHead(config: InstallPromoConfig): string {
   if (config.gamePath) localPath(config.gamePath);
   validateDestinations(config.destinations);
-  return '<script>\n' + INSTALL_CLIENT.replace('__INSTALLCONFIG__', json({
+  return '<script>\n' + INSTALL_CLIENT.replace('__INSTALLCONFIG__', () => json({
     gamePath: config.gamePath ?? null, appName: config.appName, body: config.body,
     destinations: config.destinations ?? null,
   })) + '\n</script>';
