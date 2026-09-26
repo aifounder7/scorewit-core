@@ -442,3 +442,26 @@ keep the rendered shell byte-identical. Keep labels and cue copy pack-owned.
 5. Determinism proof: build twice from the same dataset — byte-identical.
 6. Hygiene: no sport facts in core, ODC/data licences honored pack-side,
    identity rules per the repo's CLAUDE.md.
+
+## Shared footer (opt-in: `footer`)
+
+Supply a `FooterConfig` as `pack.footer`. Core uses it for both game and
+reference pages; omit it to retain the legacy `copy.footerHtml` bytes. The
+contract contains the home URL, wordmark, labels, visible trust/privacy text,
+disclaimer paragraphs, copyright line, utility links and credits. Each credit
+line is an array of text or `{ text, url }` links; the renderer escapes all
+text and validates HTTPS destinations. No raw HTML, scripts or collapsed text.
+
+Add `markUrl` and `description` to each existing `family.games` entry. These
+are footer-only presentation data and do not change result-strip labels or
+played-state behavior. Keep the current game excluded as before. Use existing
+pack marks and current public names. `markUrl` accepts an HTTPS image URL or
+a base64 SVG image URL for marks embedded at build time. `renderFooter(config)` without a family
+renders the homepage's band-only variant. Include `FOOTER_CSS` once in custom
+page templates using that variant. The shell and SEO templates do this for you.
+
+The footer shelf hides while the existing `#continue` results strip is
+nonempty, through scoped CSS. The result strip and Terms assent remain
+unchanged. Every other footer element stays visible, including credits and
+non-affiliation notices. Copyright and refresh wording are supplied by the
+pack, not derived from the render clock. Preserve each source's full notice.

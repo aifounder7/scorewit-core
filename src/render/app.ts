@@ -1,3 +1,4 @@
+import { FOOTER_CSS, renderFooter, type FooterConfig } from './footer';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AnalyticsConfig, CalendarSpotlightConfig, PipelinePaths } from '../types';
@@ -75,6 +76,9 @@ export interface FamilyGame {
   /** The sibling's localStorage prefix — the strip reads
    *  `${prefix}.history[todayKey()]` (same-origin only) for played state. */
   storagePrefix: string;
+  /** Footer artwork and short editorial sport label; unused by the result strip. */
+  markUrl?: string;
+  description?: string;
 }
 
 /** The post-round "continue" strip under the share module: the OTHER family
@@ -98,7 +102,7 @@ export interface AppCopy {
   /** Initial Daily-tab caption (replaced by the round line once started). */
   subInitial: string;
   /** Full <footer>…</footer> element (disclaimers, licences, analytics note). */
-  footerHtml: string;
+  footerHtml?: string;
   /** Note under the final score. */
   resultNote: string;
   /** Optional consumer-facing names for internal question topic keys. Plain
@@ -235,6 +239,8 @@ export interface AppShellConfig {
    *  `const FAMILY=null` and an empty, display:none container — but unset is
    *  a transition state, not a supported profile: every family pack sets it. */
   family?: FamilyConfig;
+  /** Shared visible footer; unset keeps the legacy footerHtml output. */
+  footer?: FooterConfig;
   /** Opt-in post-answer entity links (see EntityLinkMap below): matched
    *  entity mentions in post-answer fact/insight surfaces gain subtle
    *  same-tab links to the pack's SEO pages. The map arriving here must
@@ -2065,7 +2071,7 @@ function buildShareText(streak){
         // SHARE V2: the earned rank title on the end-of-round card (accent is
         // AA-gated on every rendered pair like all palette colors).
         (v2 ? '\n  .ranktitle{font-size:15px;font-weight:800;color:var(--accent);margin:2px 0 8px}\n' : '') +
-        theme.css + spotlight.css + yesterday.css + (brand.extraCss ?? '')
+        theme.css + spotlight.css + yesterday.css + (brand.extraCss ?? '') + (cfg.footer ? FOOTER_CSS : '')
     )
     .split('__APPNAME__').join(brand.appName)
     .split('__BRANDMARK__').join(brand.markSvg)
@@ -2080,7 +2086,7 @@ function buildShareText(streak){
     .split('__TWTITLE__').join(copy.twitterTitle)
     .split('__TWDESC__').join(copy.twitterDescription)
     .split('__SUBINITIAL__').join(copy.subInitial)
-    .split('__FOOTERHTML__').join(copy.footerHtml)
+    .split('__FOOTERHTML__').join(cfg.footer ? renderFooter(cfg.footer, cfg.family) : (copy.footerHtml ?? ''))
     .split('__RESULTNOTE__').join(copy.resultNote)
     .split('__TEAMPICKERBANNER__').join(copy.teamPickerBanner)
     .split('__TODAYINTRO__').join(copy.todayIntro ?? DEFAULT_TODAY_INTRO)

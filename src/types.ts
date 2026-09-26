@@ -432,6 +432,7 @@ export interface SportPack<
    *  standard every Scorewit pack sets: the sibling games + the hub, with
    *  same-origin played-today state, under the share module. */
   family?: import('./render/app').FamilyConfig;
+  footer?: import('./render/footer').FooterConfig;
   /** Opt-in My-Team nation theming (see AppShellConfig.teamTheming). Unset
    *  keeps the shell byte-for-byte. The nation table is editorial data;
    *  every rendered pair is AA-gated at build time and the build fails

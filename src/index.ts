@@ -100,3 +100,6 @@ export {
   type Brand,
   type PackClientJs,
 } from './render/app';
+
+export { FOOTER_CSS, renderFooter } from './render/footer';
+export type { FooterConfig, FooterLine, FooterLink } from './render/footer';
