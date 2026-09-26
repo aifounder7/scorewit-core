@@ -1,4 +1,4 @@
-import { notificationState, validateNotificationState, type NotificationStateConfig } from '../notification-state';
+import { notificationState, type NotificationStateConfig } from '../notification-state';
 import { NOTIFY_HTML, NOTIFY_CSS, notifyScript, notificationWorker, type NotifyConfig } from './notify';
 import { INSTALL_CSS, INSTALL_ARRIVAL, installHead, renderInstallCard, type InstallPromoConfig } from './install';
 import { assertPublishedManifestIdentity, type PwaConfig } from '../manifest';
@@ -2187,8 +2187,7 @@ export function writeSite(
   fs.writeFileSync(path.join(paths.siteDir, '404.html'), notFoundHtml);
   if (cfg.notificationState) {
     const date = process.env.SCOREWIT_STATE_DATE ?? new Date().toISOString().slice(0,10);
-    const state = notificationState(cfg.notificationState, cfg.data.bank, date);
-    validateNotificationState(state, html);
+    const state = notificationState(cfg.notificationState, cfg.data.bank, date, html);
     fs.writeFileSync(path.join(paths.siteDir, 'state.json'), JSON.stringify(state, null, 2) + '\n');
     fs.writeFileSync(path.join(paths.siteDir, 'notify-sw.js'), notificationWorker(cfg.notificationState.gamePaths));
   }

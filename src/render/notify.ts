@@ -41,6 +41,17 @@ function available(){return config.games.filter(g=>capabilities&&capabilities.pa
 function played(){return config.games.filter(g=>{if(g.pack===config.pack)return true;try{return Object.keys(JSON.parse(localStorage.getItem(g.storagePrefix+'.history')||'{}')).length>0;}catch{return false;}}).map(g=>g.pack);}
 function choices(saved){const selected=saved?saved.games:played();return available().filter(g=>selected.includes(g.pack)).map(g=>g.pack);}
 function timezone(){return Intl.DateTimeFormat().resolvedOptions().timeZone;}
+// One zone-only update on a later visit. No consent, token refresh or other
+// preference update is automatic. A failed request keeps the old zone for retry
+// on the next visit, rather than repeating on every render.
+async function syncTimezone(){
+ const saved=read();if(!saved)return;
+ let tz;try{tz=timezone();}catch{return;}if(saved.tz===tz)return;
+ busy=true;
+ try{await api('subscriptions/'+saved.id,'PATCH',{tz},saved);
+   const latest=read();if(latest&&latest.id===saved.id&&latest.secret===saved.secret)localStorage.setItem(key,JSON.stringify({...latest,tz}));
+ }catch{}finally{busy=false;draw();}
+}
 function fields(root,saved){
  const label=text(root,'label','Reminder hour (your local time) ');const select=document.createElement('select');select.id='sw-notify-hour';
  for(let h=0;h<24;h++){const o=document.createElement('option');o.value=String(h);o.textContent=String(h).padStart(2,'0')+':00';select.appendChild(o);}select.value=String(saved?saved.hour:new Date().getHours());label.appendChild(select);
@@ -69,7 +80,7 @@ async function subscribe(){
    const result=await permission;
    if(native){if(!result||result.permission!=='granted'||!/^[a-fA-F0-9]{64}$/.test(result.token||'')){decline();return;}credential=result.token;}
    else{if(result!=='granted'){decline();return;}registration=await navigator.serviceWorker.register('/notify-sw.js',{scope:'/'});await navigator.serviceWorker.ready;const bytes=Uint8Array.from(atob(config.vapidPublicKey.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));credential=await registration.pushManager.getSubscription()||await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:bytes});}
-   handle=await api('subscriptions','POST',{transport:native?'apns':'webpush',credential:native?credential:credential.toJSON(),...preferencesValue,locale:navigator.language||'en',app:{platform:native?'ios':/Android/i.test(navigator.userAgent)?'android':'web',version:config.appVersion}});
+   handle=await api('subscriptions','POST',{transport:native?'apns':'webpush',credential:native?credential:credential.toJSON(),...preferencesValue,app:{platform:native?'ios':/Android/i.test(navigator.userAgent)?'android':'web',version:config.appVersion}});
    try{localStorage.setItem(key,JSON.stringify({...handle,...preferencesValue}));}catch(error){await api('subscriptions/'+handle.id,'DELETE',null,handle);throw error;}
    draw();status('Reminders are on.');
  }catch(error){if(credential&&!native&&!handle){try{await credential.unsubscribe();}catch{}}status(error.message==='duplicate'?'This browser already has a reminder subscription. Use its existing reminder settings.':'Could not turn on reminders. Please try again.');}
@@ -80,6 +91,7 @@ async function unsubscribe(){if(busy)return;const handle=read();if(!handle)retur
 window.scorewitNotify={update:function(completed){visible=!!completed;if(visible&&(native||web)){if(!capabilities)void load();}draw();}};
 window.addEventListener('storage',e=>{if(e.key===key||e.key===declineKey)draw();});
 try{const url=new URL(location.href);if(url.searchParams.get('src')==='push'){if(config.games.some(g=>g.path===url.pathname))track('push_opened',{pack:config.pack});url.searchParams.delete('src');history.replaceState(history.state,'',url.pathname+url.search+url.hash);}}catch{}
+void syncTimezone();
 })(__CONFIG__);
 `;
 

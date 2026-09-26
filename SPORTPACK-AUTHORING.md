@@ -474,7 +474,7 @@ pack, not derived from the render clock. Preserve each source's full notice.
 
 ### Mirrored service contract v1
 
-Status: implementation proposal for brief 0027. Do not activate clients or start
+Status: disabled implementation of brief 0027 Amendment A. Do not activate clients or start
 briefs 0028/0029 until this contract is founder-merged. No deployed service URL
 is assumed. Platform clients consume this document; changes require a new review.
 
@@ -485,7 +485,7 @@ is exactly `https://www.scorewit.com`. CORS is not authentication. Transport
 credentials are never logged. All responses disable caching.
 
 - `POST /v1/subscriptions`: `{transport: "webpush" | "apns", credential,
-  games: [pack], hour: 0..23, tz: IANA, locale: BCP47,
+  games: [pack], hour: 0..23, tz: IANA,
   app: {platform: "android" | "ios" | "web", version: string}}`.
   Credential is a PushSubscription JSON object (endpoint and keys) or a 64-hex
   APNs token. Returns 201 `{id, secret}`. Keep that pair on the device only.
@@ -509,7 +509,7 @@ Supported pack identifiers: `f1`, `worldcup`, `footyphoria`, `cricket`,
 ## Storage and at-most-once delivery
 
 One record per subscription contains only transport, credential, games, hour,
-tz, locale, app, createdAt, lastSentOn and consecutiveFailures. The random id
+tz, app, createdAt, lastSentOn and consecutiveFailures. The random id
 is the key. The management secret is HMAC-derived from the id and an environment
 secret, so it is not stored. Redis also holds a credential SHA-256-to-id index,
 the set of active ids, and one expiring aggregate registration counter. None
@@ -538,14 +538,21 @@ Changing time zone cannot send on a local date less than or equal to the last
 reserved date. Turning off prevents subsequent attempts; a message already handed
 to the provider cannot be recalled.
 
-An hourly run checks the chosen local hour; fractional-offset zones are served
-during that hour, not necessarily at minute zero. Exact-date equality is mandatory:
-missing, stale, malformed or not-ready state produces no message and no reservation.
-One message names the first ready selected pack and the number of other ready
-selected packs. No scores, teasers, streaks or free-text content. English templates
-in v1; locale is retained for a later translation review, not used to invent copy.
-The ISO date and weekday use the same subscriber time zone. Click URLs are fixed
-game roots with only `?src=push`, never a subscription identifier.
+An hourly run compares local wall-clock minutes to the chosen hour. It is due
+from that hour through exactly three hours later, inclusive, on the same local
+date. A later minute or an earlier hour skips without reserving. This catches a
+missed run and a spring-forward missing hour, but never wraps yesterday's reminder
+into today. The last reserved date must be earlier than today's local date.
+Fractional-offset zones are checked on their local offset minute: with a top-of-
+UTC-hour scheduler, half-hour zones are checked at :30, quarter-hour zones at :15
+or :45. Provider delivery remains approximate, not guaranteed at that minute.
+
+A schema-valid published window must include the local date, inclusively. Missing,
+malformed, expired or future windows produce no message and no reservation. One
+message names the first ready selected pack and counts the other ready packs.
+English fixed templates only; no locale is sent or stored. The ISO date and
+weekday use the subscriber's zone. Click URLs are fixed game roots with only
+`?src=push`, never a subscription identifier.
 
 The initial service caps active subscriptions at 500 and anonymous registrations
 at 30 per minute, without storing IPs. Delivery uses 20 concurrent requests,
@@ -561,27 +568,29 @@ The native iOS client must apply the same rule when processing in-app delivery.
 ## Published state
 
 Each pack publishes `/<pack>/state.json`:
-`{pack, date: "YYYY-MM-DD", roundReady: boolean, cadence: "nightly" | "three-a-week" | "weekly"}`.
-The date is the build's UTC calendar date (explicit date override for reproducible
-tests). Cadence describes the actual content refresh schedule, not a guaranteed
-notification schedule. Builds validate readiness against the rendered daily
-selector, including Racing's event-week substitution, before publishing.
-
-Current packs generate daily rounds in the browser from a validated bank; they
-do not already publish a dated daily-round artifact. This implementation adds a
-strict, dated readiness attestation. It does not infer readiness for other dates.
-Weekly or three-times-weekly builds therefore cannot support an every-day reminder
-from this file alone. Local dates ahead of or behind its published date are also
-skipped. A later daily readiness-publication schedule or versioned multi-date
-contract requires explicit work before promising daily coverage. Never pretend
-that an unchanged weekly file certifies today's date.
+`{pack, builtOn: "YYYY-MM-DD", readyThrough: "YYYY-MM-DD", cadence: "nightly" | "three-a-week" | "weekly"}`.
+The build date is UTC, with an explicit date override for reproducible tests.
+The end date is computed by the pack build's validator: it runs the actual emitted
+selector for every consecutive date, including Racing event-week substitutions.
+Cadence sets a finite scan budget of 2 days ahead (nightly), 4 (three-a-week), or 8
+(weekly), covering the normal refresh gap plus an ahead-of-UTC date. The budget is
+not an attestation. Only checked dates can enter the contiguous window; a failing
+date stops the scan. The build fails if today and tomorrow cannot both be verified.
+The service requires readyThrough to be at least builtOn plus one day and rejects
+the old date/roundReady schema. A local date outside the window still skips. This
+certifies selectable rounds from the committed bank, not new source-data ingestion
+or a promise about future rebuilds.
 
 ## Browser and native client boundary
 
 Core `notifications` defaults off. When explicitly enabled, it exposes consent
 only after completing a Daily round, never on arrival, the hub, or during play.
 Not now and permission denial suppress offers for 30 days in shared local storage.
-Controls permit hour/game edits and DELETE. Failed DELETE retains management
+Controls permit hour/game edits and DELETE. On a later page visit, an existing
+subscriber whose device zone differs gets one authenticated PATCH containing only
+`{tz}`. No consent, credential refresh or other preference update is automatic.
+Successful PATCH updates the local zone; failure retains it for the next visit.
+Re-rendering does not repeat the request. Unsubscribed visitors send nothing. Failed DELETE retains management
 credentials and offers a retry. Storage must work before subscribing.
 
 Native plugin contract, implemented by brief 0029:
@@ -598,10 +607,14 @@ routing on physical devices before enabling; website tests cannot prove it.
 
 ## Release gates
 
-Founder supplies the Vercel/Upstash project and environment secrets; hourly Vercel
-cron requires a plan supporting sub-daily cron (Hobby does not). No purchase or
-provisioning is performed by this implementation. Service and client flags stay
-off until privacy wording approval, merged contract, configured secrets, KV and
+Founder supplies Vercel/Upstash projects and environment secrets. The initial
+trigger is an external QStash hourly schedule on its free tier, with an authenticated
+GET to `/api/index?job=send`; no Vercel cron is configured. See SCHEDULER.md for
+exact settings and secret handling. Paid scheduling is a later founder decision.
+No purchase or provisioning is performed by this implementation. Privacy/footer
+wording was approved in Amendment A, subject to removing locale and qualifying
+half-hour delivery. Service and client flags stay off until merged contract,
+configured secrets, KV and
 provider integration tests, and next-day physical-device delivery checks pass.
 Brief 0028 starts after the contract merges; 0029 after contract and APNs transport
 merge. Store listing and association-file identity data come from the founder.
