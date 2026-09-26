@@ -1,0 +1,65 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { notifyScript, notificationWorker, type NotifyConfig } from './render/notify';
+import { notificationState, validateNotificationState } from './notification-state';
+
+const config: NotifyConfig = { enabled:true,serviceUrl:'https://notify.example',vapidPublicKey:Buffer.alloc(65,4).toString('base64url'),pack:'f1',appVersion:'1.0.0',platforms:['webpush','apns'],games:[{pack:'f1',name:'Racing',path:'/f1',storagePrefix:'racing'},{pack:'worldcup',name:'World Cup',path:'/worldcup',storagePrefix:'soccer'}] };
+assert.equal(notifyScript(), '');assert.equal(notifyScript({...config,enabled:false}), '');
+assert.throws(()=>notifyScript({...config,serviceUrl:'http://notify.example'}));
+assert.throws(()=>notifyScript({...config,games:[{...config.games[0],path:'//evil.test'}]}));
+assert.ok(!notifyScript({...config,games:[{...config.games[0],name:'</script>$&'}]}).includes('</script>'));
+
+class Element {
+ children:Element[]=[];textContent='';hidden=false;id='';name='';value='';checked=false;disabled=false;type='';onclick?:()=>Promise<void>|void;
+ constructor(public tag:string){}
+ appendChild(el:Element){this.children.push(el);return el;}
+ replaceChildren(){this.children=[];}
+ setAttribute(){}
+ querySelectorAll(selector:string):Element[]{return this.all().filter(e=>selector==='button'?e.tag==='button':e.tag==='input'&&e.name==='sw-notify-game'&&e.checked);}
+ all():Element[]{return this.children.flatMap(c=>[c,...c.all()]);}
+}
+function harness(options:{storage?:Map<string,string>;blocked?:boolean;permission?:string;deleteFails?:boolean;native?:boolean;capable?:boolean}={}){
+ const root=new Element('section');root.id='sw-notify';root.hidden=true;
+ const storage=options.storage??new Map<string,string>();let permissionCalls=0,workerCalls=0,unsubscribed=0;
+ const requests:any[]=[],events:any[]=[],handlers:Record<string,Function>={};
+ const native=options.native!==false;
+ const bridge={requestPermissionAndToken:()=>{permissionCalls++;return Promise.resolve({permission:options.permission??'granted',token:'a'.repeat(64)});}};
+ const credential={toJSON:()=>({endpoint:'https://fcm.googleapis.com/test',keys:{}}),unsubscribe:async()=>{unsubscribed++;}};
+ const reg={pushManager:{getSubscription:async()=>null,subscribe:async()=>credential}};
+ const notification={permission:'default',requestPermission:()=>{permissionCalls++;return Promise.resolve(options.permission??'granted');}};
+ const window:any={isSecureContext:true,PushManager:options.capable===false?undefined:{},Notification:notification,addEventListener:(key:string,fn:Function)=>handlers[key]=fn,...(native&&options.capable!==false?{ScorewitNativeNotifications:bridge}:{})};
+ const document={getElementById:(id:string)=>[root,...root.all()].find(e=>e.id===id)??null,createElement:(tag:string)=>new Element(tag),createTextNode:(s:string)=>{const e=new Element('#text');e.textContent=s;return e;},querySelectorAll:(s:string)=>root.querySelectorAll(s)};
+ const sandbox={window,document,Notification:notification,navigator:{language:'en-US',userAgent:'Android',serviceWorker:{register:async()=>{workerCalls++;return reg;},ready:Promise.resolve(reg),getRegistration:async()=>reg}},localStorage:{getItem:(key:string)=>{if(options.blocked)throw Error();return storage.get(key)??null;},setItem:(key:string,value:string)=>{if(options.blocked)throw Error();storage.set(key,value);},removeItem:(key:string)=>storage.delete(key)},fetch:async(url:string,args:any)=>{requests.push({url,args});if(args.method==='DELETE'&&options.deleteFails)return{ok:false,status:503};if(url.endsWith('/status'))return{ok:true,status:200,json:async()=>({packs:['f1','worldcup'],transports:['webpush','apns']})};return{ok:true,status:args.method==='POST'?201:204,json:async()=>({id:'i'.repeat(32),secret:'s'.repeat(43)})};},location:{href:'https://www.scorewit.com/f1?src=push',pathname:'/f1'},history:{state:null,replaceState:()=>{}},URL,AbortSignal,Intl,Date,Uint8Array,atob:(v:string)=>Buffer.from(v,'base64').toString('binary'),track:(...args:any[])=>events.push(args)};
+ vm.runInNewContext(notifyScript(config),sandbox);
+ const click=async(label:string)=>{const el=root.all().find(e=>e.tag==='button'&&e.textContent===label);assert.ok(el,label+' exists');await el.onclick?.();};
+ return{root,window,storage,requests,events,click,permissionCalls:()=>permissionCalls,workerCalls:()=>workerCalls,unsubscribed:()=>unsubscribed};
+}
+const flush=()=>new Promise(r=>setImmediate(r));
+async function main(){
+ const h=harness();assert.equal(h.root.hidden,true);assert.equal(h.requests.length,0);assert.equal(h.permissionCalls(),0);assert.equal(h.events[0][0],'push_opened');assert.deepEqual(JSON.parse(JSON.stringify(h.events[0][1])),{pack:'f1'});
+ h.window.scorewitNotify.update(false);await flush();assert.equal(h.requests.length,0,'no status request on arrival');
+ h.window.scorewitNotify.update(true);await flush();assert.equal(h.root.hidden,false);assert.equal(h.permissionCalls(),0,'offer is not consent');
+ await h.click('Turn on reminders');assert.equal(h.permissionCalls(),1);assert.equal(h.workerCalls(),0,'native bridge does not register a web worker');assert.ok(h.storage.has('scorewit.reminders.v1'));
+ const post=h.requests.find(r=>r.args.method==='POST');assert.equal(JSON.parse(post.args.body).transport,'apns');assert.deepEqual(JSON.parse(post.args.body).games,['f1']);
+ await h.click('Save preferences');assert.ok(h.requests.some(r=>r.args.method==='PATCH'&&r.args.headers.Authorization.startsWith('Bearer ')));
+ await h.click('Turn off reminders');assert.ok(!h.storage.has('scorewit.reminders.v1'));assert.equal(h.root.hidden,true);
+ const declined=harness({storage:h.storage});declined.window.scorewitNotify.update(true);await flush();assert.equal(declined.root.hidden,true,'decline is shared across games');
+ const denied=harness({permission:'denied'});denied.window.scorewitNotify.update(true);await flush();await denied.click('Turn on reminders');assert.equal(denied.requests.filter(r=>r.args.method==='POST').length,0);assert.ok(denied.storage.has('scorewit.remindersDeclinedUntil'));
+ const blocked=harness({blocked:true});blocked.window.scorewitNotify.update(true);await flush();await blocked.click('Turn on reminders');assert.equal(blocked.permissionCalls(),0,'must retain unsubscribe handle before requesting permission');
+ const web=harness({native:false});web.window.scorewitNotify.update(true);await flush();await web.click('Turn on reminders');assert.equal(web.workerCalls(),1);assert.equal(JSON.parse(web.requests.find(r=>r.args.method==='POST').args.body).transport,'webpush');
+ const failedDelete=harness({storage:web.storage,deleteFails:true});failedDelete.window.scorewitNotify.update(true);await flush();await failedDelete.click('Turn off reminders');assert.ok(failedDelete.storage.has('scorewit.reminders.v1'),'failed DELETE never discards management credentials');
+ const unsupported=harness({capable:false});unsupported.window.scorewitNotify.update(true);await flush();assert.equal(unsupported.root.hidden,true);assert.equal(unsupported.requests.length,0);
+ h.window.scorewitNotify.update(false);assert.equal(h.root.hidden,true,'leaving results hides consent');
+ const worker=notificationWorker(['/f1','/worldcup']);assert.ok(!/caches\.|CacheStorage|addEventListener\(['"]fetch/.test(worker));
+ const listeners:Record<string,Function>={};let shown=0,opened=0;
+ vm.runInNewContext(worker,{self:{location:{origin:'https://www.scorewit.com'},addEventListener:(n:string,fn:Function)=>listeners[n]=fn,registration:{showNotification:async()=>shown++},clients:{matchAll:async()=>[],openWindow:async()=>opened++}},URL,Intl,Date});
+ async function push(payload:any){let pending:Promise<any>|undefined;listeners.push({data:{json:()=>payload},waitUntil:(p:Promise<any>)=>pending=p});await pending;}
+ const payload={title:'Racing',body:'A ready round',url:'https://www.scorewit.com/f1?src=push',date:new Date().toISOString().slice(0,10),tz:'UTC'};
+ await push(payload);assert.equal(shown,1);await push({...payload,date:'2000-01-01'});await push({...payload,url:'https://evil.example/f1?src=push'});await push({...payload,url:'https://www.scorewit.com/privacy?src=push'});assert.equal(shown,1);
+ let pending:Promise<any>|undefined;listeners.notificationclick({notification:{close:()=>{},data:{url:payload.url}},waitUntil:(p:Promise<any>)=>pending=p});await pending;assert.equal(opened,1);
+ const stateConfig={pack:'f1',cadence:'nightly' as const,gamePaths:['/f1']};
+ const state=notificationState(stateConfig,{questions:[]},'2026-09-26');assert.equal(state.roundReady,false);assert.throws(()=>notificationState(stateConfig,{},'bad'));
+ assert.throws(()=>validateNotificationState({...state,roundReady:true},'<html>no selector</html>'));
+ console.log('Notification opt-in, consent, lifecycle, privacy, worker and readiness checks passed.');
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});

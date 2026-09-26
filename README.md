@@ -141,3 +141,20 @@ Safari steps follow [Apple's iPhone instructions](https://support.apple.com/guid
 and [iPad instructions](https://support.apple.com/guide/ipad/bookmark-a-website-ipadc602b75b/ipados).
 Browser store preference is a hint, as described by
 [MDN](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/prefer_related_applications).
+
+
+## Notification foundation (disabled)
+
+`SportPack.notificationState` publishes dated `state.json` and a push-only worker.
+It validates readiness against the emitted daily selector, including sport-owned
+substitutions. It neither registers a worker nor enables reminders. World Cup's
+hub writer relocates its state under `/worldcup`; the canonical shared worker is
+`/notify-sw.js` at the hub root. Worker copies cache nothing and intercept no fetch.
+
+`notifications` is separately optional and disabled unless `enabled: true` is set.
+Its service origin, public VAPID key, pack/game catalog, allowed transports and app
+version must be supplied explicitly. Never put a private key in a pack. Consent
+appears only after a completed Daily round. See the mirrored v1 contract in
+SPORTPACK-AUTHORING.md for the native bridge, API and release gates. The privacy
+copy in this release is a review proposal and explicitly says reminders are not
+currently enabled. It must be approved before merging or activating the service.

@@ -434,6 +434,8 @@ export interface SportPack<
   family?: import('./render/app').FamilyConfig;
   footer?: import('./render/footer').FooterConfig;
   installPromo?: import('./render/install').InstallPromoConfig;
+  notifications?: import('./render/notify').NotifyConfig;
+  notificationState?: import('./notification-state').NotificationStateConfig;
   pwa?: import('./manifest').PwaConfig;
   /** Opt-in My-Team nation theming (see AppShellConfig.teamTheming). Unset
    *  keeps the shell byte-for-byte. The nation table is editorial data;

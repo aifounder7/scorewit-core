@@ -1,3 +1,5 @@
+import { notificationState, validateNotificationState, type NotificationStateConfig } from '../notification-state';
+import { NOTIFY_HTML, NOTIFY_CSS, notifyScript, notificationWorker, type NotifyConfig } from './notify';
 import { INSTALL_CSS, INSTALL_ARRIVAL, installHead, renderInstallCard, type InstallPromoConfig } from './install';
 import { assertPublishedManifestIdentity, type PwaConfig } from '../manifest';
 import { FOOTER_CSS, renderFooter, type FooterConfig } from './footer';
@@ -244,6 +246,8 @@ export interface AppShellConfig {
   /** Shared visible footer; unset keeps the legacy footerHtml output. */
   footer?: FooterConfig;
   installPromo?: InstallPromoConfig;
+  notifications?: NotifyConfig;
+  notificationState?: NotificationStateConfig;
   pwa?: PwaConfig;
   /** Opt-in post-answer entity links (see EntityLinkMap below): matched
    *  entity mentions in post-answer fact/insight surfaces gain subtle
@@ -525,7 +529,7 @@ __RESLINECSS__
   <div class="sub" id="sub">__SUBINITIAL__</div>
   <div class="streakbar" id="streakbar" style="display:none"></div>
   <div class="progress" id="progress" aria-hidden="true"></div>
-  <div id="stage"></div>__INSTALLRESULT__
+  <div id="stage"></div>__INSTALLRESULT____NOTIFYRESULT__
   <div class="assent">By playing you agree to the <a href="__TERMSURL__">Terms</a></div>__YESTERDAY__
 </main>
   __FOOTERHTML__
@@ -652,7 +656,7 @@ function enterDaily(){
   }
   updateStreakBar();
 }
-function updateStreakBar(){__INSTALLUPDATE__
+function updateStreakBar(){__INSTALLUPDATE____NOTIFYUPDATE__
   const bar=document.getElementById('streakbar');
   if(!bar)return;
   if(mode!=='daily'||statsOpen){bar.style.display='none';return;}
@@ -711,7 +715,7 @@ function linkFact(s){
   return out+esc(s.slice(pos));
 }
 
-__ANALYTICSJS__
+__ANALYTICSJS____NOTIFYJS__
 
 __PACKDECOR____SPOTLIGHTJS__
 
@@ -2031,6 +2035,9 @@ function buildShareText(streak){
     .split('__INSTALLUPDATE__').join(cfg.installPromo ? "window.scorewitInstall.update({arrival:mode==='daily'&&!statsOpen&&idx===0&&results.length===0,result:mode==='daily'&&!statsOpen&&questions.length>0&&idx>=questions.length});" : '')
     .split('__INSTALLARRIVAL__').join(cfg.installPromo ? `const left=bar.firstElementChild;const group=document.createElement('span');group.className='sw-install-streak';left.replaceWith(group);if(left.textContent)group.appendChild(left);group.insertAdjacentHTML('beforeend',${JSON.stringify(INSTALL_ARRIVAL)});window.scorewitInstall.update({arrival:idx===0&&results.length===0,result:questions.length>0&&idx>=questions.length});` : '')
     .split('__INSTALLPLAYED__').join(cfg.installPromo ? 'window.scorewitInstall.played();' : '')
+    .split('__NOTIFYRESULT__').join(cfg.notifications?.enabled ? NOTIFY_HTML : '')
+    .split('__NOTIFYJS__').join(notifyScript(cfg.notifications))
+    .split('__NOTIFYUPDATE__').join(cfg.notifications?.enabled ? "window.scorewitNotify.update(mode==='daily'&&!statsOpen&&questions.length>0&&idx>=questions.length);" : '')
     .split('__ANALYTICSHEAD__').join(analytics.head)
     .split('__ANALYTICSJS__').join(analytics.js)
     .split('__TRACKSTART__').join(analytics.trackStart)
@@ -2083,7 +2090,7 @@ function buildShareText(streak){
         // SHARE V2: the earned rank title on the end-of-round card (accent is
         // AA-gated on every rendered pair like all palette colors).
         (v2 ? '\n  .ranktitle{font-size:15px;font-weight:800;color:var(--accent);margin:2px 0 8px}\n' : '') +
-        theme.css + spotlight.css + yesterday.css + (brand.extraCss ?? '') + (cfg.footer ? FOOTER_CSS : '') + (cfg.installPromo ? INSTALL_CSS : '')
+        theme.css + spotlight.css + yesterday.css + (brand.extraCss ?? '') + (cfg.footer ? FOOTER_CSS : '') + (cfg.installPromo ? INSTALL_CSS : '') + (cfg.notifications?.enabled ? NOTIFY_CSS : '')
     )
     .split('__APPNAME__').join(brand.appName)
     .split('__BRANDMARK__').join(brand.markSvg)
@@ -2178,6 +2185,14 @@ export function writeSite(
   }
   fs.writeFileSync(path.join(paths.siteDir, 'index.html'), siteHtml);
   fs.writeFileSync(path.join(paths.siteDir, '404.html'), notFoundHtml);
+  if (cfg.notificationState) {
+    const date = process.env.SCOREWIT_STATE_DATE ?? new Date().toISOString().slice(0,10);
+    const state = notificationState(cfg.notificationState, cfg.data.bank, date);
+    validateNotificationState(state, html);
+    fs.writeFileSync(path.join(paths.siteDir, 'state.json'), JSON.stringify(state, null, 2) + '\n');
+    fs.writeFileSync(path.join(paths.siteDir, 'notify-sw.js'), notificationWorker(cfg.notificationState.gamePaths));
+  }
+
 
   // PWA manifest — generated so the name/colors stay in lockstep with the
   // brand constants (add-to-home-screen installability).

@@ -43,6 +43,7 @@ import type { SeoPage } from './types';
  */
 
 export const LEGAL_EFFECTIVE_DATE = '2026-07-13';
+export const PRIVACY_EFFECTIVE_DATE = '2026-09-26';
 export const LEGAL_CONTACT = 'hello@scorewit.com';
 
 /** Operator entity, e.g. 'Example Holdings LLC'. Null until the LLC exists. */
@@ -89,7 +90,14 @@ const PRIVACY_BODY = `<p>${OPERATOR} makes daily sports-trivia games. This page 
 <p>Scorewit games have no accounts and no logins. The games set no cookies, use no tracking identifiers, and carry no advertising. We do not build profiles of players and we do not sell or share personal information.</p>
 
 <h2>What stays on your device</h2>
-<p>Your game state — daily streaks, past scores, and preferences such as a followed team — is stored in your browser's localStorage. It is functional data the game needs to remember you between visits, stored because you asked the game to remember (that is the whole feature). It never leaves your device and we never see it. Clearing your browser data resets it.</p>
+<p>Your daily streaks, past scores and followed teams stay in your browser's localStorage. Clearing browser data resets them. If you turn on reminders when they are available, only the reminder preferences described below are sent to the reminder service. Your scores, answers and streak history are not sent.</p>
+
+<h2>Optional reminders</h2>
+<p>Reminders are being prepared and are not currently enabled. If offered, they are optional and are requested only after you finish a round. Playing never requires notifications.</p>
+<p>If you turn them on, the reminder service stores a browser push subscription or Apple push token, your selected games, reminder hour, time zone, language preference, app platform and version. It also stores a random subscription reference, creation date, last delivery-attempt date and consecutive delivery-failure count. These records are used only to deliver and manage reminders, not for analytics, advertising or player profiles.</p>
+<p>The service runs on Vercel with an Upstash Redis store. Delivery goes through your browser's push provider or Apple's notification service. Your device keeps a subscription reference and management secret so you can change preferences or turn reminders off. No account is required. Never share that secret.</p>
+<p>Turn reminders off in the reminder settings shown after a completed round to delete the service record. We also delete a record when the delivery provider reports that its token is no longer valid, or after five consecutive failed delivery attempts. Disabling notifications in your phone settings or clearing browser data does not immediately tell our service; use Turn off reminders first where possible. Deleted subscriptions are not retained by the application. Hosting and push providers process delivery requests under their own policies.</p>
+<p>We send at most one reminder attempt per subscription per local day, only when a selected round is confirmed ready. Browser profiles and native apps have separate subscriptions; we do not identify people or link their devices. A reminder open adds an anonymous game-level count to our existing analytics, never a token or subscription reference.</p>
 
 <h2>Hosting</h2>
 <p>Scorewit sites are served by <a href="https://vercel.com" rel="noopener noreferrer">Vercel</a>. Like any web host, Vercel processes IP addresses in ordinary server logs in order to deliver requests and protect the service. We do not use those logs to identify or track players.</p>
@@ -101,10 +109,10 @@ const PRIVACY_BODY = `<p>${OPERATOR} makes daily sports-trivia games. This page 
 ${ADS_HTML}
 
 <h2>Children</h2>
-<p>Scorewit is a general-audience service. It is not directed to children under 13 and we do not knowingly collect personal information from anyone, children included — there is no mechanism that could.</p>
+<p>Scorewit is a general-audience service and is not directed to children under 13. Games do not require an account or reminders. If you believe a child has provided information to the reminder service, contact us so we can help remove it.</p>
 
 <h2>Your data, your rights</h2>
-<p>Privacy laws in various places (the EU and UK, California and other US states, and elsewhere) give you rights over personal data an operator holds about you — access, correction, deletion, and objection among them. Today Scorewit holds none: no accounts, no profiles, nothing keyed to you. If you believe we hold personal data about you, or you have any privacy question or complaint, email us and we will answer plainly: <a href="mailto:${LEGAL_CONTACT}">${LEGAL_CONTACT}</a>. If Scorewit ever adds optional accounts, this section will grow to describe exactly what an account stores and how to export or delete it.</p>
+<p>Privacy laws in various places (the EU and UK, California and other US states, and elsewhere) give you rights over personal data an operator holds about you, including access, correction, deletion and objection. Optional reminder subscriptions are the limited records described above; there are no player accounts or profiles. You can change reminder preferences or delete a subscription using its device-local management controls. If you believe we hold personal data about you, or you have any privacy question or complaint, email us and we will answer plainly: <a href="mailto:${LEGAL_CONTACT}">${LEGAL_CONTACT}</a>. Do not email push tokens or management secrets. If you cannot use the controls, contact us for help.</p>
 
 <h2>Data sources</h2>
 <p>Every fact in a Scorewit game is computed from cited public data:</p>
@@ -113,7 +121,7 @@ ${SOURCES_HTML}
 <h2>Contact</h2>
 <p>Questions about any of this: <a href="mailto:${LEGAL_CONTACT}">${LEGAL_CONTACT}</a>.</p>
 
-<p class="src">Effective ${LEGAL_EFFECTIVE_DATE}. If this page changes, the date changes with it — and if what we actually do ever changes, this page changes first.</p>`;
+<p class="src">Effective ${PRIVACY_EFFECTIVE_DATE}. If this page changes, the date changes with it — and if what we actually do ever changes, this page changes first.</p>`;
 
 /** Disputes section: informal notice-and-cure always; governing law joins when the constant is set. */
 const disputesHtml = (gov: { law: string; venue: string } | null): string =>
@@ -187,7 +195,7 @@ export function legalSeoPages(): SeoPage[] {
         description: 'What Scorewit does and does not do with data.',
       },
       bodyHtml: PRIVACY_BODY,
-      lastmod: LEGAL_EFFECTIVE_DATE,
+      lastmod: PRIVACY_EFFECTIVE_DATE,
       eyebrowHtml: 'Scorewit · Legal',
       subtitleHtml: 'No accounts, no cookies, no tracking in the games — here is exactly what that means.',
     },
