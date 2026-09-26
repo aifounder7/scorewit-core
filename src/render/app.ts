@@ -841,7 +841,7 @@ function renderResult(){
     '<div class="row" style="justify-content:center;gap:10px"><button class="btn" id="share">Share</button><button class="btn ghost" id="statsbtn">Stats</button></div>'+
     '<div class="note" id="shared" style="visibility:hidden">Copied to clipboard</div>'+
     '<pre class="sharebox" id="sharebox"></pre>'+
-    '<div class="continue" id="continue"></div></div>';
+    '__RESULTCONTINUE__</div>';
   document.getElementById('statsbtn').onclick=renderStats;
   document.getElementById('share').onclick=async()=>{
     __TRACKSHARE__
@@ -2031,6 +2031,9 @@ function buildShareText(streak){
     .split('__ANALYTICSSETTINGS__').join(analytics.settings)
     .split('__TERMSURL__').join(cfg.termsUrl ?? DEFAULT_TERMS_URL)
     .split('__FAMILY__').join(familyConsts(cfg.family, config.storagePrefix))
+    // The shared footer owns sibling navigation in every game state. Keep the
+    // legacy result strip only when no footer shelf is configured.
+    .split('__RESULTCONTINUE__').join(cfg.footer && cfg.family ? '' : '<div class="continue" id="continue"></div>')
     // Post-answer entity links (unset = null; linkFact degrades to esc()).
     .split('__ENTITYLINKS__').join(entityLinksConsts(cfg.entityLinks, basePath))
     .split('__PACKCONSTS__').join(client.consts)

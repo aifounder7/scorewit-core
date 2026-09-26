@@ -84,8 +84,6 @@ body>footer.sw-footer{padding:20px 22px 32px}
 .sw-footer-columns h2{font-size:11px;line-height:1.5;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:0 0 4px;color:#645f52}
 .sw-footer-columns p{margin:0 0 6px}
 .sw-footer-copyright{font-size:11px;margin:12px 0 0}
-/* Preserve the existing result strip. Only the duplicate footer shelf hides. */
-body:has(#continue:not(:empty)) .sw-footer-shelf{display:none}
 @media(max-width:640px){.sw-footer-shelf ul{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.sw-footer-shelf li>a{gap:8px;padding:10px 8px}.sw-footer-shelf strong{font-size:12px}.sw-footer-columns{grid-template-columns:1fr}}
 /* End shared footer */
 `;

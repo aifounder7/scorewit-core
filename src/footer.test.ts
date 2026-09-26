@@ -70,11 +70,15 @@ assert.ok(renderFooter(footer, { ...family, games: [{ ...family.games[0], markUr
 const legacy = renderAppHtml(cfg);
 const enabled = renderAppHtml({ ...cfg, footer, family });
 const stripFooter = (s: string) => s.replace(/<footer\b[^>]*>[\s\S]*?<\/footer>/g, '').replace(FOOTER_CSS, '');
-// New metadata in family must not alter the existing post-round strip's JS.
+// Shared-footer packs use the same tile shelf before and after a round.
 const withFamily = renderAppHtml({ ...cfg, family });
-assert.equal(stripFooter(enabled), stripFooter(withFamily));
+const legacyContinue = '<div class="continue" id="continue"></div>';
+assert.ok(!enabled.includes(legacyContinue), 'shared footer must not create the old post-round pill strip');
+assert.ok(withFamily.includes(legacyContinue), 'legacy consumers retain their result strip');
+assert.equal(stripFooter(enabled), stripFooter(withFamily).replace(legacyContinue, ''));
+assert.equal(stripFooter(renderAppHtml({ ...cfg, footer })), stripFooter(legacy));
 assert.equal(legacy, renderAppHtml({ ...cfg, footer: undefined }));
-assert.ok(FOOTER_CSS.includes('body:has(#continue:not(:empty)) .sw-footer-shelf{display:none}'));
+assert.ok(!FOOTER_CSS.includes('display:none'), 'the approved footer shelf must stay visible after a round');
 assert.ok(!FOOTER_CSS.includes('#continue{display:none}'));
 const seoCfg = { brand: cfg.brand, copy: cfg.copy, routes: { today: '/today', practice: '/practice', team: '/my-team' } };
 const page = { jsonLd: {}, path: 'example', title: 'Example', description: 'Example page', h1: 'Example', bodyHtml: '<p>'+'source data '.repeat(30)+'</p>' };
@@ -82,4 +86,4 @@ const seo = renderSeoPage(page, seoCfg);
 const seoNew = renderSeoPage(page, { ...seoCfg, footer, family });
 assert.equal(stripFooter(seo), stripFooter(seoNew));
 assert.ok(seoNew.includes('sw-footer-shelf'));
-console.log('footer: escaping, visible notices, variants, legacy parity and unchanged result code pass');
+console.log('footer: escaping, visible notices, variants, legacy parity and persistent post-round tiles pass');
