@@ -119,7 +119,7 @@ function guide(){return document.getElementById('sw-install-guide');}
 function eligible(){return !accepted&&!standalone()&&(destination.kind!=='native'||!!pending);}
 function read(key){try{return localStorage.getItem(key);}catch(e){return null;}}
 function write(key,value){try{localStorage.setItem(key,value);}catch(e){}}
-function standalone(){return mode.matches||navigator.standalone===true;}
+function standalone(){return mode.matches||navigator.standalone===true||!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());}
 function cooldown(){const stored=Number(read(dismissKey));return Math.max(dismissedUntil,Number.isFinite(stored)?stored:0)>Date.now();}
 function refresh(){
   if(standalone()&&destination.kind==='manual')write('scorewit.installManualSeen','1');
@@ -213,7 +213,7 @@ export function installedHubHead(games: InstalledHubGame[]): string {
 export const HUB_LAUNCH_CLIENT = String.raw`(function(){
 'use strict';
 const games=__GAMES__;
-const standalone=window.matchMedia('(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui), (display-mode: window-controls-overlay)').matches||navigator.standalone===true;
+const standalone=window.matchMedia('(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui), (display-mode: window-controls-overlay)').matches||navigator.standalone===true||!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());
 if(!standalone||new URLSearchParams(location.search).has('games')||location.hash)return;
 try{if(document.referrer&&new URL(document.referrer).origin===location.origin)return;}catch(e){}
 function read(key){try{return JSON.parse(localStorage.getItem(key)||'null');}catch(e){return null;}}
