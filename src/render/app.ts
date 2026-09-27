@@ -1,3 +1,4 @@
+import { nativeWidgetUpdate, widgetState } from '../widget-state';
 import { NOTIFICATION_BADGE } from './notification-badge';
 import { notificationState, type NotificationStateConfig } from '../notification-state';
 import { NOTIFY_HTML, NOTIFY_CSS, NOTIFY_LANDING, notifyScript, notificationWorker, type NotifyConfig } from './notify';
@@ -657,7 +658,7 @@ function enterDaily(){
   }
   updateStreakBar();
 }
-function updateStreakBar(){__INSTALLUPDATE____NOTIFYUPDATE__
+function updateStreakBar(){__INSTALLUPDATE____NOTIFYUPDATE____WIDGETUPDATE__
   const bar=document.getElementById('streakbar');
   if(!bar)return;
   if(__NOTIFYMODEGATE__statsOpen){bar.style.display='none';return;}
@@ -2042,6 +2043,7 @@ function buildShareText(streak){
     .split('__NOTIFYSTATS__').join(cfg.notifications?.enabled ? `stage.insertAdjacentHTML('beforeend','<section id="sw-notify-stats" class="sw-notify"></section>');window.scorewitNotify.settings();` : '')
     .split('__NOTIFYRESULT__').join(cfg.notifications?.enabled ? NOTIFY_HTML : '')
     .split('__NOTIFYJS__').join(notifyScript(cfg.notifications))
+    .split('__WIDGETUPDATE__').join(cfg.notificationState ? nativeWidgetUpdate(cfg.notificationState.pack) : '')
     .split('__NOTIFYUPDATE__').join(cfg.notifications?.enabled ? "window.scorewitNotify.update(mode==='daily'&&!statsOpen&&questions.length>0&&idx>=questions.length);" : '')
     .split('__ANALYTICSHEAD__').join(analytics.head)
     .split('__ANALYTICSJS__').join(analytics.js)
@@ -2194,6 +2196,7 @@ export function writeSite(
     const date = process.env.SCOREWIT_STATE_DATE ?? new Date().toISOString().slice(0,10);
     const state = notificationState(cfg.notificationState, cfg.data.bank, date, html);
     fs.writeFileSync(path.join(paths.siteDir, 'state.json'), JSON.stringify(state, null, 2) + '\n');
+    fs.writeFileSync(path.join(paths.siteDir, 'widget.json'), JSON.stringify(widgetState(state, cfg.brand.appName), null, 2) + '\n');
     fs.writeFileSync(path.join(paths.siteDir, 'notification-badge.png'), Buffer.from(NOTIFICATION_BADGE,'base64'));
     fs.writeFileSync(path.join(paths.siteDir, 'notify-sw.js'), notificationWorker(cfg.notificationState.gamePaths,cfg.notifications?.enabled?cfg.notifications.serviceUrl:undefined));
   }
