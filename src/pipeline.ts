@@ -257,6 +257,8 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       family: pack.family,
       footer: pack.footer,
       installPromo: pack.installPromo,
+      notifications: pack.notifications,
+      notificationState: pack.notificationState,
       pwa: pack.pwa,
       // Opt-in post-answer entity links (existence-guarded above; unset =
       // ENTITYLINKS null and the shell renders facts exactly as before).
@@ -289,6 +291,7 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
     const { count } = writeSeoSite(
       seoPageList,
       {
+        notifications: pack.notifications,
         brand: pack.brand,
         copy: pack.copy,
         footer: pack.footer,

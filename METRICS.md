@@ -94,3 +94,11 @@ seoConfig: {
 
 Core derives `sport`, the namespaced analytics-off key, app root and Practice
 destination. It rejects a mismatched app/SEO Plausible domain.
+
+
+Brief 0027 reserves `push_opened { pack }`, using the notification contract's
+URL-facing pack slug. Only an explicitly enabled listener emits it when consuming
+`?src=push` on an allowlisted game root. It uses the existing track function and
+analytics-off setting; no token, subscription id, secret or raw URL is sent. It
+counts marked opens, not proven delivery, unique devices or confirmed conversions.
+No production client enables this feature yet.

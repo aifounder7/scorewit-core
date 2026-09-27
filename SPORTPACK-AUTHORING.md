@@ -169,8 +169,9 @@ the provider's cookieless script and fires anonymous custom events.
 
 **Privacy stance (non-negotiable — it's the brand): NO cookies, NO persistent
 tracking ID, NO fingerprinting, NO PII.** Events are aggregate counters with
-tiny, non-identifying payloads; the footer claim ("no personal data, no
-cookies") stays 100% true. Pick a provider that is itself cookieless and
+tiny, non-identifying payloads; reminder records are a separately consented functional service and never join these
+analytics. Do not describe the whole service as storing no personal data once
+optional push credentials are supported. Pick a provider that is itself cookieless and
 stores no PII — Plausible is the recommended default (cookieless, no-PII,
 hashes and rotates rather than storing IPs, supports custom events).
 
@@ -467,3 +468,226 @@ Consumers without a shared shelf retain the legacy strip and played-state
 behavior. Terms assent stays in place. Every footer element stays visible,
 including credits and non-affiliation notices. Copyright and refresh wording are supplied by the
 pack, not derived from the render clock. Preserve each source's full notice.
+
+
+## Notification foundation (v0.21.0, disabled by default)
+
+### Mirrored service contract v1
+
+Status: disabled implementation of brief 0027 Amendments A, B and C (design approved 2026-09-26). Do not activate clients or start
+briefs 0028/0029 until this contract is founder-merged. No deployed service URL
+is assumed. Platform clients consume this document; changes require a new review.
+
+## API
+
+HTTPS JSON only, maximum request body 8 KiB, no cookies. Production web Origin
+is exactly `https://www.scorewit.com`. CORS is not authentication. Transport
+credentials are never logged. All responses disable caching.
+
+- `POST /v1/subscriptions`: `{transport: "webpush" | "apns", credential,
+  games: [pack], hour: 0..23, tz: IANA,
+  app: {platform: "android" | "ios" | "web", version: string}}`.
+  Credential is a PushSubscription JSON object (endpoint and keys) or a 64-hex
+  APNs token. Returns 201 `{id, secret}`. Keep that pair on the device only.
+- `PATCH /v1/subscriptions/{id}`: `Authorization: Bearer <secret>`, JSON with
+  one or more of games/hour/tz. Order of games determines the first named game.
+  Returns 204, 400 for invalid input, 401 for wrong credentials, 404 if removed.
+- `DELETE /v1/subscriptions/{id}`: either the management secret or `Authorization: Bearer <stop.token>`
+  from a delivered reminder. Stop tokens authorize DELETE only. Idempotent 204,
+  including when already deleted or activation is disabled. Atomically writes a
+  14-day random-id tombstone, then removes the credential, record and index.
+  Repeated DELETE refreshes that tombstone lifetime.
+- `GET /v1/status`: `{version: "1.0.0", packs: [pack], transports: [...]}`.
+  Packs come only from successfully fetched, schema-valid published state files.
+  Clients must filter options against this list. It is not a promise that each
+  listed pack has a ready round for every local date.
+
+400 invalid request; 403 disallowed Origin;
+429 registration budget exhausted; 503 disabled/unconfigured/unavailable/capacity.
+Do not expose backend details, tokens or request bodies in error responses.
+
+Supported pack identifiers: `f1`, `worldcup`, `footyphoria`, `cricket`,
+`gridiron`, `baseball`, `superover`. These match URL roots, not analytics aliases.
+
+## Storage and at-most-once delivery
+
+One record per subscription contains only transport, credential, games, hour,
+tz, app, createdAt, lastSentOn and consecutiveFailures. The random id
+is the key. The management secret is HMAC-derived from the id and an environment
+secret, so it is not stored. Redis also holds a credential SHA-256-to-id index,
+the set of active ids, a reverse index for deletion, an expiring random-id stop marker, the runtime
+send switch, and one expiring aggregate registration counter. None
+contains IPs, browser user agents, page history, scores or device fingerprints.
+Deleting a subscription removes its credential, preference record and indexes;
+the random-id tombstone expires 14 days after its latest off request.
+
+The atomic credential index permits one active record for a web push endpoint
+or APNs token. Shared-origin clients use the same local handle and root service
+worker `/notify-sw.js` with scope `/`, including the TWA. Never register separate
+per-game worker scopes: that would create extra endpoints and reminders.
+Workers are generated per pack for consistency; the root copy is canonical.
+
+"Device" in this contract means this subscription context. Separate browser
+profiles and an iOS native app cannot be recognized as one physical phone without
+adding an identifier. We do not fingerprint or link them, and do not claim that
+deduplication. Token replacement is DELETE then a fresh subscription after user
+consent; it is not silent registration. POST with the same credential updates
+the existing record and returns the same handle. Possession of that credential
+is required. Updates preserve createdAt, lastSentOn and consecutiveFailures,
+so repeated registration never resets the daily cap.
+
+Hourly jobs atomically compare and reserve lastSentOn **before** provider I/O.
+Despite its legacy brief name, this is the last attempt date, not proof of
+receipt. Concurrent cron executions, DST's repeated hour and ambiguous provider
+timeouts cannot retry the same subscription/date. A crash after reservation may
+lose a reminder. We favor at-most-once attempts over possible duplicate messages.
+Preferences are compare-and-set updates so they cannot overwrite this reservation.
+Changing time zone cannot send on a local date less than or equal to the last
+reserved date. After reserving, each send checks the runtime switch and re-reads the record
+immediately before provider I/O. A missing, changed or stopped record skips.
+CAS cannot resurrect a tombstone. A message already handed to the provider
+cannot be recalled; a final-read-to-send race also remains. Never promise zero
+arrivals after an off request or a retroactive cancellation.
+
+An hourly run compares local wall-clock minutes to the chosen hour. It is due
+from that hour through exactly three hours later, inclusive, on the same local
+date. A later minute or an earlier hour skips without reserving. This catches a
+missed run and a spring-forward missing hour, but never wraps yesterday's reminder
+into today. The last reserved date must be earlier than today's local date.
+Fractional-offset zones are checked on their local offset minute: with a top-of-
+UTC-hour scheduler, half-hour zones are checked at :30, quarter-hour zones at :15
+or :45. Provider delivery remains approximate, not guaranteed at that minute.
+
+A schema-valid published window must include the local date, inclusively. Missing,
+malformed, expired or future windows produce no message and no reservation. One
+message names the first ready selected pack and counts the other ready packs.
+English fixed templates only; no locale is sent or stored. The ISO date and
+weekday use the subscriber's zone. Click URLs are fixed game roots with only
+`?src=push`, never a subscription identifier.
+
+The initial service caps active subscriptions at 500 and anonymous registrations
+at 30 per minute, without storing IPs. Delivery uses 20 concurrent requests,
+8-second provider timeouts and a 300-second function budget. Capacity must be
+explicitly reviewed before increasing the cap; do not silently drop scan pages.
+
+Delete on web push 404/410, APNs Unregistered/410/BadDeviceToken, explicit DELETE,
+or five consecutive failed delivery attempts. A successful send resets failures.
+Web push TTL and APNs expiration are zero to avoid queued yesterday notifications.
+The web worker additionally rejects a payload whose date is stale in its given tz.
+The native iOS client must apply the same rule when processing in-app delivery.
+
+## Published state
+
+Each pack publishes `/<pack>/state.json`:
+`{pack, builtOn: "YYYY-MM-DD", readyThrough: "YYYY-MM-DD", cadence: "nightly" | "three-a-week" | "weekly"}`.
+The build date is UTC, with an explicit date override for reproducible tests.
+The end date is computed by the pack build's validator: it runs the actual emitted
+selector for every consecutive date, including Racing event-week substitutions.
+Cadence sets a finite scan budget of 2 days ahead (nightly), 4 (three-a-week), or 8
+(weekly), covering the normal refresh gap plus an ahead-of-UTC date. The budget is
+not an attestation. Only checked dates can enter the contiguous window; a failing
+date stops the scan. The build fails if today and tomorrow cannot both be verified.
+The service requires readyThrough to be at least builtOn plus one day and rejects
+the old date/roundReady schema. A local date outside the window still skips. This
+certifies selectable rounds from the committed bank, not new source-data ingestion
+or a promise about future rebuilds.
+
+## Browser and native client boundary
+
+Core `notifications` defaults off. When explicitly enabled, it exposes consent
+only after completing a Daily round, never on arrival, the hub, or during play.
+Not now and permission denial suppress offers for 30 days in shared local storage.
+Settings live in Stats on game modes, reference pages and the hub, with Turn
+off reminders first. Only enabled builds include the controls. Existing
+subscribers can reach them without playing; unsubscribed arrivals are never
+shown an offer. Controls permit hour/game edits and DELETE. On a later page visit, an existing
+subscriber whose device zone differs gets one authenticated PATCH containing only
+`{tz}`. No consent, credential refresh or other preference update is automatic.
+Successful PATCH updates the local zone; failure retains it for the next visit.
+Re-rendering does not repeat the request. Unsubscribed visitors send nothing. Failed DELETE persists the pending off request and credentials, shows
+"Turning off, will retry", and retries on subsequent visits with exponential
+backoff capped at one hour. Retry now bypasses the delay. Only HTTP 204 permits
+"Reminders are off". The worker persists deletion-only capabilities and pending
+requests in IndexedDB (not the Cache API). A delivered reminder refreshes its
+capability; a pending request is retried without displaying another reminder.
+Expired capabilities cannot delete; the UI keeps pending state and the visitor
+can use device notification settings. Storage must work before subscribing.
+
+Native plugin contract, implemented by brief 0029:
+`window.ScorewitNativeNotifications.requestPermissionAndToken()` returns a Promise
+of `{permission: "granted" | "denied", token?: string}`. Invoke the native permission
+prompt only in this user-triggered method. On a notification tap, navigate only to
+an allowlisted HTTPS Scorewit game root with `?src=push` inside the web view.
+The core listener consumes that marker, emits `push_opened {pack}` through the
+existing cookieless track function, then removes it. The first visible bar says "Reminders are on. Turn Off"
+when a local handle or recovered capability exists. Without either, it says
+"Manage your reminders" and directs the visitor to the notification action or
+device settings, never fabricating a subscription or an authenticated off call. Never forward native tokens
+to analytics. Native token registration and capabilities must not prompt at launch.
+
+Android requires no native notification code. Test Chrome/TWA delivery and click
+routing on physical devices before enabling; website tests cannot prove it.
+
+## Release gates
+
+Founder supplies Vercel/Upstash projects and environment secrets. The initial
+trigger is an external QStash hourly schedule on its free tier, with an authenticated
+GET to `/api/index?job=send`; no Vercel cron is configured. See SCHEDULER.md for
+exact settings and secret handling. Paid scheduling is a later founder decision.
+No purchase or provisioning is performed by this implementation. The canonical Optional reminders privacy section is the four-paragraph,
+270-word Amendment C text in core src/legal.ts. It summarizes this contract;
+the detailed delivery, retry and recovery limits here remain unchanged. Service and client flags stay off until merged contract,
+configured secrets, KV and
+provider integration tests, and next-day physical-device delivery checks pass.
+Brief 0028 starts after the contract merges; 0029 after contract and APNs transport
+merge. Store listing and association-file identity data come from the founder.
+
+
+## Approved notification presentation and stop payload
+
+Two actions, in order: `stop` labelled **Turn Off**, then `play` labelled
+**Play**. Equal prominence. Browser notification actions use native OS layout;
+web code cannot set equal pixel widths, pill radii or force two visible actions.
+The approved HTML board expresses the intended balance, not a browser styling
+API. Body tap and Play open the allowlisted game. Turn Off dismisses and DELETEs
+in the background; it never opens the game or invents a system confirmation.
+
+Both transports carry `stop: {id, token}`. The token is
+`stop1.<expiry-unix-seconds>.<base64url-HMAC-SHA256>` over
+`stop-v1:<id>:<expiry>` using SUBSCRIPTION_SIGNING_SECRET, valid for 14 days.
+Do not log, put in URLs, analytics, or expose it to third-party code. It cannot
+PATCH or fetch settings. The worker's service origin is fixed at build time from
+the enabled NotifyConfig, never trusted from a push. Configure the same origin
+in the native app. Disabled workers will not display pushes.
+
+Web payloads include the first game's icon path and a monochrome badge. Core
+emits notification-badge.png, and the worker uses an allowlisted game's
+icon-192.png. APNs includes `aps.category = SCOREWIT_REMINDER`,
+`aps.mutable-content = 1`, `stop`, `url`, `date`, `tz`, and the game icon path.
+
+Brief 0029 implements the native handlers, category actions and optional image
+service extension. It also implements an interactive notification content
+extension for the approved equal-width rounded buttons on one horizontal row.
+Use Turn Off then Play, equal weight and contrast. Prevent duplicate system
+actions beneath custom controls. Native fallback rows remain system-controlled.
+The iOS handlers must persist a failed DELETE with backoff and retry on launch;
+never depend on a web view being open. The bridge adds optional
+`getReminderState(): Promise<{id,token,pending?,confirmedOff?,nextAttemptAt?}|null>`
+and `confirmRemindersOff(id): Promise<void>` to synchronize native recovery and
+confirmation with the shared page controls, without prompting at launch.
+
+Data clearing/reinstallation may remove the worker, pending outbox and/or
+subscription. A signed token is useful only if a surviving handler receives it.
+Test that prerequisite on each physical device; do not claim universal recovery
+from uninstall or cleared browser data. A stop token older than 14 days cannot
+recover a lost management handle. Device-level permission controls remain the
+fallback. No notification handler can guarantee a network request offline.
+
+## Runtime global stop
+
+In the Redis console, set `scorewit:notify:v1:global-send-state` to `stopped`
+to halt subsequent send attempts independently of deploys. Only the exact value
+`enabled` permits sends; missing values and read errors fail closed. This check
+runs at job start and just before each provider call. DELETE still works. A
+request already passed to a provider cannot be recalled. REMINDERS_ENABLED is
+a separate deployment activation gate, not the incident-response switch.

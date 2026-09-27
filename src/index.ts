@@ -106,3 +106,8 @@ export type { FooterConfig, FooterLine, FooterLink } from './render/footer';
 
 export { INSTALL_CSS, installHead, renderInstallCard, installedHubHead, type InstallPromoConfig, type InstallDestinations, type NativeInstallDestination, type ManualInstallDestination, type StoreInstallDestination, type InstalledHubGame } from './render/install';
 export { PUBLISHED_MANIFEST_IDS, assertPublishedManifestIdentity, type PwaConfig } from './manifest';
+
+export { notifyScript, notificationWorker, type NotifyConfig, type NotifyGame } from './render/notify';
+export { notificationState, validateNotificationState, type NotificationStateConfig, type NotificationState } from './notification-state';
+
+export { reminderPage } from './render/notify';

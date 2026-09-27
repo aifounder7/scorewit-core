@@ -1,3 +1,4 @@
+import { reminderPage, type NotifyConfig } from './notify';
 import { FOOTER_CSS, renderFooter, type FooterConfig } from './footer';
 import type { FamilyConfig } from './app';
 import fs from 'node:fs';
@@ -75,6 +76,7 @@ const jsonLdText = (o: object) =>
 const inlineJson = (o: unknown) => JSON.stringify(o).replace(/</g, '\\u003c');
 
 export interface SeoRenderConfig {
+  notifications?: NotifyConfig;
   footer?: FooterConfig;
   family?: FamilyConfig;
   brand: Brand;
@@ -460,7 +462,7 @@ ${cfg.theme ? almanacSeoCss(cfg.theme.accent) : `  :root{--bg:${brand.themeColor
   footer a{color:var(--muted)}`}
 ${cfg.footer ? FOOTER_CSS : ''}</style>
 </head>
-<body>
+<body>${reminderPage(cfg.notifications)}
 <header class="topbar"><span class="accentbar"></span><a class="mark" href="${rootHref}" aria-label="${esc(brand.appName)}">${brand.markSvg}</a><a class="brand" href="${rootHref}">${brandHtml}</a></header>
 <main>
 ${blocks.join('\n')}

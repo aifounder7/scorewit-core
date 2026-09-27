@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { LEGAL_CONTACT, LEGAL_EFFECTIVE_DATE, legalSeoPages } from './legal';
+import { LEGAL_CONTACT, LEGAL_EFFECTIVE_DATE, PRIVACY_EFFECTIVE_DATE, legalSeoPages } from './legal';
 import { renderRobots, renderSeoPage, renderSitemap, writeSeoSite, type SeoRenderConfig } from './render/seo';
 import type { PipelinePaths, SeoPage } from './types';
 
@@ -248,7 +248,7 @@ check('legal paths are RESERVED for pack pages; the umbrella emits them via the 
   assert.ok(privacy.includes('no accounts and no logins'), 'privacy body rendered');
   assert.ok(privacy.includes('cookieless and aggregate-only'), 'Plausible-ready analytics section');
   assert.ok(privacy.includes(LEGAL_CONTACT), 'contact alias present');
-  assert.ok(privacy.includes(`Effective ${LEGAL_EFFECTIVE_DATE}`), 'editorial effective date, not a clock');
+  assert.ok(privacy.includes(`Effective ${PRIVACY_EFFECTIVE_DATE}`), 'editorial effective date, not a clock');
   assert.ok(terms.includes('as-is and as-available'), 'terms body rendered');
   assert.ok(terms.includes('betting advice'), 'gambling-adjacent exclusion present');
   assert.ok(!/governing law/i.test(terms), 'no governing-law clause yet');
