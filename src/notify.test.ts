@@ -33,7 +33,7 @@ function harness(options:{storage?:Map<string,string>;blocked?:boolean;permissio
  const sandbox={window,document,Notification:notification,navigator:{language:'en-US',userAgent:'Android',serviceWorker:{register:async()=>{workerCalls++;return reg;},ready:Promise.resolve(reg),getRegistration:async()=>reg}},localStorage:{getItem:(key:string)=>{if(options.blocked)throw Error();return storage.get(key)??null;},setItem:(key:string,value:string)=>{if(options.blocked)throw Error();storage.set(key,value);},removeItem:(key:string)=>storage.delete(key)},fetch:async(url:string,args:any)=>{requests.push({url,args});if((args.method==='DELETE'&&options.deleteFails)||(args.method==='PATCH'&&options.patchFails))return{ok:false,status:503};if(url.endsWith('/status'))return{ok:true,status:200,json:async()=>({packs:['f1','worldcup'],transports:['webpush','apns']})};return{ok:true,status:args.method==='POST'?201:204,json:async()=>({id:'i'.repeat(32),secret:'s'.repeat(43)})};},location:{href:'https://www.scorewit.com/f1?src=push',pathname:'/f1'},history:{state:null,replaceState:()=>{}},URL,AbortSignal,Intl:options.zone?{DateTimeFormat:()=>({resolvedOptions:()=>({timeZone:options.zone})})}:Intl,Date,Uint8Array,atob:(v:string)=>Buffer.from(v,'base64').toString('binary'),track:(...args:any[])=>events.push(args)};
  vm.runInNewContext(notifyScript(config),sandbox);
  const click=async(label:string)=>{const el=root.all().find(e=>e.tag==='button'&&e.textContent===label);assert.ok(el,label+' exists');await el.onclick?.();};
- return{root,statsRoot,window,storage,requests,events,click,permissionCalls:()=>permissionCalls,workerCalls:()=>workerCalls,unsubscribed:()=>unsubscribed};
+ return{root,statsRoot,window,storage,requests,events,handlers,click,permissionCalls:()=>permissionCalls,workerCalls:()=>workerCalls,unsubscribed:()=>unsubscribed};
 }
 const flush=()=>new Promise(r=>setImmediate(r));
 async function main(){
@@ -44,7 +44,7 @@ async function main(){
  assert.ok(oldPending.storage.has('scorewit.reminders.v1'),'old pending off cannot delete a new subscription');
  assert.equal(JSON.parse(oldPending.storage.get('scorewit.reminders.v1')!).id,newer.id,'old pending off cannot delete a new subscription');
  assert.equal(oldPending.requests[0].url,'https://notify.example/v1/subscriptions/'+'o'.repeat(32));assert.match(oldPending.requests[0].args.headers.Authorization,/Bearer stop1/);
- const h=harness();assert.equal(h.root.hidden,true);assert.equal(h.requests.length,0);assert.equal(h.permissionCalls(),0);assert.equal(h.events[0][0],'push_opened');assert.deepEqual(JSON.parse(JSON.stringify(h.events[0][1])),{pack:'f1'});
+ const h=harness();assert.equal(typeof h.handlers['scorewit-native-reminders-changed'],'function');assert.equal(h.root.hidden,true);assert.equal(h.requests.length,0);assert.equal(h.permissionCalls(),0);assert.equal(h.events[0][0],'push_opened');assert.deepEqual(JSON.parse(JSON.stringify(h.events[0][1])),{pack:'f1'});
  h.window.scorewitNotify.update(false);await flush();assert.equal(h.requests.length,0,'no status request on arrival');
  h.window.scorewitNotify.update(true);await flush();assert.equal(h.root.hidden,false);assert.equal(h.permissionCalls(),0,'offer is not consent');
  await h.click('Turn on reminders');assert.equal(h.permissionCalls(),1);assert.equal(h.workerCalls(),0,'native bridge does not register a web worker');assert.ok(h.storage.has('scorewit.reminders.v1'));
