@@ -196,6 +196,7 @@ window.scorewitNotify={
  settings:function(){draw();if((read()||confirmedOff)&&(native||web)&&!capabilities)void load();},
 };
 if(web&&navigator.serviceWorker.addEventListener)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='scorewit-reminders-changed')void restoreStops();});
+if(native)window.addEventListener('scorewit-native-reminders-changed',()=>void restoreStops());
 window.addEventListener('storage',e=>{if(e.key===key||e.key===declineKey)draw();});
 try{const url=new URL(location.href);if(url.searchParams.get('src')==='push'){fromPush=true;if(config.games.some(g=>g.path===url.pathname)&&typeof track==='function')track('push_opened',{pack:config.pack});url.searchParams.delete('src');history.replaceState(history.state,'',url.pathname+url.search+url.hash);}}catch{}
 try{confirmedOff=localStorage.getItem('scorewit.remindersOff')==='1';}catch{}

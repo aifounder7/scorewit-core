@@ -12,7 +12,7 @@ const destinations: InstallDestinations = {
 };
 const safariUA='Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1';
 function harness(storage = new Map<string,string>(), standalone = false, blocked = false,
-  options: { config?: InstallPromoConfig; navigator?: Record<string,unknown>; copyFails?: boolean } = {}) {
+  options: { config?: InstallPromoConfig; navigator?: Record<string,unknown>; copyFails?: boolean; native?: boolean } = {}) {
   const handlers: Record<string, Array<(e?: any) => void>> = {};
   const on = (name: string, fn: (e?: any) => void) => (handlers[name] ??= []).push(fn);
   const fire = (name: string, event?: any) => handlers[name]?.forEach(fn => fn(event));
@@ -25,7 +25,7 @@ function harness(storage = new Map<string,string>(), standalone = false, blocked
   const dialog={open:false,showModal:()=>{dialog.open=true;},close:()=>{dialog.open=false;fire('guide-close');},addEventListener:(_name:string,fn:()=>void)=>on('guide-close',fn)};
   nodes['sw-install-guide']=dialog;
   const label={textContent:''},copy={textContent:''};
-  const window: any = { addEventListener: on, matchMedia: () => mode };
+  const window: any = { addEventListener: on, matchMedia: () => mode, ...(options.native?{Capacitor:{isNativePlatform:()=>true}}:{}) };
   const sandbox: any = { window, navigator: {clipboard:{writeText:async(s:string)=>{if(options.copyFails)throw Error('denied');copied=s;}},...options.navigator},
     location:{origin:'https://example.test',assign:(s:string)=>navigated=s},
     document: { addEventListener: on, getElementById:(id:string)=>nodes[id]??null,querySelector:()=>null,
@@ -80,6 +80,7 @@ async function main() {
 
   const literalCopy=harness(new Map(),false,false,{config:{...config,body:'Keep $& literal </script>'}});literalCopy.offer();assert.equal(literalCopy.copy.textContent,'Keep $& literal </script>');
   const platformConfig={...config,destinations};
+  const nativeApp=harness(new Map(),false,false,{config:platformConfig,navigator:{userAgent:safariUA},native:true});nativeApp.api.update({arrival:true,result:true});assert.ok(nativeApp.elements.every(el=>el.hidden),'native app must not offer web installation');
   const iphone=harness(new Map(),false,false,{config:platformConfig,navigator:{userAgent:safariUA}});
   iphone.api.update({arrival:true,result:false});assert.equal(iphone.elements[0].hidden,false,'iOS requires no fake native event');
   assert.equal(iphone.label.textContent,'Add to Home Screen');
