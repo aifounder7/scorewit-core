@@ -18,13 +18,13 @@ class Element {
  querySelectorAll(selector:string):Element[]{return this.all().filter(e=>selector==='button'?e.tag==='button':e.tag==='input'&&e.name==='sw-notify-game'&&e.checked);}
  all():Element[]{return this.children.flatMap(c=>[c,...c.all()]);}
 }
-function harness(options:{storage?:Map<string,string>;blocked?:boolean;permission?:string;deleteFails?:boolean;native?:boolean;capable?:boolean;zone?:string;patchFails?:boolean;stats?:boolean}={}){
+function harness(options:{storage?:Map<string,string>;blocked?:boolean;permission?:string;deleteFails?:boolean;native?:boolean;capable?:boolean;zone?:string;patchFails?:boolean;stats?:boolean;nativeState?:unknown}={}){
  const root=new Element('section');root.id='sw-notify';root.hidden=true;
  const statsRoot=new Element('section');statsRoot.id='sw-notify-stats';
  const storage=options.storage??new Map<string,string>();let permissionCalls=0,workerCalls=0,unsubscribed=0;
  const requests:any[]=[],events:any[]=[],handlers:Record<string,Function>={};
  const native=options.native!==false;
- const bridge={requestPermissionAndToken:()=>{permissionCalls++;return Promise.resolve({permission:options.permission??'granted',token:'a'.repeat(64)});}};
+ const bridge={...(options.nativeState?{getReminderState:async()=>options.nativeState}:{}),requestPermissionAndToken:()=>{permissionCalls++;return Promise.resolve({permission:options.permission??'granted',token:'a'.repeat(64)});}};
  const credential={toJSON:()=>({endpoint:'https://fcm.googleapis.com/test',keys:{}}),unsubscribe:async()=>{unsubscribed++;}};
  const reg={pushManager:{getSubscription:async()=>null,subscribe:async()=>credential}};
  const notification={permission:'default',requestPermission:()=>{permissionCalls++;return Promise.resolve(options.permission??'granted');}};
@@ -39,6 +39,11 @@ const flush=()=>new Promise(r=>setImmediate(r));
 async function main(){
  const earlyStats=harness({stats:true});earlyStats.window.scorewitNotify.settings();await flush();assert.equal(earlyStats.root.hidden,true);assert.equal(earlyStats.statsRoot.all().some(e=>e.textContent==='Turn on reminders'),false,'Stats must never ask for arrival consent');
  const onStats=harness({stats:true,zone:'UTC',storage:new Map([['scorewit.reminders.v1',JSON.stringify({id:'i'.repeat(32),secret:'s'.repeat(43),games:['f1'],hour:9,tz:'UTC'})]])});onStats.window.scorewitNotify.settings();await flush();assert.equal(onStats.statsRoot.all().find(e=>e.tag==='button')?.textContent,'Turn off reminders','off comes before preferences without playing');assert.equal(onStats.root.hidden,true,'result controls do not duplicate Stats');
+ const newer={id:'n'.repeat(32),secret:'s'.repeat(43),games:['f1'],hour:9,tz:'UTC'};
+ const oldPending=harness({zone:'UTC',storage:new Map([['scorewit.reminders.v1',JSON.stringify(newer)]]),nativeState:{id:'o'.repeat(32),token:'stop1.'+(Math.floor(Date.now()/1000)+1209600)+'.'+'t'.repeat(43),pending:true}});await flush();
+ assert.ok(oldPending.storage.has('scorewit.reminders.v1'),'old pending off cannot delete a new subscription');
+ assert.equal(JSON.parse(oldPending.storage.get('scorewit.reminders.v1')!).id,newer.id,'old pending off cannot delete a new subscription');
+ assert.equal(oldPending.requests[0].url,'https://notify.example/v1/subscriptions/'+'o'.repeat(32));assert.match(oldPending.requests[0].args.headers.Authorization,/Bearer stop1/);
  const h=harness();assert.equal(h.root.hidden,true);assert.equal(h.requests.length,0);assert.equal(h.permissionCalls(),0);assert.equal(h.events[0][0],'push_opened');assert.deepEqual(JSON.parse(JSON.stringify(h.events[0][1])),{pack:'f1'});
  h.window.scorewitNotify.update(false);await flush();assert.equal(h.requests.length,0,'no status request on arrival');
  h.window.scorewitNotify.update(true);await flush();assert.equal(h.root.hidden,false);assert.equal(h.permissionCalls(),0,'offer is not consent');

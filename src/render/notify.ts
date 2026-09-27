@@ -144,21 +144,45 @@ async function unsubscribe(force=false){
   try{if(saved)localStorage.setItem(key,JSON.stringify(pending));else{recovered=pending;await stopStore('put',pending);}}catch{}
  }finally{busy=false;draw();}
 }
+async function retryRecovered(record){
+ if(!record.pending||record.nextAttemptAt>Date.now())return record;
+ try{
+  await api('subscriptions/'+record.id,'DELETE',null,{secret:record.token});
+  const confirmed={...record,pending:false,confirmedOff:true};await stopStore('put',confirmed);
+  if(native&&typeof bridge.confirmRemindersOff==='function')await bridge.confirmRemindersOff(record.id);
+  return confirmed;
+ }catch{
+  const attempts=(record.attempts||0)+1,next={...record,attempts,nextAttemptAt:nextRetry(attempts)};
+  try{await stopStore('put',next);}catch{}return next;
+ }
+}
 async function restoreStops(){
  try{
   recovered=null;
   const records=await stopStore('read');
   const nativeState=native&&typeof bridge.getReminderState==='function'?await bridge.getReminderState():null;
-  if(nativeState&&validStop(nativeState))records.push(nativeState);
-  // A capability is restricted to DELETE, never settings or analytics.
-  for(const record of records){
-   if(validStop(record)&&!record.pending&&Number(record.token.split('.')[1])*1000<=Date.now()){await stopStore('remove',record.id);continue;}
-   if(record.confirmedOff){const saved=read();if(saved&&saved.id===record.id)localStorage.removeItem(key);confirmedOff=true;continue;}
-   if(validStop(record)&&(!recovered||record.pending))recovered=record;
+  if(nativeState&&validStop(nativeState)){
+   const existing=records.find(r=>r.id===nativeState.id);
+   if(!existing)records.push(nativeState);
+   else if(!existing.confirmedOff){existing.pending=existing.pending||nativeState.pending;existing.nextAttemptAt=Math.max(existing.nextAttemptAt||0,nativeState.nextAttemptAt||0);if(Number(nativeState.token.split('.')[1])>Number(existing.token.split('.')[1]))existing.token=nativeState.token;}
   }
-  if(read())confirmedOff=false;
-  else if(recovered&&!recovered.pending)confirmedOff=false;
-  if(read()&&read().pendingDelete||recovered&&recovered.pending)await unsubscribe();
+  // Retry each capability by its own id. An older pending notification must
+  // never delete a newer subscription created after explicit re-consent.
+  for(let record of records){
+   if(!validStop(record))continue;
+   if(!record.pending&&Number(record.token.split('.')[1])*1000<=Date.now()){await stopStore('remove',record.id);continue;}
+   record=await retryRecovered(record);
+   const saved=read();
+   if(record.confirmedOff){
+    if(saved&&saved.id===record.id)localStorage.removeItem(key);
+    if(memoryPending&&memoryPending.id===record.id)memoryPending=null;
+    if(!read())confirmedOff=true;
+    continue;
+   }
+   if((!saved||saved.id===record.id)&&(!recovered||record.pending))recovered=record;
+  }
+  if(read()||recovered&&!recovered.pending)confirmedOff=false;
+  if(read()&&read().pendingDelete)await unsubscribe();
   else await syncTimezone();
  }catch{await syncTimezone();}
  draw();
