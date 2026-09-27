@@ -153,8 +153,11 @@ hub writer relocates its state under `/worldcup`; the canonical shared worker is
 
 `notifications` is separately optional and disabled unless `enabled: true` is set.
 Its service origin, public VAPID key, pack/game catalog, allowed transports and app
-version must be supplied explicitly. Never put a private key in a pack. Consent
-appears only after a completed Daily round. See the mirrored v1 contract in
+version must be supplied explicitly. Never put a private key in a pack. Initial consent
+appears only after a completed Daily round. After a confirmed Turn Off, Stats
+lets a previous subscriber choose games/time and explicitly turn reminders back
+on. This never prompts or subscribes on arrival and cannot bypass a pending
+deletion. Game history is preserved. See the mirrored v1 contract in
 SPORTPACK-AUTHORING.md for the native bridge, API and release gates. The privacy
 copy follows Amendment C (270 words) and explicitly says reminders are not currently
 enabled. Real provider/KV and physical-device checks remain activation gates.

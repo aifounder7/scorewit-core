@@ -90,12 +90,15 @@ function draw(){
  const resultRoot=document.getElementById('sw-notify');if(settings&&resultRoot&&resultRoot!==root){resultRoot.hidden=true;resultRoot.replaceChildren();}
  const pending=!!(memoryPending||saved&&saved.pendingDelete||recovered&&recovered.pending);
  const offer=visible&&!settings&&!handle&&!confirmedOff&&(native||web)&&!declined()&&capabilities&&available().length&&capabilities.transports.includes(native?'apns':'webpush')&&!(web&&Notification.permission==='denied');
+ const reenable=settings&&confirmedOff&&!handle&&!pending&&(native||web)&&capabilities&&available().length&&capabilities.transports.includes(native?'apns':'webpush')&&!(web&&Notification.permission==='denied');
  root.hidden=!(settings||visible&&handle||offer);root.replaceChildren();
  if(!root.hidden){
  text(root,'h2',settings?'Daily reminders':handle?'Reminders are on':'Remind me tomorrow');
  if(pending){text(root,'p','Turning off, will retry');button(root,'Retry now',()=>unsubscribe(true));}
  else if(handle){button(root,'Turn off reminders',()=>unsubscribe(true));text(root,'p','Reminders are on.');if(saved&&!saved.pendingDelete){fields(root,saved);button(root,'Save preferences',save);}}
  else if(offer){fields(root,null);button(root,'Turn on reminders',subscribe);button(root,'Not now',decline);}
+ else if(reenable){text(root,'p','Reminders are off. Choose your preferences to turn them back on.');fields(root,null);button(root,'Turn on reminders',subscribe);}
+ else if(settings&&confirmedOff&&web&&Notification.permission==='denied')text(root,'p','Reminders are off. Allow notifications for this site in your browser settings, then reload to turn them back on.');
  else text(root,'p',confirmedOff?'Reminders are off.':'No reminder subscription is saved here. If reminders still arrive, use Turn Off on the notification or your device notification settings.');
  const state=text(root,'p','');state.id='sw-notify-status';state.setAttribute('role','status');
  }
@@ -185,11 +188,12 @@ async function restoreStops(){
   if(read()&&read().pendingDelete)await unsubscribe();
   else await syncTimezone();
  }catch{await syncTimezone();}
+ if(confirmedOff&&activeRoot()?.id==='sw-notify-stats'&&(native||web)&&!capabilities)void load();
  draw();
 }
 window.scorewitNotify={
  update:function(completed){visible=!!completed;if(visible&&(native||web)&&!capabilities)void load();draw();},
- settings:function(){draw();if(read()&&!capabilities)void load();},
+ settings:function(){draw();if((read()||confirmedOff)&&(native||web)&&!capabilities)void load();},
 };
 if(web&&navigator.serviceWorker.addEventListener)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='scorewit-reminders-changed')void restoreStops();});
 window.addEventListener('storage',e=>{if(e.key===key||e.key===declineKey)draw();});

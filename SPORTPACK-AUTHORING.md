@@ -594,8 +594,13 @@ or a promise about future rebuilds.
 
 ## Browser and native client boundary
 
-Core `notifications` defaults off. When explicitly enabled, it exposes consent
+Core `notifications` defaults off. When explicitly enabled, it exposes initial consent
 only after completing a Daily round, never on arrival, the hub, or during play.
+After a confirmed Turn Off, a previous subscriber can explicitly re-enable from
+Stats, choosing games and time before pressing Turn on reminders. Opening Stats
+only checks service availability; it never prompts or subscribes automatically.
+Pending deletion must finish before re-enabling. Browser permission denial shows
+settings guidance. Game history and old stop markers are preserved.
 Not now and permission denial suppress offers for 30 days in shared local storage.
 Settings live in Stats on game modes, reference pages and the hub, with Turn
 off reminders first. Only enabled builds include the controls. Existing
@@ -604,7 +609,7 @@ shown an offer. Controls permit hour/game edits and DELETE. On a later page visi
 subscriber whose device zone differs gets one authenticated PATCH containing only
 `{tz}`. No consent, credential refresh or other preference update is automatic.
 Successful PATCH updates the local zone; failure retains it for the next visit.
-Re-rendering does not repeat the request. Unsubscribed visitors send nothing. Failed DELETE persists the pending off request and credentials, shows
+Re-rendering does not repeat the request. Unsubscribed arrivals send no subscription or preference requests. Failed DELETE persists the pending off request and credentials, shows
 "Turning off, will retry", and retries on subsequent visits with exponential
 backoff capped at one hour. Retry now bypasses the delay. Only HTTP 204 permits
 "Reminders are off". The worker persists deletion-only capabilities and pending
