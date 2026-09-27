@@ -291,6 +291,7 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
     const { count } = writeSeoSite(
       seoPageList,
       {
+        notifications: pack.notifications,
         brand: pack.brand,
         copy: pack.copy,
         footer: pack.footer,

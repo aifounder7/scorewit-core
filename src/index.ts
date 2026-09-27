@@ -109,3 +109,5 @@ export { PUBLISHED_MANIFEST_IDS, assertPublishedManifestIdentity, type PwaConfig
 
 export { notifyScript, notificationWorker, type NotifyConfig, type NotifyGame } from './render/notify';
 export { notificationState, validateNotificationState, type NotificationStateConfig, type NotificationState } from './notification-state';
+
+export { reminderPage } from './render/notify';
