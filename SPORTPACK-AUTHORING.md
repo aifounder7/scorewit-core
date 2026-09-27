@@ -474,7 +474,7 @@ pack, not derived from the render clock. Preserve each source's full notice.
 
 ### Mirrored service contract v1
 
-Status: disabled implementation of brief 0027 Amendments A and B (design approved 2026-09-26). Do not activate clients or start
+Status: disabled implementation of brief 0027 Amendments A, B and C (design approved 2026-09-26). Do not activate clients or start
 briefs 0028/0029 until this contract is founder-merged. No deployed service URL
 is assumed. Platform clients consume this document; changes require a new review.
 
@@ -634,9 +634,9 @@ Founder supplies Vercel/Upstash projects and environment secrets. The initial
 trigger is an external QStash hourly schedule on its free tier, with an authenticated
 GET to `/api/index?job=send`; no Vercel cron is configured. See SCHEDULER.md for
 exact settings and secret handling. Paid scheduling is a later founder decision.
-No purchase or provisioning is performed by this implementation. Privacy/footer
-wording was approved in Amendment A, subject to removing locale and qualifying
-half-hour delivery. Service and client flags stay off until merged contract,
+No purchase or provisioning is performed by this implementation. The canonical Optional reminders privacy section is the four-paragraph,
+270-word Amendment C text in core src/legal.ts. It summarizes this contract;
+the detailed delivery, retry and recovery limits here remain unchanged. Service and client flags stay off until merged contract,
 configured secrets, KV and
 provider integration tests, and next-day physical-device delivery checks pass.
 Brief 0028 starts after the contract merges; 0029 after contract and APNs transport

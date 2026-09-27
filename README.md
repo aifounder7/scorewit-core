@@ -156,5 +156,5 @@ Its service origin, public VAPID key, pack/game catalog, allowed transports and 
 version must be supplied explicitly. Never put a private key in a pack. Consent
 appears only after a completed Daily round. See the mirrored v1 contract in
 SPORTPACK-AUTHORING.md for the native bridge, API and release gates. The privacy
-copy follows approved Amendment A and explicitly says reminders are not currently
+copy follows Amendment C (270 words) and explicitly says reminders are not currently
 enabled. Real provider/KV and physical-device checks remain activation gates.
