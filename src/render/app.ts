@@ -1,3 +1,4 @@
+import { feedbackPage, feedbackScript, type FeedbackConfig } from './feedback';
 import { nativeWidgetUpdate, widgetState } from '../widget-state';
 import { NOTIFICATION_BADGE } from './notification-badge';
 import { notificationState, type NotificationStateConfig } from '../notification-state';
@@ -249,6 +250,7 @@ export interface AppShellConfig {
   footer?: FooterConfig;
   installPromo?: InstallPromoConfig;
   notifications?: NotifyConfig;
+  feedback?: FeedbackConfig;
   notificationState?: NotificationStateConfig;
   pwa?: PwaConfig;
   /** Opt-in post-answer entity links (see EntityLinkMap below): matched
@@ -717,7 +719,7 @@ function linkFact(s){
   return out+esc(s.slice(pos));
 }
 
-__ANALYTICSJS____NOTIFYJS__
+__ANALYTICSJS____NOTIFYJS____FEEDBACKJS__
 
 __PACKDECOR____SPOTLIGHTJS__
 
@@ -770,7 +772,7 @@ function renderDailyReveal(q,resp,sc){
     '<div class="fact">'+linkFact(q.revealFact)+'</div>'+
     '<a href="'+q.citation.urls[0]+'" target="_blank" rel="noopener noreferrer">↗ '+esc(q.citation.label)+'</a>'+
     '<div class="row"><span></span><button class="btn" id="next">'+(last?'See results':'Next question')+'</button></div></div>';
-  document.getElementById('next').onclick=()=>{idx++;saveDailyProgress(false);renderProgress();render();};
+  __FEEDBACKREPORT_REVEAL__document.getElementById('next').onclick=()=>{idx++;saveDailyProgress(false);renderProgress();render();};
   // Source link: NATIVE anchor navigation only (target="_blank" +
   // rel="noopener noreferrer" on the markup above). The old "robust" JS
   // handler double-navigated: a scripted open with the 'noopener' feature
@@ -852,7 +854,7 @@ function renderResult(){
     '<div class="note" id="shared" style="visibility:hidden">Copied to clipboard</div>'+
     '<pre class="sharebox" id="sharebox"></pre>'+
     '__RESULTCONTINUE__</div>';
-  document.getElementById('statsbtn').onclick=renderStats;
+  __FEEDBACKRESULT__document.getElementById('statsbtn').onclick=renderStats;
   document.getElementById('share').onclick=async()=>{
     __TRACKSHARE__
     const text=buildShareText(streak);
@@ -895,7 +897,7 @@ function renderStats(){
       (s.played===0?'<div class="empty" style="margin-top:8px">Play your first daily round to start the chart.</div>':'')+
     '</div>';
   stage.innerHTML=html;
-__NOTIFYSTATS____ANALYTICSSETTINGS__  document.getElementById('statsback').onclick=()=>{statsOpen=false;__NOTIFYSTATSBACK__};
+__NOTIFYSTATS____FEEDBACKSTATS____ANALYTICSSETTINGS__  document.getElementById('statsback').onclick=()=>{statsOpen=false;__NOTIFYSTATSBACK__};
   renderProgress();
 }
 
@@ -956,7 +958,7 @@ function answerPractice(resp){__INSTALLPLAYED____TRACKPRACTICE__
     '<div class="fact">'+linkFact(q.revealFact)+'</div>'+
     '<a href="'+q.citation.urls[0]+'" target="_blank" rel="noopener noreferrer">↗ '+esc(q.citation.label)+'</a>'+
     '<div class="row"><span></span><button class="btn practice" id="pnext">Another one</button></div></div>';
-  document.getElementById('pnext').onclick=drawPractice;
+  __FEEDBACKREPORT_PREVEAL__document.getElementById('pnext').onclick=drawPractice;
   // Source link: native anchor navigation only — same double-navigation fix
   // as the daily reveal (see the note in answer()).
 }
@@ -1035,7 +1037,7 @@ function answerTeam(t,resp){__INSTALLPLAYED__
     '<div class="fact">'+linkFact(q.revealFact)+'</div>'+
     '<a href="'+q.citation.urls[0]+'" target="_blank" rel="noopener noreferrer">↗ '+esc(q.citation.label)+'</a>'+
     '<div class="row"><span></span><button class="btn team" id="tnext">Another one</button></div></div>';
-  document.getElementById('tnext').onclick=()=>drawTeamQuestion(t);
+  __FEEDBACKREPORT_TREVEAL__document.getElementById('tnext').onclick=()=>drawTeamQuestion(t);
   bindSrcLinks(document.getElementById('treveal'));
 }
 
@@ -1099,7 +1101,7 @@ function answerMatchup(f,resp){__INSTALLPLAYED__
     (ansLine?'<div class="note">'+esc(ansLine)+'</div>':'')+'<div class="fact">'+linkFact(q.revealFact)+'</div>'+
     '<a href="'+q.citation.urls[0]+'" target="_blank" rel="noopener noreferrer">↗ '+esc(q.citation.label)+'</a>'+
     '<div class="row"><span></span><button class="btn today" id="mdnext">Another one</button></div></div>';
-  document.getElementById('mdnext').onclick=()=>drawMatchupQ(f);
+  __FEEDBACKREPORT_MDREV__document.getElementById('mdnext').onclick=()=>drawMatchupQ(f);
   bindSrcLinks(document.getElementById('mdrev'));
 }
 
@@ -2043,6 +2045,16 @@ function buildShareText(streak){
     .split('__NOTIFYSTATS__').join(cfg.notifications?.enabled ? `stage.insertAdjacentHTML('beforeend','<section id="sw-notify-stats" class="sw-notify"></section>');window.scorewitNotify.settings();` : '')
     .split('__NOTIFYRESULT__').join(cfg.notifications?.enabled ? NOTIFY_HTML : '')
     .split('__NOTIFYJS__').join(notifyScript(cfg.notifications))
+    .split('__FEEDBACKJS__').join(feedbackScript(cfg.feedback))
+    .replace('function setMode(m){',cfg.feedback?.enabled ? 'function setMode(m){window.scorewitFeedback.setContext(m==="daily"?{roundDate:currentDailyKey()}:{});' : 'function setMode(m){')
+    .replace('function renderPractice(){',cfg.feedback?.enabled ? 'function renderPractice(){window.scorewitFeedback.setContext({});' : 'function renderPractice(){')
+    .replace('function render(){', (cfg.feedback?.enabled ? 'function render(){window.scorewitFeedback.setContext({roundDate:currentDailyKey()});' : 'function render(){'))
+    .split('__FEEDBACKREPORT_MDREV__').join(cfg.feedback?.enabled ? 'window.scorewitFeedback.report(document.querySelector("#mdrev .fact"),q.id);' : '')
+    .split('__FEEDBACKREPORT_TREVEAL__').join(cfg.feedback?.enabled ? 'window.scorewitFeedback.report(document.querySelector("#treveal .fact"),q.id);' : '')
+    .split('__FEEDBACKSTATS__').join(cfg.feedback?.enabled ? 'window.scorewitFeedback.entry(stage);' : '')
+    .split('__FEEDBACKRESULT__').join(cfg.feedback?.enabled ? 'window.scorewitFeedback.reaction(stage.querySelector(".final"),currentDailyKey(),results.filter(p=>p>=100).length);' : '')
+    .split('__FEEDBACKREPORT_REVEAL__').join(cfg.feedback?.enabled ? 'window.scorewitFeedback.report(document.querySelector("#reveal .fact"),q.id,currentDailyKey());' : '')
+    .split('__FEEDBACKREPORT_PREVEAL__').join(cfg.feedback?.enabled ? 'window.scorewitFeedback.report(document.querySelector("#preveal .fact"),q.id);' : '')
     .split('__WIDGETUPDATE__').join(cfg.notificationState ? nativeWidgetUpdate(cfg.notificationState.pack) : '')
     .split('__NOTIFYUPDATE__').join(cfg.notifications?.enabled ? "window.scorewitNotify.update(mode==='daily'&&!statsOpen&&questions.length>0&&idx>=questions.length);" : '')
     .split('__ANALYTICSHEAD__').join(analytics.head)
@@ -2157,10 +2169,11 @@ export function renderNotFoundHtml(cfg: AppShellConfig): string {
     .split('__THEMECOLOR__').join(brand.themeColor)
     .split('__NFPALETTE__').join(brand.notFoundPaletteCss)
     .split('__BTNTEXT__').join((brand.onAccent ?? DEFAULT_ON_ACCENT).accent)
-    .split('__NFEXTRACSS__').join((cfg.theme ? almanacNotFoundCss() : '') + (cfg.copy.notFoundExtraCss ?? ''))
+    .split('__NFEXTRACSS__').join((cfg.theme ? almanacNotFoundCss() : '') + (cfg.copy.notFoundExtraCss ?? '') + (cfg.footer?.dataProviders ? FOOTER_CSS+'body{flex-direction:column}body>footer.sw-footer{width:100%}' : ''))
     .split('__NFHEADING__').join(cfg.copy.notFoundHeading)
     .split('__NFBODY__').join(cfg.copy.notFoundBody)
-    .split('__NFACTIONS__').join(cfg.copy.notFoundActionsHtml);
+    .split('__NFACTIONS__').join(cfg.copy.notFoundActionsHtml)
+    .replace('</body>',(cfg.footer?.dataProviders ? renderFooter(cfg.footer) : '')+feedbackPage(cfg.feedback)+'</body>');
 }
 
 /**

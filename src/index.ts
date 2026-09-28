@@ -101,8 +101,8 @@ export {
   type PackClientJs,
 } from './render/app';
 
-export { FOOTER_CSS, renderFooter } from './render/footer';
-export type { FooterConfig, FooterLine, FooterLink } from './render/footer';
+export { FOOTER_CSS, renderFooter, renderDataCredits, renderSources } from './render/footer';
+export type { FooterConfig, FooterLine, FooterLink, DataProvider, SourceEntry } from './render/footer';
 
 export { INSTALL_CSS, installHead, renderInstallCard, installedHubHead, type InstallPromoConfig, type InstallDestinations, type NativeInstallDestination, type ManualInstallDestination, type StoreInstallDestination, type InstalledHubGame } from './render/install';
 export { PUBLISHED_MANIFEST_IDS, assertPublishedManifestIdentity, type PwaConfig } from './manifest';
@@ -111,3 +111,6 @@ export { notifyScript, notificationWorker, type NotifyConfig, type NotifyGame } 
 export { notificationState, validateNotificationState, type NotificationStateConfig, type NotificationState } from './notification-state';
 
 export { reminderPage } from './render/notify';
+
+export { feedbackPage, feedbackScript, FEEDBACK_COPY, type FeedbackConfig } from './render/feedback';
+export { verifyReportedQuestion } from './validate/report';

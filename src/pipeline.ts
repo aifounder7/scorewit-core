@@ -258,6 +258,7 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       footer: pack.footer,
       installPromo: pack.installPromo,
       notifications: pack.notifications,
+      feedback: pack.feedback,
       notificationState: pack.notificationState,
       pwa: pack.pwa,
       // Opt-in post-answer entity links (existence-guarded above; unset =
@@ -292,6 +293,7 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       seoPageList,
       {
         notifications: pack.notifications,
+        feedback: pack.feedback,
         brand: pack.brand,
         copy: pack.copy,
         footer: pack.footer,
@@ -314,7 +316,7 @@ export function runRender(pack: AnySportPack, paths: PipelinePaths): void {
       paths,
       // Umbrella-only opt-in: the scorewit.com root emits /privacy + /terms
       // from the canonical copy in src/legal.ts; sibling packs link to them.
-      pack.legalPages ? legalSeoPages() : []
+      pack.legalPages ? legalSeoPages(pack.feedback?.enabled) : []
     );
     console.log(`Wrote ${count} SEO pages + sitemap.xml + robots.txt under site/`);
   }

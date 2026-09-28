@@ -111,20 +111,20 @@ ${ADS_HTML}
 <p>Scorewit is a general-audience service and is not directed to children under 13. Games do not require an account or reminders. If you believe a child has provided information to the reminder service, contact us so we can help remove it.</p>
 
 <h2>Your data, your rights</h2>
-<p>Privacy laws in various places (the EU and UK, California and other US states, and elsewhere) give you rights over personal data an operator holds about you, including access, correction, deletion and objection. Optional reminder subscriptions are the limited records described above; there are no player accounts or profiles. You can change reminder preferences or delete a subscription using its device-local management controls. If you believe we hold personal data about you, or you have any privacy question or complaint, email us and we will answer plainly: <a href="mailto:${LEGAL_CONTACT}">${LEGAL_CONTACT}</a>. Do not email push tokens or management secrets. If you cannot use the controls, contact us for help.</p>
+<p>Privacy laws in various places (the EU and UK, California and other US states, and elsewhere) give you rights over personal data an operator holds about you, including access, correction, deletion and objection. Optional reminder subscriptions are the limited records described above; there are no player accounts or profiles. You can change reminder preferences or delete a subscription using its device-local management controls. If you believe we hold personal data about you, or you have any privacy question or complaint, email us and we will answer plainly: <a href="https://www.scorewit.com/how-it-works#contact">${LEGAL_CONTACT}</a>. Do not email push tokens or management secrets. If you cannot use the controls, contact us for help.</p>
 
 <h2>Data sources</h2>
 <p>Every fact in a Scorewit game is computed from cited public data:</p>
 ${SOURCES_HTML}
 
 <h2>Contact</h2>
-<p>Questions about any of this: <a href="mailto:${LEGAL_CONTACT}">${LEGAL_CONTACT}</a>.</p>
+<p>Questions about any of this: <a href="https://www.scorewit.com/how-it-works#contact">${LEGAL_CONTACT}</a>.</p>
 
 <p class="src">Effective ${PRIVACY_EFFECTIVE_DATE}. If this page changes, the date changes with it — and if what we actually do ever changes, this page changes first.</p>`;
 
 /** Disputes section: informal notice-and-cure always; governing law joins when the constant is set. */
 const disputesHtml = (gov: { law: string; venue: string } | null): string =>
-  `<p>If you have a problem with Scorewit, tell us first: email <a href="mailto:${LEGAL_CONTACT}">${LEGAL_CONTACT}</a> with what went wrong and what you'd like done. We'll do our best to respond, and both sides agree to try in good faith to resolve any dispute informally for 60 days before starting any legal proceeding. Most problems are a bug report, and we fix bugs.</p>${
+  `<p>If you have a problem with Scorewit, tell us first: email <a href="https://www.scorewit.com/how-it-works#contact">${LEGAL_CONTACT}</a> with what went wrong and what you'd like done. We'll do our best to respond, and both sides agree to try in good faith to resolve any dispute informally for 60 days before starting any legal proceeding. Most problems are a bug report, and we fix bugs.</p>${
     gov
       ? `\n<p>These terms are governed by the laws of ${gov.law}, and disputes that can't be resolved informally belong in ${gov.venue} — except where the law of the place you live gives you protections or a forum that can't be taken away by agreement, which we don't try to take away.</p>`
       : ''
@@ -173,13 +173,13 @@ ${DISPUTES_HTML}${DMCA_HTML}
 <p>We may update these terms; the effective date below marks the current version, and we'll flag material changes on the site. Continuing to play after a change means the current version applies.</p>
 
 <h2>Contact</h2>
-<p><a href="mailto:${LEGAL_CONTACT}">${LEGAL_CONTACT}</a></p>
+<p><a href="https://www.scorewit.com/how-it-works#contact">${LEGAL_CONTACT}</a></p>
 
 <p class="src">Effective ${LEGAL_EFFECTIVE_DATE}.</p>`;
 
 /** The two umbrella pages, shaped as SeoPage so the shared template renders
  *  them. `lastmod` is the editorial effective date — never a build clock. */
-export function legalSeoPages(): SeoPage[] {
+export function legalSeoPages(feedbackEnabled = false): SeoPage[] {
   return [
     {
       path: 'privacy',
@@ -193,8 +193,8 @@ export function legalSeoPages(): SeoPage[] {
         name: 'Scorewit privacy policy',
         description: 'What Scorewit does and does not do with data.',
       },
-      bodyHtml: PRIVACY_BODY,
-      lastmod: PRIVACY_EFFECTIVE_DATE,
+      bodyHtml: feedbackEnabled ? PRIVACY_BODY.replace('<h2>Hosting</h2>', FEEDBACK_PRIVACY_HTML+'<h2>Hosting</h2>').replace('Optional reminder subscriptions are the limited records described above;', 'Optional reminder subscriptions and feedback submissions are the limited records described above;').replace('information to the reminder service', 'information through reminders or feedback').replace('Effective '+PRIVACY_EFFECTIVE_DATE, 'Effective 2026-09-28') : PRIVACY_BODY,
+      lastmod: feedbackEnabled ? '2026-09-28' : PRIVACY_EFFECTIVE_DATE,
       eyebrowHtml: 'Scorewit · Legal',
       subtitleHtml: 'No accounts, no cookies, no tracking in the games — here is exactly what that means.',
     },
@@ -217,3 +217,6 @@ export function legalSeoPages(): SeoPage[] {
     },
   ];
 }
+
+export const FEEDBACK_PRIVACY_HTML = `<h2>Feedback</h2>
+<p>Feedback is optional and read by a person. We receive your message or report reason, game, page path, local and round dates, relevant question reference, platform, viewport class and app version. Difficulty reactions also include the round score. Email is optional and used only to reply. Submissions are stored in our Upstash database for up to 90 days and archived in our private operations repository. Reports are checked against the match record. No play history or tracking identifier is attached. To limit abuse, an hourly hash of your network address expires within an hour and is not saved with feedback. Contact us to request deletion.</p>`;
