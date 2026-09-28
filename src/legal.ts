@@ -64,7 +64,7 @@ const OPERATOR = LEGAL_ENTITY ? `Scorewit (operated by ${LEGAL_ENTITY})` : 'Scor
 /** The data-source credits, reusing each pack's own attribution wording. */
 const SOURCES_HTML = `<ul>
 <li>World Cup match records via <a href="https://github.com/openfootball" rel="noopener noreferrer">openfootball</a> (public-domain data).</li>
-<li>Cricket ball-by-ball data via <a href="https://cricsheet.org/" rel="noopener noreferrer">Cricsheet</a> (ODC-By 1.0).</li>
+<li>Cricket ball-by-ball data via <a href="https://cricsheet.org/" rel="noopener noreferrer">Cricsheet</a>, used with attribution. See <a href="https://www.scorewit.com/how-it-works#sources">Sources and licences</a> for the match-file terms.</li>
 <li>Formula 1 records via <a href="https://github.com/f1db/f1db" rel="noopener noreferrer">F1DB</a> (CC BY 4.0).</li>
 <li>World Series game logs via <a href="https://www.retrosheet.org" rel="noopener noreferrer">Retrosheet</a> (the information used here was obtained free of charge from and is copyrighted by Retrosheet).</li>
 <li>NFL play-by-play data via <a href="https://github.com/nflverse/nflverse-data" rel="noopener noreferrer">nflverse</a> (nflfastR play-by-play data, CC BY 4.0).</li>
