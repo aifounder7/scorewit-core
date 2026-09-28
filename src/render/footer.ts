@@ -3,6 +3,8 @@ import type { FamilyConfig } from './app';
 /** Pack-owned text and links; the shared renderer contains no sport facts. */
 export interface FooterLink { text: string; url: string }
 export type FooterLine = Array<string | FooterLink>;
+export interface DataProvider { name: string; url: string; licence: string | null; licenceUrl: string | null; note?: string }
+export interface SourceEntry { game: string; cadence: string; providers: DataProvider[]; geometry?: DataProvider[]; notice?: string }
 export interface FooterConfig {
   homeUrl: string;
   /** Explicit hub chooser, including in installed launch mode. */
@@ -15,7 +17,14 @@ export interface FooterConfig {
   trust: string;
   disclaimer: string[];
   privacy: string;
+  /** Legacy/art credits remain supported for byte-identical disabled consumers. */
   credits: FooterLine[];
+  dataProviders?: DataProvider[];
+  geometryProviders?: DataProvider[];
+  verbatimNotice?: string;
+  sourcesUrl?: string;
+  compactProviders?: DataProvider[];
+  compactGeometry?: DataProvider[];
   links: FooterLink[];
   copyright: string;
 }
@@ -36,6 +45,27 @@ function link(l: FooterLink): string {
   return `<a href="${url(l.url)}">${esc(l.text)}</a>`;
 }
 
+function provider(p: DataProvider): string {
+  if (p.licence === null) return link({text:p.name,url:p.url})+', used with attribution';
+  if (!p.licence.trim()) throw Error('footer: missing licence');
+  return link({text:p.name,url:p.url})+' ('+link({text:p.licence,url:p.licenceUrl ?? ''})+')'+(p.note?' '+esc(p.note):'');
+}
+export function renderDataCredits(config: Pick<FooterConfig,'dataProviders'|'geometryProviders'|'verbatimNotice'>): string {
+  return (config.dataProviders?.length ? '<p>Match data from '+config.dataProviders.map(provider).join('; ')+'.</p>':'')+
+    (config.geometryProviders?.length ? '<p>Circuit outlines derived from '+config.geometryProviders.map(provider).join('; ')+'.</p>':'')+
+    (config.verbatimNotice ? '<p class="sw-data-notice">'+esc(config.verbatimNotice)+'</p>':'');
+}
+export function renderSources(entries: SourceEntry[]): string {
+  return '<section id="sources"><h2>Sources and licences</h2>'+entries.map(e=>'<section><h3>'+esc(e.game)+'</h3>'+renderDataCredits({dataProviders:e.providers,geometryProviders:e.geometry,verbatimNotice:e.notice})+e.providers.filter(p=>p.licence===null && p.note).map(p=>'<p>'+esc(p.note!)+'</p>').join('')+'<p>Refreshed '+esc(e.cadence)+'.</p></section>').join('')+'<p>Icons adapted from '+link({text:'Twemoji',url:'https://github.com/jdecked/twemoji'})+' ('+link({text:'CC BY 4.0',url:'https://github.com/jdecked/twemoji/blob/main/LICENSE-GRAPHICS'})+').</p></section>';
+}
+function credits(config: FooterConfig): string {
+  const compact=config.compactProviders?.length ? '<p>Match data from '+config.compactProviders.map(p=>link({text:p.name,url:p.url})).reduce((text,item,i,all)=>text+(i===0?'':i===all.length-1?' and ':', ')+item,'')+
+    (config.compactGeometry?.length?'; circuit outlines from '+config.compactGeometry.map(p=>link({text:p.name,url:p.url})).join(', '):'')+'; icons adapted from '+link({text:'Twemoji',url:'https://github.com/jdecked/twemoji'})+'.</p>' : '';
+  const art=compact?'':config.credits.map(line=>'<p>'+line.map(part=>typeof part==='string'?esc(part):link(part)).join('')+'</p>').join('');
+  const notice=config.verbatimNotice?'<p class="sw-data-notice">'+esc(config.verbatimNotice)+'</p>':'';
+  return compact+renderDataCredits({...config,verbatimNotice:undefined})+art+notice+(config.sourcesUrl?'<p>'+link({text:'Full sources and licences',url:config.sourcesUrl})+'</p>':'');
+}
+
 /** No family means the homepage's band-only variant. All text is visible. */
 export function renderFooter(config: FooterConfig, family?: FamilyConfig): string {
   let shelf = '';
@@ -52,7 +82,7 @@ export function renderFooter(config: FooterConfig, family?: FamilyConfig): strin
     }).join('');
     shelf = `<nav class="sw-footer-shelf" aria-label="${esc(config.heading)}"><div class="sw-footer-head"><h2>${esc(config.heading)}</h2>${link({ text: config.allGamesLabel, url: config.allGamesUrl ?? config.homeUrl })}</div><ul>${tiles}</ul></nav>`;
   }
-  return `<footer class="sw-footer">${shelf}<div class="sw-footer-band"><div class="sw-footer-row"><a class="sw-footer-brand" href="${url(config.homeUrl)}">${esc(config.wordmark)}<span aria-hidden="true">.</span></a><nav class="sw-footer-links" aria-label="Site information">${config.links.map(link).join('')}</nav></div><p class="sw-footer-trust">${esc(config.trust)}</p><div class="sw-footer-columns"><section><h2>Independent by design</h2>${config.disclaimer.map(s => `<p>${esc(s)}</p>`).join('')}<p>${esc(config.privacy)}</p></section><section><h2>Data and credits</h2>${config.credits.map(line => `<p>${line.map(part => typeof part === 'string' ? esc(part) : link(part)).join('')}</p>`).join('')}</section></div><p class="sw-footer-copyright">${esc(config.copyright)}</p></div></footer>`;
+  return `<footer class="sw-footer">${shelf}<div class="sw-footer-band"><div class="sw-footer-row"><a class="sw-footer-brand" href="${url(config.homeUrl)}">${esc(config.wordmark)}<span aria-hidden="true">.</span></a><nav class="sw-footer-links" aria-label="Site information">${config.links.map(link).join('')}</nav></div><p class="sw-footer-trust">${esc(config.trust)}</p><div class="sw-footer-columns"><section><h2>Independent by design</h2>${config.disclaimer.map(s => `<p>${esc(s)}</p>`).join('')}<p>${esc(config.privacy)}</p></section><section><h2>Data and credits</h2>${credits(config)}</section></div><p class="sw-footer-copyright">${esc(config.copyright)}</p></div></footer>`;
 }
 
 /** Namespaced, additive stylesheet; legacy consumers remain byte-identical. */

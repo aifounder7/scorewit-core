@@ -435,6 +435,7 @@ export interface SportPack<
   footer?: import('./render/footer').FooterConfig;
   installPromo?: import('./render/install').InstallPromoConfig;
   notifications?: import('./render/notify').NotifyConfig;
+  feedback?: import('./render/feedback').FeedbackConfig;
   notificationState?: import('./notification-state').NotificationStateConfig;
   pwa?: import('./manifest').PwaConfig;
   /** Opt-in My-Team nation theming (see AppShellConfig.teamTheming). Unset

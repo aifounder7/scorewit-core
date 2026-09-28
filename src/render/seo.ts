@@ -1,3 +1,4 @@
+import { feedbackPage, type FeedbackConfig } from './feedback';
 import { reminderPage, type NotifyConfig } from './notify';
 import { FOOTER_CSS, renderFooter, type FooterConfig } from './footer';
 import type { FamilyConfig } from './app';
@@ -77,6 +78,7 @@ const inlineJson = (o: unknown) => JSON.stringify(o).replace(/</g, '\\u003c');
 
 export interface SeoRenderConfig {
   notifications?: NotifyConfig;
+  feedback?: FeedbackConfig;
   footer?: FooterConfig;
   family?: FamilyConfig;
   brand: Brand;
@@ -467,7 +469,7 @@ ${cfg.footer ? FOOTER_CSS : ''}</style>
 <main>
 ${blocks.join('\n')}
 </main>
-${cfg.footer ? renderFooter(cfg.footer, cfg.family) : (copy.footerHtml ?? '')}${analytics.body}
+${cfg.footer ? renderFooter(cfg.footer, cfg.family) : (copy.footerHtml ?? '')}${analytics.body}${feedbackPage(cfg.feedback)}
 </body>
 </html>
 `;

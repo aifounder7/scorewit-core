@@ -161,3 +161,33 @@ deletion. Game history is preserved. See the mirrored v1 contract in
 SPORTPACK-AUTHORING.md for the native bridge, API and release gates. The privacy
 copy follows Amendment C (270 words) and explicitly says reminders are not currently
 enabled. Real provider/KV and physical-device checks remain activation gates.
+
+### Feedback (approved brief 0034)
+
+`FeedbackConfig` is opt-in (`enabled: false` emits no feedback markup or runtime).
+Enabled clients require an HTTPS service origin and a valid portfolio pack ID.
+The shared native dialog, result reaction, reveal report and Stats/footer entries
+use the fixed copy in `src/render/feedback.ts`. Legal copy is conditional on the
+same switch. The hub adds its two header entries at the consumer seam.
+
+Only reaction dismissal uses sessionStorage; messages and email stay in the open
+dialog until submitted or closed. Requests contain bounded context, no play
+history, no user-agent string and no client tracking identifier. Optional email
+is for replies. The service's separate abuse-limiting address hash is documented
+in the feedback privacy paragraph. Do not enable consumers before the live
+service and private archive workflow have been verified. Reminders are separate.
+
+`verifyReportedQuestion(pack, paths, questionId)` dispatches to independent
+pack checks against committed inputs. `confirmed` means a mismatch was found;
+`not_confirmed` is not a dismissal of a wording concern. Missing IDs and validator
+failures remain explicit. The ops workflow records the exact pack commit.
+
+Structured `dataProviders`, `geometryProviders`, and `verbatimNotice` footer
+fields separate dataset attribution from existing artwork credits.
+`renderSources` produces the full provider/licence/cadence section from the same
+records. Pack-owned provider catalog snapshots live in automation/data-sources.json;
+scorewit-ops holds the portfolio reference. Update both in one reviewed change.
+
+A provider with `licence: null` and `licenceUrl: null` renders "used with
+attribution" without asserting a licence. Its optional scope note appears in
+Sources, keeping the compact footer short. An empty licence string remains invalid.
