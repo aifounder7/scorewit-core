@@ -550,8 +550,8 @@ cannot be recalled; a final-read-to-send race also remains. Never promise zero
 arrivals after an off request or a retroactive cancellation.
 
 An hourly run compares local wall-clock minutes to the chosen hour. It is due
-from that hour through exactly three hours later, inclusive, on the same local
-date. A later minute or an earlier hour skips without reserving. This catches a
+from that hour until three hours later, exclusive, on the same local
+date, capped at midnight. The end instant or an earlier hour skips without reserving. This catches a
 missed run and a spring-forward missing hour, but never wraps yesterday's reminder
 into today. The last reserved date must be earlier than today's local date.
 Fractional-offset zones are checked on their local offset minute: with a top-of-
@@ -572,7 +572,14 @@ explicitly reviewed before increasing the cap; do not silently drop scan pages.
 
 Delete on web push 404/410, APNs Unregistered/410/BadDeviceToken, explicit DELETE,
 or five consecutive failed delivery attempts. A successful send resets failures.
-Web push TTL and APNs expiration are zero to avoid queued yesterday notifications.
+Web push TTL is the remaining seconds in that local delivery window, computed
+again immediately before provider I/O, with urgency high. APNs expiration is
+the same window end as UNIX seconds; APNs priority remains 10. Both retain the
+scorewit-daily collapse identifier. DST and fractional offsets are honored.
+An expired or stale-date payload is skipped without a provider call or failure
+increment; the at-most-once reservation remains. Provider queuing can improve
+offline/Doze delivery but does not guarantee it. APNs expiration is best-effort,
+so a late delivery is still possible.
 The web worker additionally rejects a payload whose date is stale in its given tz.
 The native iOS client must apply the same rule when processing in-app delivery.
 
