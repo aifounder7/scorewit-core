@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { FOOTER_CSS, renderFooter, type FooterConfig } from './render/footer';
+import { FOOTER_CSS, renderFooter, renderSources, type FooterConfig, type DataProvider } from './render/footer';
 import { renderAppHtml, type AppShellConfig, type FamilyConfig } from './render/app';
 import { renderSeoPage } from './render/seo';
 function shellConfig(family?: FamilyConfig): AppShellConfig {
@@ -102,3 +102,17 @@ assert.ok(installShell.includes('function answerPractice(resp){window.scorewitIn
 assert.ok(installShell.includes('function answerTeam(t,resp){window.scorewitInstall.played();'));
 assert.ok(installShell.includes('function answerMatchup(f,resp){window.scorewitInstall.played();'));
 assert.ok(renderFooter({...footer,allGamesUrl:'https://example.test/?games=1'},family).includes('href="https://example.test/?games=1"'));
+
+// Unknown terms must not inherit a licence from a different dataset.
+const unspecified: DataProvider = {name: 'Example data', url: 'https://data.test/',
+  licence: null, licenceUrl: null, note: 'No stated match-file licence. <Scope & note>.'};
+const unspecifiedFooter = renderFooter({...footer, credits: [], dataProviders: [unspecified]});
+assert.ok(unspecifiedFooter.includes('Example data</a>, used with attribution.</p>'));
+assert.ok(!unspecifiedFooter.includes('No stated match-file licence'));
+assert.ok(!unspecifiedFooter.includes('href="null"'));
+const unspecifiedSources = renderSources([{game: 'Example', cadence: 'weekly', providers: [unspecified]}]);
+assert.ok(unspecifiedSources.includes('No stated match-file licence. &lt;Scope &amp; note&gt;.'));
+assert.ok(!unspecifiedSources.includes('undefined'));
+assert.throws(() => renderFooter({...footer, dataProviders: [{...unspecified, licence: '', licenceUrl: 'https://data.test/license'}]}), /missing licence/);
+assert.throws(() => renderFooter({...footer, dataProviders: [{...unspecified, licence: 'CC0', licenceUrl: 'javascript:alert(1)'}]}), /HTTPS/);
+console.log('footer: unspecified terms render attribution without an invented licence; Sources keeps escaped scope note');

@@ -3,7 +3,7 @@ import type { FamilyConfig } from './app';
 /** Pack-owned text and links; the shared renderer contains no sport facts. */
 export interface FooterLink { text: string; url: string }
 export type FooterLine = Array<string | FooterLink>;
-export interface DataProvider { name: string; url: string; licence: string; licenceUrl: string; note?: string }
+export interface DataProvider { name: string; url: string; licence: string | null; licenceUrl: string | null; note?: string }
 export interface SourceEntry { game: string; cadence: string; providers: DataProvider[]; geometry?: DataProvider[]; notice?: string }
 export interface FooterConfig {
   homeUrl: string;
@@ -46,8 +46,9 @@ function link(l: FooterLink): string {
 }
 
 function provider(p: DataProvider): string {
+  if (p.licence === null) return link({text:p.name,url:p.url})+', used with attribution';
   if (!p.licence.trim()) throw Error('footer: missing licence');
-  return link({text:p.name,url:p.url})+' ('+link({text:p.licence,url:p.licenceUrl})+')'+(p.note?' '+esc(p.note):'');
+  return link({text:p.name,url:p.url})+' ('+link({text:p.licence,url:p.licenceUrl ?? ''})+')'+(p.note?' '+esc(p.note):'');
 }
 export function renderDataCredits(config: Pick<FooterConfig,'dataProviders'|'geometryProviders'|'verbatimNotice'>): string {
   return (config.dataProviders?.length ? '<p>Match data from '+config.dataProviders.map(provider).join('; ')+'.</p>':'')+
@@ -55,7 +56,7 @@ export function renderDataCredits(config: Pick<FooterConfig,'dataProviders'|'geo
     (config.verbatimNotice ? '<p class="sw-data-notice">'+esc(config.verbatimNotice)+'</p>':'');
 }
 export function renderSources(entries: SourceEntry[]): string {
-  return '<section id="sources"><h2>Sources and licences</h2>'+entries.map(e=>'<section><h3>'+esc(e.game)+'</h3>'+renderDataCredits({dataProviders:e.providers,geometryProviders:e.geometry,verbatimNotice:e.notice})+'<p>Refreshed '+esc(e.cadence)+'.</p></section>').join('')+'<p>Icons adapted from '+link({text:'Twemoji',url:'https://github.com/jdecked/twemoji'})+' ('+link({text:'CC BY 4.0',url:'https://github.com/jdecked/twemoji/blob/main/LICENSE-GRAPHICS'})+').</p></section>';
+  return '<section id="sources"><h2>Sources and licences</h2>'+entries.map(e=>'<section><h3>'+esc(e.game)+'</h3>'+renderDataCredits({dataProviders:e.providers,geometryProviders:e.geometry,verbatimNotice:e.notice})+e.providers.filter(p=>p.licence===null && p.note).map(p=>'<p>'+esc(p.note!)+'</p>').join('')+'<p>Refreshed '+esc(e.cadence)+'.</p></section>').join('')+'<p>Icons adapted from '+link({text:'Twemoji',url:'https://github.com/jdecked/twemoji'})+' ('+link({text:'CC BY 4.0',url:'https://github.com/jdecked/twemoji/blob/main/LICENSE-GRAPHICS'})+').</p></section>';
 }
 function credits(config: FooterConfig): string {
   const compact=config.compactProviders?.length ? '<p>Match data from '+config.compactProviders.map(p=>link({text:p.name,url:p.url})).reduce((text,item,i,all)=>text+(i===0?'':i===all.length-1?' and ':', ')+item,'')+

@@ -187,3 +187,7 @@ fields separate dataset attribution from existing artwork credits.
 `renderSources` produces the full provider/licence/cadence section from the same
 records. Pack-owned provider catalog snapshots live in automation/data-sources.json;
 scorewit-ops holds the portfolio reference. Update both in one reviewed change.
+
+A provider with `licence: null` and `licenceUrl: null` renders "used with
+attribution" without asserting a licence. Its optional scope note appears in
+Sources, keeping the compact footer short. An empty licence string remains invalid.
