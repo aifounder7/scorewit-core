@@ -138,7 +138,7 @@ check('canonical labels: all seven sport-first strings pinned (quotes the deck)'
     games: [
       { name: 'World Cup', url: 'https://www.scorewit.com/worldcup', storagePrefix: 'extratime' },
       { name: 'Box-Box', url: 'https://www.scorewit.com/f1', storagePrefix: 'scorewitf1' },
-      { name: 'Footyphoria', url: 'https://www.scorewit.com/footyphoria', storagePrefix: 'topflight' },
+      { name: 'Scorewit Footyphoria', url: 'https://www.scorewit.com/footyphoria', storagePrefix: 'topflight' },
       { name: 'Cover Drive', url: 'https://www.scorewit.com/cricket', storagePrefix: 'coverdrive' },
       { name: 'Hail Mary', url: 'https://www.scorewit.com/gridiron', storagePrefix: 'gridiron' },
       { name: 'Fall Classic', url: 'https://www.scorewit.com/baseball', storagePrefix: 'fallclassic' },
@@ -160,7 +160,7 @@ check('canonical labels: all seven sport-first strings pinned (quotes the deck)'
     '/superover': 'T20 Cricket · India',
   });
   // No pack codename survives to the display layer.
-  for (const codename of ['Box-Box', 'Cover Drive', 'Fall Classic', 'Hail Mary', 'Super Over', 'Footyphoria']) {
+  for (const codename of ['Box-Box', 'Cover Drive', 'Fall Classic', 'Hail Mary', 'Super Over', 'Scorewit Footyphoria']) {
     assert.ok(
       !family.games.some((g: { name: string }) => g.name === codename),
       `codename "${codename}" must not surface`
@@ -173,7 +173,7 @@ check('canonical labels: legacy /topflight configs remain renderable during migr
     heading: 'More Scorewit',
     hub: { url: 'https://www.scorewit.com/', label: 'All games →' },
     games: [
-      { name: 'Footyphoria', url: 'https://www.scorewit.com/topflight', storagePrefix: 'topflight' },
+      { name: 'Scorewit Footyphoria', url: 'https://www.scorewit.com/topflight', storagePrefix: 'topflight' },
     ],
   };
   const html = renderAppHtml(cfg(legacy));
