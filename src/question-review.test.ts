@@ -12,7 +12,7 @@ function run(hash:string,questions:any[]){
  vm.runInNewContext(QUESTION_REVIEW_JS,{document,location:{hash,pathname:'/f1/',search:''},history:{replaceState:(...v:any[])=>replaces.push(v)},BANK:{questions},URL,window:{addEventListener:(n:string,f:Function)=>listeners[n]=f}});
  return {body,replaces,listeners};
 }
-const q={id:'q:1',text:'<script>synthetic question</script>',revealFact:'Verified fixture fact.',citation:{urls:['https://example.invalid/source'],label:'Fixture source'}};
+const q={id:'q:1',text:'<script>synthetic question</script>',answer:4,unit:'cars',options:['2','4'],revealFact:'Verified fixture fact.',citation:{urls:['https://example.invalid/source'],label:'Fixture source'}};
 const {body,replaces,listeners}=run('#question=q%3A1',[q]);
 assert.equal(body.children.length,1);const dialog=body.children[0];assert.ok(dialog.open);
 assert.ok(dialog.children.some(el=>el.textContent===q.text));assert.ok(dialog.children.some(el=>el.textContent===q.revealFact));
@@ -23,3 +23,6 @@ const missing=run('#question=missing',[q]).body.children[0];assert.ok(missing.ch
 // No storage, scoring, network or history mutation APIs exist in this VM. Opening
 // and closing a reference still succeeds, including unknown and malicious IDs.
 console.log('question reference: read-only, safe text, missing IDs, close and hash navigation passed');
+
+assert.ok(dialog.children.some(el=>el.textContent==='Answer: 4 cars'));
+assert.ok(dialog.children.some(el=>el.textContent==='Choices: 2 · 4'));

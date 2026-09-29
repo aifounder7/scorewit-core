@@ -15,7 +15,9 @@ export const QUESTION_REVIEW_JS = String.raw`
   function line(tag,text){const el=document.createElement(tag);el.textContent=text;dialog.appendChild(el);return el;}
   line('h2','Question reference').id='sw-question-review-title';
   if(q){
-   line('p',q.text);line('p',q.revealFact);
+   line('p',q.text);
+   if(q.options&&q.options.length)line('p','Choices: '+q.options.join(' · '));
+   line('p','Answer: '+q.answer+(q.unit?' '+q.unit:''));line('p',q.revealFact);
    const source=q.citation&&q.citation.urls&&q.citation.urls[0];
    try{const u=new URL(source);if(u.protocol==='https:'){const a=line('a',q.citation.label||'Source');a.href=u.href;a.target='_blank';a.rel='noopener noreferrer';}}catch{}
   }else line('p','This question is no longer in the current question bank. Its reference is preserved below for review.');
