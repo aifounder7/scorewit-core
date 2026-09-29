@@ -108,3 +108,7 @@ assert.ok(legalSeoPages(true)[0].bodyHtml.includes("<h2>Feedback</h2>"));
 console.log(
   "feedback: disabled parity, valid generated JS, entry hooks, copy and private payload guards pass",
 );
+
+const privacy=legalSeoPages(true)[0].bodyHtml.split('<h2>Feedback</h2>')[1].split('</p>')[0];
+assert.ok(privacy.includes('Submissions are delivered to our mailbox.'));
+assert.ok(privacy.replace(/<[^>]*>/g,'').trim().split(/\s+/).length<120);

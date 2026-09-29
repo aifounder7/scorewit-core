@@ -1,3 +1,4 @@
+import { QUESTION_REVIEW_JS } from './question-review';
 import { feedbackPage, feedbackScript, type FeedbackConfig } from './feedback';
 import { nativeWidgetUpdate, widgetState } from '../widget-state';
 import { NOTIFICATION_BADGE } from './notification-badge';
@@ -1132,7 +1133,7 @@ document.querySelectorAll('#tabs .tab').forEach(t=>{t.onclick=()=>{setMode(t.dat
 start();
 const initialMode=modeForPath(location.pathname);
 if(initialMode!=='daily')setMode(initialMode);
-syncRoute(initialMode,false);
+syncRoute(initialMode,false);__QUESTIONREVIEW__
 </script>
 </body>
 </html>`;
@@ -2049,6 +2050,7 @@ function buildShareText(streak){
     .replace('function setMode(m){',cfg.feedback?.enabled ? 'function setMode(m){window.scorewitFeedback.setContext(m==="daily"?{roundDate:currentDailyKey()}:{});' : 'function setMode(m){')
     .replace('function renderPractice(){',cfg.feedback?.enabled ? 'function renderPractice(){window.scorewitFeedback.setContext({});' : 'function renderPractice(){')
     .replace('function render(){', (cfg.feedback?.enabled ? 'function render(){window.scorewitFeedback.setContext({roundDate:currentDailyKey()});' : 'function render(){'))
+    .split('__QUESTIONREVIEW__').join(cfg.feedback?.enabled ? QUESTION_REVIEW_JS : '')
     .split('__FEEDBACKREPORT_MDREV__').join(cfg.feedback?.enabled ? 'window.scorewitFeedback.report(document.querySelector("#mdrev .fact"),q.id);' : '')
     .split('__FEEDBACKREPORT_TREVEAL__').join(cfg.feedback?.enabled ? 'window.scorewitFeedback.report(document.querySelector("#treveal .fact"),q.id);' : '')
     .split('__FEEDBACKSTATS__').join(cfg.feedback?.enabled ? 'window.scorewitFeedback.entry(stage);' : '')
