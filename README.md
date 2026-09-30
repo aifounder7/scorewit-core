@@ -205,3 +205,19 @@ the private report archive preserves validator output and the checked pack commi
 Brief 0034 amendment A adds the approved mailbox sentence to Feedback privacy
 copy. Deploy this disclosure and the reference links with the service's mailbox
 rollout. Disabled-feedback output remains byte-identical.
+
+
+## Reminders V2 (brief 0036)
+
+The optional notification renderer uses a labelled switch, autosaving sport chips,
+local off-state preferences and the service's evening timing policy. Pass a
+stable completed Daily round key to scorewitNotify.update(completed, key) so
+re-renders and reloads do not consume additional offers. The shell supplies its
+currentDailyKey. The initial offer ends after three distinct pack/round keys or
+earlier engagement; Stats remains available. NotifyGame.icon is optional text
+provided by the consumer manifest. iOS browsers reuse the existing install guide.
+
+Deploy the compatible evening-policy service before these enabled clients. The
+status response must advertise evening at 18:00 with the matching timing hint.
+Old client POST hours are ignored by that service; hour PATCH is rejected.
+Keep public reminders disabled until the scheduled physical-device gates pass.

@@ -2058,7 +2058,7 @@ function buildShareText(streak){
     .split('__FEEDBACKREPORT_REVEAL__').join(cfg.feedback?.enabled ? 'window.scorewitFeedback.report(document.querySelector("#reveal .fact"),q.id,currentDailyKey());' : '')
     .split('__FEEDBACKREPORT_PREVEAL__').join(cfg.feedback?.enabled ? 'window.scorewitFeedback.report(document.querySelector("#preveal .fact"),q.id);' : '')
     .split('__WIDGETUPDATE__').join(cfg.notificationState ? nativeWidgetUpdate(cfg.notificationState.pack) : '')
-    .split('__NOTIFYUPDATE__').join(cfg.notifications?.enabled ? "window.scorewitNotify.update(mode==='daily'&&!statsOpen&&questions.length>0&&idx>=questions.length);" : '')
+    .split('__NOTIFYUPDATE__').join(cfg.notifications?.enabled ? "window.scorewitNotify.update(mode==='daily'&&!statsOpen&&questions.length>0&&idx>=questions.length,currentDailyKey());" : '')
     .split('__ANALYTICSHEAD__').join(analytics.head)
     .split('__ANALYTICSJS__').join(analytics.js)
     .split('__TRACKSTART__').join(analytics.trackStart)
