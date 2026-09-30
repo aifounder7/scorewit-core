@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
-import { notifyScript, notificationWorker, type NotifyConfig } from './render/notify';
+import { notifyScript, notificationWorker, reminderPage, type NotifyConfig } from './render/notify';
 import { notificationState, validateNotificationState } from './notification-state';
 
 const config: NotifyConfig = { enabled:true,serviceUrl:'https://notify.example',vapidPublicKey:Buffer.alloc(65,4).toString('base64url'),pack:'f1',appVersion:'1.0.0',platforms:['webpush','apns'],games:[{pack:'f1',name:'Racing',path:'/f1',storagePrefix:'racing',icon:'🏎️'},{pack:'worldcup',name:'World Cup',path:'/worldcup',storagePrefix:'soccer',icon:'⚽'}] };
@@ -14,6 +14,9 @@ const privacySource=readFileSync(new URL('./legal.ts',import.meta.url),'utf8').s
 assert.ok(privacySource.replace(/<[^>]+>/g,' ').split(/\s+/).filter(Boolean).length<=280);
 assert.ok(privacySource.includes('We choose the delivery time; you choose the games.'));
 assert.ok(!privacySource.includes('reminder hour'));
+assert.ok(reminderPage(config).includes('id="sw-install-guide"'),'reference page Stats has the same install guide');
+assert.ok(!reminderPage(config,true).includes('id="sw-install-guide"'),'hub reuses its existing guide without duplicate IDs');
+assert.equal(reminderPage({...config,enabled:false}),'');
 class Element {
  children:Element[]=[];textContent='';hidden=false;id='';name='';value='';checked=false;disabled=false;type='';className='';open=false;isConnected=true;autofocus=false;attrs:Record<string,string>={};listeners:Record<string,Function>={};onclick?:()=>Promise<void>|void;
  constructor(public tag:string){}

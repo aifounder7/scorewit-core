@@ -34,7 +34,7 @@ export function renderInstallCard(config: InstallPromoConfig, placement: 'result
 }
 
 /** Plain Safari instructions; no install-success claim or automatic navigation. */
-function renderInstallHelp(appName: string): string {
+export function renderInstallHelp(appName: string): string {
   return `<dialog id="sw-install-guide" class="sw-install-guide" aria-labelledby="sw-install-guide-title"><button type="button" class="sw-install-guide-close" data-install-action="close-guide" aria-label="Close instructions" autofocus>×</button><h2 id="sw-install-guide-title">Add ${esc(appName)} to your Home Screen</h2><ol><li>In Safari, tap Share (the square with an upward arrow). If Share is tucked away, open Safari’s page menu first.</li><li>Choose Add to Home Screen (under View More if shown). If it is missing, use Edit Actions to add it.</li><li>If you see Open as Web App, turn it on, then tap Add.</li></ol><details id="sw-install-browser-help"><summary>Using another browser or app?</summary><p>Open this page in Safari first. Copy the link below and paste it into Safari’s address bar.</p><div id="sw-install-copy-wrap"><label for="sw-install-page-link">Page link</label><input id="sw-install-page-link" type="url" readonly><button type="button" class="sw-install-copy" data-install-action="copy-link">Copy link</button></div><p id="sw-install-copy-status" role="status" aria-live="polite"></p></details><button type="button" class="sw-install-add" data-install-action="done-guide">Done</button></dialog>`;
 }
 
