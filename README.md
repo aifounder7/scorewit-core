@@ -191,3 +191,17 @@ scorewit-ops holds the portfolio reference. Update both in one reviewed change.
 A provider with `licence: null` and `licenceUrl: null` renders "used with
 attribution" without asserting a licence. Its optional scope note appears in
 Sources, keeping the compact footer short. An empty licence string remains invalid.
+
+### Feedback mailbox references
+
+Enabled feedback builds accept `#question=<encoded question ID>` on a game root.
+The fragment opens an accessible, read-only dialog using the current committed
+bank's question and reveal, plus its existing citation. It does not answer a
+question, modify round progress or send a feedback event. Unknown/retired IDs
+show an explicit missing-reference message. IDs stay in the URL fragment rather
+than query strings. This is a current-bank reference, not a historical snapshot;
+the private report archive preserves validator output and the checked pack commit.
+
+Brief 0034 amendment A adds the approved mailbox sentence to Feedback privacy
+copy. Deploy this disclosure and the reference links with the service's mailbox
+rollout. Disabled-feedback output remains byte-identical.
